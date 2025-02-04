@@ -429,6 +429,53 @@ function App() {
     startNewRound();
   };
 
+  // Helper to mimic "Station broken?" button
+  const callStationBroken = useCallback(() => {
+    startNewRound();
+  }, [startNewRound]);
+
+  // Wrap handleAudioError in useCallback
+  const handleAudioError = useCallback((error) => {
+    console.error("Audio Error:", error);
+    
+    // Handle all media error codes
+    if (error.code === 1) { // MEDIA_ERR_ABORTED
+      console.log("Media playback aborted, trying new station...");
+      callStationBroken();
+      return;
+    }
+    
+    // Check for CORS and other errors
+    if (error.message?.includes('CORS') || 
+        error.name === 'SecurityError' || 
+        error.name === 'NotAllowedError' ||
+        error.name === 'NotSupportedError' ||
+        error.code === 2 || // MEDIA_ERR_NETWORK
+        error.code === 3 || // MEDIA_ERR_DECODE
+        error.code === 4    // MEDIA_ERR_SRC_NOT_SUPPORTED
+    ) {
+      console.log("Media error detected, refreshing station...");
+      callStationBroken();
+    }
+  }, [callStationBroken]);
+
+  // Update the useEffect to include handleAudioError in dependencies
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (audioElement) {
+      audioElement.addEventListener('error', (e) => handleAudioError(e.target.error));
+    }
+    return () => {
+      if (audioElement) {
+        audioElement.removeEventListener('error', (e) => handleAudioError(e.target.error));
+        audioElement.pause();
+        if (audioElement.hlsInstance) {
+          audioElement.hlsInstance.destroy();
+        }
+      }
+    };
+  }, [handleAudioError]); // Add handleAudioError to dependencies
+
   /* Globe Material */
   const globeMaterial = useMemo(
     () => new THREE.MeshPhongMaterial({ color: '#03A9F4' }),
@@ -444,6 +491,8 @@ function App() {
       audioRef.current.play().catch((e) => {
         if (!(e.message && e.message.includes("aborted"))) {
           console.error("Audio playback error in toggleAudio:", e);
+          // Automatically fetch a new station on failure
+          callStationBroken();
         }
         // Silently ignore aborted errors.
       });
@@ -460,25 +509,38 @@ function App() {
     }
   };
 
-  // Update game start to include audio setup
+  // Update game start to include better audio setup
   const onGameStart = () => {
     setGameStarted(true);
     startNewRound(); // explicitly start the first round
-    // Start playing audio after a short delay
-    setTimeout(() => {
-      if (audioRef.current && radioStation) {
-        audioRef.current.play()
-          .then(() => {
-            setAudioPlaying(true);
-            setFeedback(""); // Removed "Audio playing" message
-          })
-          .catch(e => {
-            if (!(e.message && e.message.includes("aborted"))) {
-              console.error("Audio playback error:", e);
-            }
-          });
+    
+    // More robust initial audio setup with retries
+    const attemptPlay = (retryCount = 0) => {
+      if (retryCount > 2) {
+        console.log("Failed to play initial audio, trying new station...");
+        callStationBroken();
+        return;
       }
-    }, 100);
+
+      setTimeout(() => {
+        if (audioRef.current && radioStation) {
+          audioRef.current.play()
+            .then(() => {
+              setAudioPlaying(true);
+              setFeedback("");
+            })
+            .catch(() => {  // Removed unused 'e' parameter
+              console.log(`Retry ${retryCount + 1} failed, trying again...`);
+              attemptPlay(retryCount + 1);
+            });
+        } else {
+          // If audio element or station not ready, retry
+          attemptPlay(retryCount + 1);
+        }
+      }, 500); // Increased delay to ensure audio is properly loaded
+    };
+
+    attemptPlay();
   };
 
   return (
@@ -521,7 +583,7 @@ function App() {
           <audio 
             ref={audioRef} 
             style={{ display: 'none' }} 
-            onError={() => {/* Optionally handle error if needed */}}
+            onError={(e) => handleAudioError(e.target.error)}
           />
           {/* Always-visible clickable refresh message */}
           <div 
@@ -708,6 +770,5 @@ function App() {
 }
 
 export default App;
-
 
 
