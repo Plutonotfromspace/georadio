@@ -1,7 +1,14 @@
 import ReactGA from 'react-ga4';
 
 export const initGA = () => {
-  ReactGA.initialize('G-VGWYCEN088');
+  const isProd = window.location.hostname.includes('github.io');
+  ReactGA.initialize('G-VGWYCEN088', {
+    gaOptions: {
+      cookieDomain: isProd ? 'plutonotfromspace.github.io' : 'localhost',
+      cookieFlags: 'SameSite=None;Secure'
+    },
+    debug: !isProd
+  });
 };
 
 export const logPageView = () => {
