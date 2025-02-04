@@ -449,6 +449,7 @@ function App() {
 
   // Wrap handleAudioError in useCallback
   const handleAudioError = useCallback((error) => {
+    if (!error) return; // Guard against null errors
     console.error("Audio Error:", error);
     
     // Handle all media error codes
