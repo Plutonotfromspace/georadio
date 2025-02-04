@@ -6,6 +6,7 @@ import './index.css';
 import './app.css';
 import Hls from 'hls.js';
 import { geoCentroid } from 'd3-geo';
+import { countries } from 'countries-list';
 
 /* Custom Hook: Tracks window's current width & height */
 function useWindowSize() {
@@ -63,12 +64,27 @@ const countryCodeMapping = {
   "894": "zm"
 };
 
+// Build a mapping from lowercased official country names to iso2 codes
+const countryNameToCode = {};
+for (const iso in countries) {
+  const countryName = countries[iso].name.toLowerCase();
+  countryNameToCode[countryName] = iso.toLowerCase();
+}
+
+// Updated getCountryCode function
 const getCountryCode = (feature) => {
   // Use iso_a2 if available and valid
   if (feature.properties?.iso_a2 && feature.properties.iso_a2 !== "-") {
     return feature.properties.iso_a2.toLowerCase();
   }
-  // Fallback to mapping using feature.id
+  // Fallback: use cleaned country name to lookup ISO code from countries-list
+  if (feature.properties?.name) {
+    const cleanedName = feature.properties.name.toLowerCase().trim();
+    if (countryNameToCode[cleanedName]) {
+      return countryNameToCode[cleanedName];
+    }
+  }
+  // Fallback to numeric mapping using feature.id
   if (feature.id && countryCodeMapping[feature.id]) {
     return countryCodeMapping[feature.id];
   }
@@ -137,18 +153,17 @@ function App() {
 
   useEffect(() => {
     async function fetchStationsOnce() {
-      if (allStations.length) return; // already fetched
       try {
-        const res = await fetch('https://de1.api.radio-browser.info/json/stations?limit=2000');
+        const res = await fetch(`${import.meta.env.BASE_URL}stations.json`);
         const stationsData = await res.json();
         setAllStations(stationsData);
-        console.log('DEBUG: All stations initially fetched:', stationsData.length);
+        console.log('DEBUG: Loaded stations from stations.json:', Object.keys(stationsData).length);
       } catch (error) {
-        console.error("Error fetching initial stations:", error);
+        console.error("Error fetching stations from local file:", error);
       }
     }
     fetchStationsOnce();
-  }, [allStations]);
+  }, []);
 
   /* Compute Centroid of a Country */
   const computeCentroid = (feature) => {
@@ -173,7 +188,7 @@ function App() {
 
   /* Start a New Round: Now fetches a random radio station and sets the target country */
   const startNewRound = useCallback(() => {
-    if (!countriesData.length || !allStations.length) return;
+    if (!countriesData.length || !allStations) return;
     
     // Reset audio state first
     setAudioPlaying(false);
@@ -181,8 +196,13 @@ function App() {
       audioRef.current.pause();
     }
     
-    // First, group stations by country
-    const stationsByCountry = allStations.reduce((acc, station) => {
+    // Flatten allStations if it is an object of arrays
+    const stationsArray = Array.isArray(allStations)
+      ? allStations
+      : Object.values(allStations).flat();
+    
+    // Group stations by country from the flattened array
+    const stationsByCountry = stationsArray.reduce((acc, station) => {
       const country = station.country?.toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, "");
@@ -213,8 +233,9 @@ function App() {
     // Then randomly select a station from that country
     const countryStations = stationsByCountry[randomCountry];
     const station = countryStations[Math.floor(Math.random() * countryStations.length)];
-    
-    setRadioStation(station);
+    // Use station.url_resolved if available; otherwise fallback to station.url
+    const stationUrl = station.url_resolved || station.url;
+    setRadioStation({ ...station, url_resolved: stationUrl });
     
     // Find the target country in countriesData
     const target = countriesData.find(
@@ -229,7 +250,7 @@ function App() {
       name: target.properties?.name,
       station: station.name,
       stationCountry: station.country,
-      stationURL: station.url_resolved
+      stationURL: stationUrl
     });
     // ...rest of existing startNewRound function...
     setAttempts(0);
@@ -239,26 +260,33 @@ function App() {
     // Audio setup
     const audioElement = audioRef.current;
     if (audioElement) {
+      // Set crossOrigin to allow cross-origin streaming
+      audioElement.crossOrigin = "anonymous";
       if (audioElement.hlsInstance) {
         audioElement.hlsInstance.destroy();
         audioElement.hlsInstance = null;
       }
-      if (Hls.isSupported() && station.url_resolved.endsWith('.m3u8')) {
+      console.log("DEBUG: Setting up audio source", stationUrl);
+      if (Hls.isSupported() && stationUrl.endsWith('.m3u8')) {
         const hls = new Hls();
-        hls.loadSource(station.url_resolved);
+        hls.loadSource(stationUrl);
         hls.attachMedia(audioElement);
         audioElement.hlsInstance = hls;
       } else {
-        audioElement.src = station.url_resolved;
+        audioElement.src = stationUrl;
       }
+      audioElement.load(); // force reload the audio source
     }
   }, [countriesData, usedCountries, allStations]);
 
-  useEffect(() => {
-    if (countriesData.length > 0 && gameStarted) {
-      startNewRound();
-    }
-  }, [countriesData, gameStarted, startNewRound]);
+  // Remove or comment out the duplicated effect:
+  /*
+  // useEffect(() => {
+  //   if (countriesData.length > 0 && gameStarted) {
+  //     startNewRound();
+  //   }
+  // }, [countriesData, gameStarted, startNewRound]);
+  */
 
   /* Handle Guess - updated with logging and modal check */
   const onPolygonClick = (feature) => {
@@ -435,7 +463,7 @@ function App() {
   // Update game start to include audio setup
   const onGameStart = () => {
     setGameStarted(true);
-    startNewRound();
+    startNewRound(); // explicitly start the first round
     // Start playing audio after a short delay
     setTimeout(() => {
       if (audioRef.current && radioStation) {
@@ -591,10 +619,10 @@ function App() {
                 {guesses.map((guess, index) => (
                   <div key={index} className="guess-item">
                     <img 
-                      src={`https://flagcdn.com/24x18/${guess.countryCode}.png`}
+                      src={`https://flagcdn.com/w80/${guess.countryCode}.png`}  // Changed from w20 to w80
                       alt=""
                       onError={(e) => {
-                        e.target.src = 'https://flagcdn.com/24x18/un.png';
+                        e.target.src = 'https://flagcdn.com/w80/un.png';  // Update fallback too
                         console.log('Flag not found for:', guess);
                       }}
                       className="country-flag"
@@ -656,10 +684,10 @@ function App() {
                       {result.guesses.map((guess, index) => (
                         <div key={index} className="guess-item">
                           <img 
-                            src={`https://flagcdn.com/24x18/${guess.countryCode}.png`}
+                            src={`https://flagcdn.com/w80/${guess.countryCode}.png`}  // Changed from w20 to w80
                             alt=""
                             onError={(e) => {
-                              e.target.src = 'https://flagcdn.com/24x18/un.png';
+                              e.target.src = 'https://flagcdn.com/w80/un.png';  // Update fallback too
                             }}
                             className="country-flag"
                           />
@@ -680,4 +708,6 @@ function App() {
 }
 
 export default App;
+
+
 
