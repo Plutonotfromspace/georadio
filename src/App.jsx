@@ -202,64 +202,117 @@ function App() {
     if (audioRef.current) {
       audioRef.current.pause();
     }
-    
-    // Flatten allStations if it is an object of arrays
-    const stationsArray = Array.isArray(allStations)
-      ? allStations
-      : Object.values(allStations).flat();
-    
-    // Group stations by country from the flattened array
-    const stationsByCountry = stationsArray.reduce((acc, station) => {
-      const country = station.country?.toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, "");
-      if (country) {
-        if (!acc[country]) acc[country] = [];
-        acc[country].push(station);
-      }
-      return acc;
-    }, {});
-  
-    // Get available countries that have stations and aren't used yet
-    const availableCountries = Object.keys(stationsByCountry).filter(country => 
-      countriesData.some(f => 
-        (f.properties?.name || "").toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, "") === country
-      ) && !usedCountries.includes(country)
-    );
-  
-    if (!availableCountries.length) {
-      setFeedback("No more countries available!");
+
+    // 1. Group stations by language first
+    const stationsByLanguage = {};
+    Object.entries(allStations).forEach(([country, stations]) => {
+      stations.forEach(station => {
+        if (!station.language) return;
+        
+        const languages = station.language.toLowerCase().split(/[,\s]+/);
+        languages.forEach(lang => {
+          if (!stationsByLanguage[lang]) {
+            stationsByLanguage[lang] = [];
+          }
+          stationsByLanguage[lang].push({
+            ...station,
+            sourceCountry: country
+          });
+        });
+      });
+    });
+
+    // Log available languages and stations for debugging
+    console.log('DEBUG - Available languages:', Object.keys(stationsByLanguage));
+
+    // 2. Filter out languages with too few stations/countries
+    const validLanguages = Object.entries(stationsByLanguage)
+      .filter(([, stations]) => {
+        const uniqueCountries = new Set(stations.map(s => s.sourceCountry));
+        return stations.length >= 2 && uniqueCountries.size > 0;
+      })
+      .map(([lang]) => lang);
+
+    if (validLanguages.length === 0) {
+      console.error('No valid languages available');
+      setFeedback("No valid stations available!");
       return;
     }
-  
-    // Randomly select a country first
+
+    // 3. Pick random language from valid ones
+    const randomLanguage = validLanguages[Math.floor(Math.random() * validLanguages.length)];
+    const stationsInLanguage = stationsByLanguage[randomLanguage];
+
+    // Log selected language and available countries
+    console.log('DEBUG - Selected language:', randomLanguage);
+
+    // 4. Get available countries that: 
+    // a) Have stations in this language
+    // b) Haven't been used yet
+    const availableCountries = [...new Set(stationsInLanguage.map(s => s.sourceCountry))]
+      .filter(country => !usedCountries.includes(country.toLowerCase()));
+
+    if (!availableCountries.length) {
+      console.error('No available countries for language:', randomLanguage);
+      setFeedback("No more countries available for this language!");
+      return;
+    }
+
+    // Log available countries
+    console.log('DEBUG - Available countries:', availableCountries);
+
+    // 5. Pick random country from those available
     const randomCountry = availableCountries[Math.floor(Math.random() * availableCountries.length)];
     
-    // Then randomly select a station from that country
-    const countryStations = stationsByCountry[randomCountry];
-    const station = countryStations[Math.floor(Math.random() * countryStations.length)];
-    // Use station.url_resolved if available; otherwise fallback to station.url
+    // 6. Find target country in map data
+    const target = countriesData.find(
+      feature => {
+        const featureName = (feature.properties?.name || "").toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, "");
+        const targetName = randomCountry.toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, "");
+        return featureName === targetName;
+      }
+    );
+
+    if (!target) {
+      console.error('Could not find target country in map data:', randomCountry);
+      // Try next country
+      setUsedCountries(prev => [...prev, randomCountry.toLowerCase()]);
+      startNewRound();
+      return;
+    }
+
+    // 7. Get stations for this country and language
+    const eligibleStations = stationsInLanguage.filter(s => 
+      s.sourceCountry === randomCountry
+    );
+
+    if (!eligibleStations.length) {
+      console.error('No eligible stations found for country:', randomCountry);
+      startNewRound();
+      return;
+    }
+
+    // 8. Pick random station from eligible ones
+    const station = eligibleStations[Math.floor(Math.random() * eligibleStations.length)];
     const stationUrl = station.url_resolved || station.url;
     setRadioStation({ ...station, url_resolved: stationUrl });
-    
-    // Find the target country in countriesData
-    const target = countriesData.find(
-      feature =>
-        ((feature.properties?.name || "").toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, "")) === randomCountry
-    );
-    
+
+
     setTargetCountry(target);
     console.log('DEBUG - Target Country:', {
       name: target.properties?.name,
       station: station.name,
-      stationCountry: station.country,
-      stationURL: stationUrl
+      stationCountry: station.sourceCountry,
+      stationURL: stationUrl,
+      language: randomLanguage
     });
-    // ...rest of existing startNewRound function...
+
+    // ...rest of existing startNewRound code...
+
     setAttempts(0);
     // setGuesses([]); // Remove this so guesses remain for display in the round summary
     setFeedback(""); // Removed "Ready for next round" message
