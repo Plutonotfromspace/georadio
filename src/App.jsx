@@ -7,6 +7,7 @@ import './app.css';
 import Hls from 'hls.js';
 import { geoCentroid } from 'd3-geo';
 import { countries } from 'countries-list';
+import { initGA, logEvent, logPageView } from './services/analytics';
 
 /* Custom Hook: Tracks window's current width & height */
 function useWindowSize() {
@@ -113,6 +114,12 @@ function App() {
   const [gameOver, setGameOver] = useState(false);
   const [usedCountries, setUsedCountries] = useState([]);
   const [allStations, setAllStations] = useState([]);
+
+  // Initialize GA when app loads
+  useEffect(() => {
+    initGA();
+    logPageView();
+  }, []);
 
   /* Distance to Color Scale */
   function getColor(distance) {
@@ -331,6 +338,7 @@ function App() {
     };
     
     if (distance < 50) {
+      logEvent('game', 'correct_guess', `Round ${currentRound}: ${targetCountry.properties?.name}`);
       const targetName = targetCountry.properties?.name || targetCountry.id || 'Unknown';
       const baseScore = 5000;
       const roundScore = Math.max(baseScore - ((newAttempts - 1) * 573), 0);
@@ -369,7 +377,9 @@ function App() {
 
   /* Handler to move to the next round */
   const handleNextRound = () => {
+    // ...existing code...
     if (currentRound < 5) {
+      logEvent('game', 'next_round', `Round ${currentRound + 1} started`);
       // Stop current audio before moving to next round
       if (audioRef.current) {
         audioRef.current.pause();
@@ -398,6 +408,7 @@ function App() {
         }
       }, 100);
     } else {
+      logEvent('game', 'game_over', `Final score: ${score}`);
       setShowRoundModal(false);
       setGameOver(true);
     }
@@ -418,6 +429,8 @@ function App() {
 
   /* Handler to restart the entire game */
   const playAgain = () => {
+    // ...existing code...
+    logEvent('game', 'replay', 'Game replayed');
     setCurrentRound(1);
     setRoundResults([]);
     setGameOver(false);
@@ -511,6 +524,8 @@ function App() {
 
   // Update game start to include better audio setup
   const onGameStart = () => {
+    // ...existing code...
+    logEvent('game', 'start', 'New game started');
     setGameStarted(true);
     startNewRound(); // explicitly start the first round
     
