@@ -498,53 +498,36 @@ function App() {
   // Helper to mimic "Station broken?" button
   const saveBrokenStation = async (station) => {
     try {
-      const response = await fetch(`${import.meta.env.BASE_URL}api/broken-station`, {
+      // Log to analytics silently
+      logEvent('station', 'broken', `${station.name} (${station.country}) - ${station.url_resolved}`);
+
+      // Append to broken-stations.json via backend API
+      const report = {
+        name: station.name,
+        country: station.country, 
+        url: station.url_resolved,
+        language: station.language,
+        timestamp: new Date().toISOString()
+      };
+
+      // Fire and forget - don't await or handle response
+      fetch('/api/broken-station', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: station.name,
-          country: station.country,
-          url: station.url_resolved,
-          language: station.language,
-          timestamp: new Date().toISOString()
-        })
-      });
-      return response.ok;
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(report)
+      }).catch(() => {}); // Silently ignore any errors
     } catch (err) {
-      console.error('Failed to save broken station report:', err);
-      return false;
+      // Silently continue even if reporting fails
+      console.debug('Failed to report broken station:', err);
     }
   };
 
-  // Modify callStationBroken
+  // Modify callStationBroken to be simpler
   const callStationBroken = useCallback(() => {
     if (radioStation) {
-      // Log to analytics
-      logEvent('station', 'broken', `${radioStation.name} (${radioStation.country})`);
-  
-      // Save broken station report
-      saveBrokenStation(radioStation).then(success => {
-        if (!success) {
-          // Fallback to GitHub issue if API fails
-          const issueTitle = encodeURIComponent(`Broken Station: ${radioStation.name}`);
-          const issueBody = encodeURIComponent(
-            `Station Details:\n` +
-            `- Name: ${radioStation.name}\n` +
-            `- Country: ${radioStation.country}\n` +
-            `- URL: ${radioStation.url_resolved}\n` +
-            `- Language: ${radioStation.language}\n` +
-            `- Time Reported: ${new Date().toISOString()}\n`
-          );
-          
-          const issueURL = `https://github.com/plutonotfromspace/georadio/issues/new?title=${issueTitle}&body=${issueBody}&labels=broken-station`;
-          window.open(issueURL, '_blank');
-        }
-      });
+      saveBrokenStation(radioStation);
     }
-    
-    startNewRound();
+    startNewRound(); // Just get a new station immediately
   }, [radioStation, startNewRound]);
 
   // Wrap handleAudioError in useCallback
