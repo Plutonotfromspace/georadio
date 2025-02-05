@@ -496,39 +496,9 @@ function App() {
   };
 
   // Helper to mimic "Station broken?" button
-  const saveBrokenStation = async (station) => {
-    try {
-      // Log to analytics silently
-      logEvent('station', 'broken', `${station.name} (${station.country}) - ${station.url_resolved}`);
-
-      // Append to broken-stations.json via backend API
-      const report = {
-        name: station.name,
-        country: station.country, 
-        url: station.url_resolved,
-        language: station.language,
-        timestamp: new Date().toISOString()
-      };
-
-      // Fire and forget - don't await or handle response
-      fetch('/api/broken-station', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(report)
-      }).catch(() => {}); // Silently ignore any errors
-    } catch (err) {
-      // Silently continue even if reporting fails
-      console.debug('Failed to report broken station:', err);
-    }
-  };
-
-  // Modify callStationBroken to be simpler
   const callStationBroken = useCallback(() => {
-    if (radioStation) {
-      saveBrokenStation(radioStation);
-    }
-    startNewRound(); // Just get a new station immediately
-  }, [radioStation, startNewRound]);
+    startNewRound();
+  }, [startNewRound]);
 
   // Wrap handleAudioError in useCallback
   const handleAudioError = useCallback((error) => {

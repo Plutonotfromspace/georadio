@@ -5,7 +5,6 @@ import { countries, languages } from 'countries-list';
 const BASE_URL = "https://de1.api.radio-browser.info/json";
 const OUTPUT_FILE = "stations.json";
 const STATIONS_PER_COUNTRY = 25;
-const BROKEN_STATIONS_FILE = "broken-stations.json";
 
 /** 
  * Keywords typically associated with English or Anglo pop music.
@@ -245,22 +244,6 @@ function pickWeightedStationsForCountry(cc, stationList) {
 }
 
 /**
- * Load broken stations from file
- */
-function loadBrokenStations() {
-  try {
-    if (fs.existsSync(BROKEN_STATIONS_FILE)) {
-      const data = fs.readFileSync(BROKEN_STATIONS_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.error("Failed to generate station list:", err.message);
-    console.warn("No broken stations file found, creating new one");
-  }
-  return {};
-}
-
-/**
  * Main function that:
  * - Filters out English music from non-English countries
  * - Does a weighted language distribution
@@ -268,19 +251,12 @@ function loadBrokenStations() {
  */
 function pickUpTo25PerCountry(grouped) {
   const finalData = {};
-  const brokenStations = loadBrokenStations();
 
   for (const [cc, stationList] of Object.entries(grouped)) {
     if (!stationList.length) continue;
 
-    // Filter out broken stations
-    const workingStations = stationList.filter(st => {
-      const stationKey = `${st.name}-${st.country}-${st.url}`;
-      return !brokenStations[stationKey];
-    });
-
     // Filter out English music for non-English countries
-    const filteredMusic = filterStationsByMusicLanguage(workingStations, cc);
+    const filteredMusic = filterStationsByMusicLanguage(stationList, cc);
 
     // Weighted station picking
     const chosen = pickWeightedStationsForCountry(cc, filteredMusic);
