@@ -93,6 +93,72 @@ const getCountryCode = (feature) => {
   return 'un';
 };
 
+// NEW: Define stop words common in country names
+const stopWords = new Set([
+  "the", "of", "state", "federation", "republic", "democratic", "peoples"
+]);
+
+// UPDATED: Helper function to tokenize a name and remove stop words
+const tokenize = (name) => {
+  return name
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/\s+/)
+    .filter(token => token && !stopWords.has(token));
+};
+
+// NEW: Simple Levenshtein implementation
+const levenshtein = (a, b) => {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  const matrix = [];
+  for (let i = 0; i <= m; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= n; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return matrix[m][n];
+};
+
+// NEW: Determine if two tokens essentially equal each other
+const tokensEqual = (a, b) => {
+  if (a === b) return true;
+  const dist = levenshtein(a, b);
+  return dist / Math.min(a.length, b.length) < 0.4;
+};
+
+// NEW: Robust match function based on token comparison
+const robustCountryMatch = (nameA, nameB, threshold = 0.5) => {
+  const tokensA = tokenize(nameA);
+  const tokensB = tokenize(nameB);
+  if (!tokensA.length || !tokensB.length) return false;
+  // Count one-to-one token matches
+  let matchCount = 0;
+  const used = new Set();
+  tokensA.forEach(tokenA => {
+    tokensB.forEach((tokenB, idx) => {
+      if (!used.has(idx) && tokensEqual(tokenA, tokenB)) {
+        matchCount++;
+        used.add(idx);
+      }
+    });
+  });
+  return (matchCount / Math.max(tokensA.length, tokensB.length)) >= threshold;
+};
+
 function App() {
   const { width, height } = useWindowSize();
   const globeEl = useRef();
@@ -116,6 +182,7 @@ function App() {
   const [allStations, setAllStations] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const isMobile = width <= 768; // Add this line to detect mobile
+  const [usedLanguages, setUsedLanguages] = useState(new Set()); // Add this new state
 
   // Initialize GA when app loads
   useEffect(() => {
@@ -235,14 +302,23 @@ function App() {
       })
       .map(([lang]) => lang);
 
-    if (validLanguages.length === 0) {
+    // NEW: Filter out used languages unless all languages have been used
+    let availableLanguages = validLanguages.filter(lang => !usedLanguages.has(lang));
+    if (availableLanguages.length === 0) {
+      // If all languages used, reset and use all languages
+      availableLanguages = validLanguages;
+      setUsedLanguages(new Set());
+      console.log('DEBUG - All languages used, resetting language pool');
+    }
+
+    if (availableLanguages.length === 0) {
       console.error('No valid languages available');
       setFeedback("No valid stations available!");
       return;
     }
 
     // 3. Pick random language from valid ones
-    const randomLanguage = validLanguages[Math.floor(Math.random() * validLanguages.length)];
+    const randomLanguage = availableLanguages[Math.floor(Math.random() * availableLanguages.length)];
     const stationsInLanguage = stationsByLanguage[randomLanguage];
 
     // Log selected language and available countries
@@ -251,8 +327,10 @@ function App() {
     // 4. Get available countries that: 
     // a) Have stations in this language
     // b) Haven't been used yet
-    const availableCountries = [...new Set(stationsInLanguage.map(s => s.sourceCountry))]
-      .filter(country => !usedCountries.includes(country.toLowerCase()));
+    const availableCountries = [...new Set(stationsInLanguage.map(s => 
+      (s.sourceCountry && s.sourceCountry.trim()) || (s.country && s.country.trim())
+    ))]
+      .filter(country => country && !usedCountries.includes(country.toLowerCase()));
 
     if (!availableCountries.length) {
       console.error('No available countries for language:', randomLanguage);
@@ -269,19 +347,25 @@ function App() {
     // 6. Find target country in map data
     const target = countriesData.find(
       feature => {
-        const featureName = (feature.properties?.name || "").toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, "");
-        const targetName = randomCountry.toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, "");
-        return featureName === targetName;
+        const featureName = feature.properties?.name || "";
+        return robustCountryMatch(featureName, randomCountry);
       }
     );
 
     if (!target) {
       console.error('Could not find target country in map data:', randomCountry);
-      // Try next country
+      // Debugging: Log normalized station country and all normalized map country names
+      const normalizedStationName = randomCountry.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+      const normalizedMapCountries = countriesData.map(feature => ({
+        name: feature.properties?.name,
+        normalized: (feature.properties?.name || "").toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, "")
+      }));
+      console.debug('Normalized station country:', normalizedStationName);
+      console.debug('Normalized map countries:', normalizedMapCountries);
+      
+      // Mark this country as used and try another
       setUsedCountries(prev => [...prev, randomCountry.toLowerCase()]);
       startNewRound();
       return;
@@ -339,7 +423,7 @@ function App() {
       }
       audioElement.load(); // force reload the audio source
     }
-  }, [countriesData, usedCountries, allStations]);
+  }, [countriesData, usedCountries, allStations, usedLanguages]);
 
   // Remove or comment out the duplicated effect:
   /*
@@ -436,6 +520,17 @@ function App() {
       if (stationCountry && !usedCountries.includes(stationCountry)) {
         console.log('DEBUG: Marking correct country used:', stationCountry);
         setUsedCountries((prev) => [...prev, stationCountry]);
+      }
+
+      // Mark the language as used when correctly guessed
+      if (radioStation?.language) {
+        const languages = radioStation.language.toLowerCase().split(/[,\s]+/);
+        setUsedLanguages(prev => {
+          const newSet = new Set(prev);
+          languages.forEach(lang => newSet.add(lang));
+          return newSet;
+        });
+        console.log('DEBUG - Marking language as used:', radioStation.language);
       }
     }
     
@@ -631,6 +726,50 @@ function App() {
 
     attemptPlay();
   };
+
+  // Debug useEffect to test station-country mappings in development mode
+  useEffect(() => {
+    if (import.meta.env.MODE === 'development' && countriesData.length && Object.keys(allStations).length) {
+      const stationCountries = new Set();
+      Object.values(allStations).forEach((stations) => {
+        stations.forEach(station => {
+          /* Use trimmed values to ignore empty strings */
+          const src = (station.sourceCountry && station.sourceCountry.trim()) || (station.country && station.country.trim());
+          if (src) {
+            station.sourceCountry = src;
+            stationCountries.add(src);
+          } else {
+            console.error('Station missing sourceCountry and country:', station);
+          }
+        });
+      });
+
+      stationCountries.forEach(sc => {
+        if (!sc) return; // Extra safeguard
+        const found = countriesData.find(feature => {
+          const featureName = feature.properties?.name || "";
+          return robustCountryMatch(featureName, sc);
+        });
+        if (!found) {
+          console.error('No match for station country:', sc, { tokens: tokenize(sc) });
+        } else {
+          console.log('Match found for station country:', sc);
+        }
+      });
+    }
+  }, [countriesData, allStations]);
+
+  // New debugging: Log normalized globe names for each feature
+  useEffect(() => {
+    if (countriesData.length) {
+      console.debug('DEBUG - Globe country tokens:');
+      countriesData.forEach(feature => {
+        const originalName = feature.properties?.name || '';
+        const tokens = tokenize(originalName);
+        console.log({ originalName, tokens });
+      });
+    }
+  }, [countriesData]);
 
   return (
     <div className="globe-container">
