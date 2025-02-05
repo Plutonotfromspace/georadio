@@ -8,6 +8,8 @@ import Hls from 'hls.js';
 import { geoCentroid } from 'd3-geo';
 import { countries } from 'countries-list';
 import { initGA, logEvent, logPageView } from './services/analytics';
+// NEW: Import confetti animation library
+import confetti from 'canvas-confetti';
 
 /* Custom Hook: Tracks window's current width & height */
 function useWindowSize() {
@@ -169,6 +171,9 @@ function App() {
   const [targetCountry, setTargetCountry] = useState(null);
   const [attempts, setAttempts] = useState(0);
   const [score, setScore] = useState(0);
+  // NEW: Animated score state for score animation effect.
+  const [animatedScore, setAnimatedScore] = useState(0);
+  // NEW: Holds the id of the correctly guessed country to highlight it.
   const [feedback, setFeedback] = useState('');
   const [radioStation, setRadioStation] = useState(null);
   const [gameStarted, setGameStarted] = useState(false);
@@ -183,6 +188,9 @@ function App() {
   const [selectedCountry, setSelectedCountry] = useState(null);
   const isMobile = width <= 768; // Add this line to detect mobile
   const [usedLanguages, setUsedLanguages] = useState(new Set()); // Add this new state
+  // Add new state for correct guess
+  const [correctGuess, setCorrectGuess] = useState(false);
+  const [continueFading, setContinueFading] = useState(false);
 
   // Initialize GA when app loads
   useEffect(() => {
@@ -261,16 +269,30 @@ function App() {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
+  // NEW: Animate score change using requestAnimationFrame.
+  useEffect(() => {
+    let start = animatedScore;
+    let end = score;
+    let startTime = null;
+    const duration = 1000; // 1 second animation
+    function animate(time) {
+      if (!startTime) startTime = time;
+      const progress = Math.min((time - startTime) / duration, 1);
+      const current = Math.floor(start + (end - start) * progress);
+      setAnimatedScore(current);
+      if (progress < 1) requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [score]);
 
   /* Start a New Round: Now fetches a random radio station and sets the target country */
   const startNewRound = useCallback(() => {
     if (!countriesData.length || !allStations) return;
     
-    // Reset audio state first
+    // Reset states including correctGuess
+    setCorrectGuess(false);
     setAudioPlaying(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
 
     // 1. Group stations by language first
     const stationsByLanguage = {};
@@ -491,12 +513,40 @@ function App() {
       countryCode: getCountryCode(feature)
     };
     
-    if (distance < 50) {
+    if (distance < 10) { // changed threshold from 50 to 10
+      const targetCentroid = computeCentroid(targetCountry);
+      // Auto rotate globe view to center on correct country
+      if (globeEl.current) {
+        globeEl.current.pointOfView(
+          { lat: targetCentroid.lat, lng: targetCentroid.lon, altitude: 0.1 }, // changed altitude for zoom
+          2000
+        );
+      }
+      // Stop radio station immediately
+      if (audioRef.current) {
+        audioRef.current.pause();
+        setAudioPlaying(false);
+      }
+
+      // Play success sound and show confetti
+      successSound.currentTime = 0;
+      successSound.play().catch(err => console.log('Audio play failed:', err));
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      // Play success sound
+      successSound.currentTime = 0; // Reset sound to start
+      successSound.play().catch(err => console.log('Audio play failed:', err));
+      // Remove the setTimeout and add animation class
+      document.querySelector('.audio-player').classList.add('flip-out');
+      // Show the continue button with flip-in animation after audio player flips out
+      setTimeout(() => {
+        document.querySelector('.continue-button').classList.add('flip-in');
+      }, 500);
+      // Existing correct guess handling...
       logEvent('game', 'correct_guess', `Round ${currentRound}: ${targetCountry.properties?.name}`);
       const targetName = targetCountry.properties?.name || targetCountry.id || 'Unknown';
       const baseScore = 5000;
       const roundScore = Math.max(baseScore - ((newAttempts - 1) * 573), 0);
-      newFeedback = `Correct! The target was ${targetName}.`;
+      newFeedback = ""; // Clear any existing feedback instead
       updatedScore += roundScore;
       // Store full round result including station details and guesses (including current guess)
       setRoundResults([
@@ -511,9 +561,6 @@ function App() {
           guesses: [...guesses, newGuess]
         }
       ]);
-      
-      // Delay showing modal
-      setTimeout(() => setShowRoundModal(true), 0);
   
       const stationCountry = radioStation?.country
         ?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
@@ -532,6 +579,17 @@ function App() {
         });
         console.log('DEBUG - Marking language as used:', radioStation.language);
       }
+      // When guess is correct, set correctGuess to true
+      setCorrectGuess(true);
+      if (globeEl.current) {
+        // Offset to the left: subtract from the target country's longitude
+        const cameraOffset = {
+          lat: targetCentroid.lat,
+          lng: targetCentroid.lon - 1, // adjust offset as needed
+          altitude: 1.0
+        };
+        globeEl.current.pointOfView(cameraOffset, 2000);
+      }
     }
     
     setAttempts(newAttempts);
@@ -545,8 +603,28 @@ function App() {
 
   /* Handler to move to the next round */
   const handleNextRound = () => {
-    // ...existing code...
+    setContinueFading(false);
     if (currentRound < 5) {
+      // Reset the animation classes
+      const audioPlayer = document.querySelector('.audio-player');
+      const continueButton = document.querySelector('.continue-button');
+      
+      audioPlayer.classList.remove('flip-out');
+      continueButton.classList.remove('flip-in');
+      
+      // Force a reflow to reset animations
+      void audioPlayer.offsetWidth;
+      
+      // Reset globe to default view
+      if (globeEl.current) {
+        globeEl.current.pointOfView(
+          { lat: 0, lng: 0, altitude: 2.5 }, // default zoomed out position
+          2000 // animation duration
+        );
+      }
+      
+      setCorrectGuess(false);
+      // ...existing code...
       logEvent('game', 'next_round', `Round ${currentRound + 1} started`);
       // Stop current audio before moving to next round
       if (audioRef.current) {
@@ -575,6 +653,11 @@ function App() {
             });
         }
       }, 100);
+      // Flip in audio player - only when continuing to next round
+      audioPlayer.classList.add('flip-in-reset');
+      setTimeout(() => {
+        audioPlayer.classList.remove('flip-in-reset');
+      }, 500);
     } else {
       logEvent('game', 'game_over', `Final score: ${score}`);
       setShowRoundModal(false);
@@ -597,7 +680,15 @@ function App() {
 
   /* Handler to restart the entire game */
   const playAgain = () => {
-    // ...existing code...
+    // Reset globe to default position
+    if (globeEl.current) {
+      globeEl.current.pointOfView(
+        { lat: 0, lng: 0, altitude: 2.5 }, // default zoomed out position
+        2000 // animation duration
+      );
+    }
+
+    // ...existing playAgain code...
     logEvent('game', 'replay', 'Game replayed');
     setCurrentRound(1);
     setRoundResults([]);
@@ -608,6 +699,15 @@ function App() {
     setGuesses([]);
     setUsedCountries([]); // Clear used countries for a fresh start
     startNewRound();
+    // Reset audio player animations
+    const audioPlayer = document.querySelector('.audio-player');
+    if (audioPlayer) {
+      audioPlayer.classList.remove('flip-out');
+      audioPlayer.classList.add('flip-in-reset');
+      setTimeout(() => {
+        audioPlayer.classList.remove('flip-in-reset');
+      }, 500);
+    }
   };
 
   // Helper to mimic "Station broken?" button
@@ -617,6 +717,10 @@ function App() {
 
   // Wrap handleAudioError in useCallback
   const handleAudioError = useCallback((error) => {
+    if (error?.code === 1) {
+      setFeedback('Audio aborted or blocked. Please try another station or allow audio.');
+      // ...any additional logic...
+    }
     if (!error) return; // Guard against null errors
     console.error("Audio Error:", error);
     
@@ -771,15 +875,32 @@ function App() {
     }
   }, [countriesData]);
 
+  // NEW: Handle continue button click with fade out animation then open modal
+  const handleContinue = () => {
+    setContinueFading(true);
+    setTimeout(() => {
+      setShowRoundModal(true);
+      // Removed: setContinueFading(false);
+    }, 500); // duration matches CSS transition timing
+  };
+
+  // Add success sound effect with lower volume
+  const successSound = useMemo(() => {
+    const audio = new Audio(`${import.meta.env.BASE_URL}audio/success.mp3`);
+    audio.volume = 0.1; // Set volume to 30%
+    return audio;
+  }, []);
+
   return (
     <div className="globe-container">
       {/* Game Overlay UI */}
       <div className="overlay">
-        <h1>GeoRadio</h1>
+        {/* Remove the h1 title */}
         <div className="stats-container">
           <div className="stat-item">
             <span className="stat-label">SCORE</span>
-            <span className="stat-value">{score}</span>
+            {/* UPDATED: Use animatedScore for smooth score transition */}
+            <span className="stat-value">{animatedScore}</span>
           </div>
           <div className="stat-divider"></div>
           <div className="stat-item">
@@ -833,7 +954,7 @@ function App() {
         polygonsData={countriesData}
         polygonCapColor={(d) => {
           const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
-          // Handle guesses first
+          // ...existing guess color logic...
           const guess = guesses.find((g) => g.id === polygonId);
           if (guess) return guess.color;
           
@@ -843,8 +964,24 @@ function App() {
           // Default color for all other cases
           return '#4CAF50';
         }}
-        polygonSideColor={() => 'rgba(76, 175, 80, 0.3)'}
-        polygonStrokeColor={() => '#388E3C'}
+        polygonStrokeColor={d => {
+          if (correctGuess && targetCountry && d.id === targetCountry.id) {
+            return '#000000';  // black stroke for correct country
+          }
+          return '#388E3C';  // default green stroke for other countries
+        }}
+        polygonSideColor={d => {
+          if (correctGuess && targetCountry && d.id === targetCountry.id) {
+            return "#000000";  // solid color for sides when correct
+          }
+          return "rgba(76, 175, 80, 0.1)";  // very light transparency for other countries
+        }}
+        polygonAltitude={d => {
+          if (correctGuess && targetCountry && d.id === targetCountry.id) {
+            return 0.02;  // extrude correct country
+          }
+          return 0.01;  // slight elevation for all countries to show borders
+        }}
         polygonLabel={(d) => isMobile ? null : `
           <span style="
             font-size: 18px; 
@@ -868,6 +1005,16 @@ function App() {
           onClick={() => handleConfirmGuess()}
         >
           Confirm {selectedCountry.properties?.name}
+        </button>
+      )}
+
+      {/* Add new continue button (initially hidden) */}
+      {correctGuess && (
+        <button 
+          className={`continue-button ${continueFading ? "flip-out" : ""}`}
+          onClick={handleContinue}
+        >
+          Continue
         </button>
       )}
 
