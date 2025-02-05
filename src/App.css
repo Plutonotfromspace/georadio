@@ -405,6 +405,8 @@
     padding: 16px;
     max-height: 90vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   /* Keep other mobile adjustments */
@@ -485,6 +487,8 @@
 
   .guesses-container {
     max-height: 150px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   .guess-item {

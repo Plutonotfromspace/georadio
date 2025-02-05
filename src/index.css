@@ -3,6 +3,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-overflow-scrolling: touch; /* Enable momentum scrolling on iOS */
 }
 
 /* Set full height for app container */
@@ -11,26 +12,21 @@ html, body, #root {
   height: 100%;
   font-family: sans-serif;
   background: linear-gradient(to bottom, #b3e5fc 0%, #fff0d8 100%);
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow-y: auto; /* Change from hidden to auto */
+  overscroll-behavior: none; /* Prevent pull-to-refresh */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Add specific fix for modal scrolling */
+.start-modal {
+  position: fixed; /* Change from absolute to fixed */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @supports (-webkit-touch-callout: none) {
-  /* Fix for iOS Safari 100vh issue */
+  /* iOS specific fix */
   html, body {
     height: -webkit-fill-available;
   }
-}
-
-/* Ensure proper mobile height */
-#root {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-  height: 100%;
 }
