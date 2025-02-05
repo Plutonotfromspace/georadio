@@ -114,6 +114,8 @@ function App() {
   const [gameOver, setGameOver] = useState(false);
   const [usedCountries, setUsedCountries] = useState([]);
   const [allStations, setAllStations] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const isMobile = width <= 768; // Add this line to detect mobile
 
   // Initialize GA when app loads
   useEffect(() => {
@@ -254,7 +256,7 @@ function App() {
 
     if (!availableCountries.length) {
       console.error('No available countries for language:', randomLanguage);
-      setFeedback("No more countries available for this language!");
+      startNewRound(); // Skip current language and try a new station
       return;
     }
 
@@ -353,12 +355,27 @@ function App() {
     if (showRoundModal || gameOver) return;
     if (!targetCountry) return;
     
+    const polygonId = feature.properties?.iso_a2 || feature.properties?.name || feature.id;
+    // If already guessed, ignore
+    if (guesses.some((g) => g.id === polygonId)) return;
+    
+    if (isMobile) {
+      // Mobile: Set as selected country
+      setSelectedCountry({ ...feature, polygonId });
+    } else {
+      // Desktop: Make guess immediately
+      handleConfirmGuess({ ...feature, polygonId });
+    }
+  };
+
+  // Move guess logic to confirmation handler
+  const handleConfirmGuess = (feature = selectedCountry) => {
+    if (!feature) return;
+    
     console.log('DEBUG - Guess:', {
       guessed: feature.properties?.name,
       target: targetCountry.properties?.name
     });
-    
-    if (guesses.some((g) => g.id === feature.id)) return;
   
     const newAttempts = attempts + 1;
     const guessCentroid = computeCentroid(feature);
@@ -383,7 +400,7 @@ function App() {
     
     // Compute new guess before updating round result
     const newGuess = { 
-      id: feature.id, 
+      id: feature.properties?.iso_a2 || feature.properties?.name || feature.id,
       name: guessedName, 
       distance, 
       color: getColor(distance), 
@@ -426,6 +443,9 @@ function App() {
     setScore(updatedScore);
     setFeedback(newFeedback);
     setGuesses(prevGuesses => [...prevGuesses, newGuess]);
+
+    // Clear selection after guess
+    setSelectedCountry(null);
   };
 
   /* Handler to move to the next round */
@@ -672,25 +692,45 @@ function App() {
         globeMaterial={globeMaterial}
         backgroundColor="rgba(0,0,0,0)"
         polygonsData={countriesData}
-        polygonCapColor={(d) => guesses.find((g) => g.id === d.id)?.color || '#4CAF50'}
+        polygonCapColor={(d) => {
+          const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
+          // Handle guesses first
+          const guess = guesses.find((g) => g.id === polygonId);
+          if (guess) return guess.color;
+          
+          // Handle mobile selection only if we have a selected country
+          if (isMobile && selectedCountry?.polygonId === polygonId) return '#ffeb3b';
+          
+          // Default color for all other cases
+          return '#4CAF50';
+        }}
         polygonSideColor={() => 'rgba(76, 175, 80, 0.3)'}
         polygonStrokeColor={() => '#388E3C'}
-        polygonLabel={(d) => `
+        polygonLabel={(d) => isMobile ? null : `
           <span style="
             font-size: 18px; 
             font-weight: bold; 
             font-family: Arial, sans-serif; 
             color: white;
-            padding: 0px; /* Remove padding if not needed */
+            padding: 0px;
             text-align: center;
           ">
             ${d.properties?.name || d.id || 'Unknown'}
           </span>
         `}
-        
         onPolygonClick={onPolygonClick}
         polygonsTransitionDuration={300}
       />
+
+      {/* Only show confirmation button on mobile */}
+      {isMobile && selectedCountry && (
+        <button 
+          className="confirm-button visible"
+          onClick={() => handleConfirmGuess()}
+        >
+          Confirm {selectedCountry.properties?.name}
+        </button>
+      )}
 
       {/* Start modal card overlay */}
       {!gameStarted && (

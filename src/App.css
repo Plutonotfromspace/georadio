@@ -397,3 +397,181 @@
   margin-bottom: 8px;
   color: #666;
 }
+
+/* Mobile-specific styles */
+@media screen and (max-width: 768px) {
+  .modal-card {
+    width: 95%;
+    padding: 16px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Keep other mobile adjustments */
+  .credits-container {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .credits-divider {
+    display: none;
+  }
+
+  /* Audio player adjustments for mobile */
+  .audio-player {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: auto;
+    min-width: 200px;
+    max-width: 95%;
+    padding: 8px 12px;
+    background-color: rgba(0, 0, 0, 0.9);
+    gap: 8px;
+  }
+
+  .audio-btn {
+    min-width: 60px;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  /* Hide instructions text on mobile */
+  .audio-instructions {
+    display: none;
+  }
+
+  /* Compact volume control */
+  .volume-slider {
+    width: 80px;
+    height: 24px;
+  }
+
+  /* Make radio error more compact */
+  .radio-error {
+    font-size: 11px;
+    padding: 4px 6px;
+    white-space: nowrap;
+    margin-left: 4px;
+  }
+
+  /* Stats container adjustments */
+  .stats-container {
+    padding: 4px 8px;
+    gap: 12px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .stat-max {
+    font-size: 14px;
+  }
+
+  /* Round summary adjustments */
+  .summary-card {
+    width: 95%;
+    padding: 16px;
+  }
+
+  .summary-station p {
+    font-size: 14px;
+  }
+
+  .station-link {
+    font-size: 16px;
+  }
+
+  .guesses-container {
+    max-height: 150px;
+  }
+
+  .guess-item {
+    padding: 4px;
+  }
+
+  /* Game over modal adjustments */
+  .final-recap {
+    max-height: 50vh;
+  }
+
+  .round-item {
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  /* Mobile-only confirmation button */
+  .confirm-button {
+    position: fixed;
+    bottom: 100px; /* Position above audio player */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 24px;
+    border: none;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 40;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .confirm-button.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .confirm-button:hover {
+    background-color: #45a049;
+  }
+
+  /* Mobile-only highlighted country styling */
+  .highlighted-country {
+    stroke: #fff !important;
+    stroke-width: 2px !important;
+    filter: brightness(1.2);
+  }
+}
+
+/* Extra small devices */
+@media screen and (max-width: 360px) {
+  /* ...rest of existing extra small styles... */
+  .audio-btn {
+    font-size: 12px;
+    padding: 3px 6px;
+  }
+
+  .audio-instructions {
+    font-size: 10px;
+  }
+
+  .audio-player {
+    min-width: 180px;
+    padding: 6px 10px;
+  }
+
+  .audio-btn {
+    min-width: 50px;
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+
+  .volume-slider {
+    width: 60px;
+  }
+
+  .radio-error {
+    font-size: 10px;
+  }
+
+  .confirm-button {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+}
