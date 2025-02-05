@@ -16,3 +16,21 @@ html, body, #root {
   align-items: center;
   justify-content: center;
 }
+
+@supports (-webkit-touch-callout: none) {
+  /* Fix for iOS Safari 100vh issue */
+  html, body {
+    height: -webkit-fill-available;
+  }
+}
+
+/* Ensure proper mobile height */
+#root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  height: 100%;
+}
