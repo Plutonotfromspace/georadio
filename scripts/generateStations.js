@@ -12,7 +12,9 @@ const STATIONS_PER_COUNTRY = 25;
  */
 const ENGLISH_MUSIC_KEYWORDS = [
   "top 40", "hits", "classic rock", "pop", "alternative",
-  "edm", "rnb", "hip hop", "trap", "house", "rock"
+  "edm", "rnb", "hip hop", "trap", "house", "rock", "european",
+  "american", "british", "english",
+
 ];
 
 /** 
@@ -45,6 +47,33 @@ Object.keys(countries).forEach((cc) => {
   });
   OFFICIAL_LANGUAGES_BY_CC[cc] = langNames;
 });
+
+/**
+ * A helper object if you want to override some country names
+ * from `countries-list` with shorter or more familiar ones.
+ */
+const COUNTRY_NAME_OVERRIDES = {
+  "RU": "Russia",
+  "US": "United States",
+  "GB": "United Kingdom",
+  // Add more if needed...
+};
+
+/**
+ * Return the "world atlas" name of a country based on the ISO code.
+ * If an override is provided, use that; otherwise use the `countries-list` name.
+ * Fallback to the raw code if not found.
+ */
+function getWorldAtlasName(cc) {
+  if (countries[cc]) {
+    if (COUNTRY_NAME_OVERRIDES[cc]) {
+      return COUNTRY_NAME_OVERRIDES[cc];
+    }
+    // e.g. "Russian Federation" if no override is present
+    return countries[cc].name; 
+  }
+  return cc; // fallback if not found
+}
 
 /**
  * 2) Fetch ALL stations in one request (no hidebroken), with high limit.
@@ -248,6 +277,9 @@ function pickWeightedStationsForCountry(cc, stationList) {
  * - Filters out English music from non-English countries
  * - Does a weighted language distribution
  * - Writes up to 25 stations per country to a final JSON
+ *
+ * In this updated version, the finalData keys (and 'country' field)
+ * use the "atlas" name from `countries-list` or an override.
  */
 function pickUpTo25PerCountry(grouped) {
   const finalData = {};
@@ -255,26 +287,30 @@ function pickUpTo25PerCountry(grouped) {
   for (const [cc, stationList] of Object.entries(grouped)) {
     if (!stationList.length) continue;
 
-    // Filter out English music for non-English countries
+    // 1) Filter out English music for non-English countries
     const filteredMusic = filterStationsByMusicLanguage(stationList, cc);
 
-    // Weighted station picking
+    // 2) Weighted station picking
     const chosen = pickWeightedStationsForCountry(cc, filteredMusic);
-
     if (!chosen.length) continue;
 
-    // user-friendly name: .country of first station or cc
-    const friendlyName = chosen[0].country || cc;
+    // 3) Get the name from our "atlas" logic or from countries-list
+    const atlasName = getWorldAtlasName(cc); // e.g. "Russia" if RU => overridden
 
-    finalData[friendlyName] = chosen.map(st => ({
+    // 4) Build final stations, overwriting the 'country' field with atlasName
+    const finalStations = chosen.map(st => ({
       name: st.name,
       url: st.url_resolved,
-      country: st.country,
+      country: atlasName,              // Overwrite with atlas-based name
       countrycode: st.countrycode,
       language: st.language,
       bitrate: st.bitrate
     }));
+
+    // 5) Use the atlasName as the top-level key
+    finalData[atlasName] = finalStations;
   }
+
   return finalData;
 }
 

@@ -161,6 +161,54 @@ const robustCountryMatch = (nameA, nameB, threshold = 0.5) => {
   return (matchCount / Math.max(tokensA.length, tokensB.length)) >= threshold;
 };
 
+// Update DEBUG object to include station functions
+const DEBUG = {
+  setTargetCountry: null,
+  setRadioStation: null,
+  countries: {},
+  stations: {},
+};
+
+// Update debug commands
+window.debugGeoRadio = {
+  forceCountry: (countryName) => {
+    if (!DEBUG.setTargetCountry || !DEBUG.countries[countryName.toLowerCase()]) {
+      console.log('Country not found or game not initialized');
+      return false;
+    }
+
+    const country = DEBUG.countries[countryName.toLowerCase()];
+    const stations = DEBUG.stations[countryName] || [];
+    
+    if (stations.length === 0) {
+      console.log('No stations found for country:', countryName);
+      return false;
+    }
+
+    // Pick random station from country
+    const station = stations[Math.floor(Math.random() * stations.length)];
+    
+    // Set both country and station
+    DEBUG.setTargetCountry(country);
+    DEBUG.setRadioStation(station);
+
+    // NEW: Add the same debug log seen in startNewRound
+    const stationUrl = station.url_resolved || station.url;
+    console.log('DEBUG - Target Country:', {
+      name: country.properties?.name,
+      station: station.name,
+      stationCountry: station.sourceCountry ?? station.country,
+      stationURL: stationUrl,
+      language: station.language ?? 'Unknown'
+    });
+
+    console.log(`Target set to: ${countryName}`);
+    console.log(`Playing station: ${station.name}`);
+    return true;
+  },
+  // ...existing help and listCountries methods...
+};
+
 function App() {
   const { width, height } = useWindowSize();
   const globeEl = useRef();
@@ -891,6 +939,74 @@ function App() {
     return audio;
   }, []);
 
+  // Add this useEffect after countriesData is loaded
+  useEffect(() => {
+    if (countriesData.length) {
+      // Build lookup of normalized country names to features
+      DEBUG.countries = countriesData.reduce((acc, feature) => {
+        const name = feature.properties?.name?.toLowerCase();
+        if (name) {
+          acc[name] = feature;
+        }
+        return acc;
+      }, {});
+
+      // Store reference to function that can change target
+      DEBUG.setTargetCountry = (feature) => {
+        setTargetCountry(feature);
+      };
+    }
+  }, [countriesData]);
+
+  // Update the countriesData useEffect to also store stations
+  useEffect(() => {
+    if (countriesData.length && allStations) {
+      // Build country lookup
+      DEBUG.countries = countriesData.reduce((acc, feature) => {
+        const name = feature.properties?.name?.toLowerCase();
+        if (name) {
+          acc[name] = feature;
+        }
+        return acc;
+      }, {});
+
+      // Store stations lookup
+      DEBUG.stations = allStations;
+
+      // Store setter functions
+      DEBUG.setTargetCountry = (feature) => {
+        setTargetCountry(feature);
+      };
+      
+      DEBUG.setRadioStation = (station) => {
+        const stationUrl = station.url_resolved || station.url;
+        setRadioStation({ ...station, url_resolved: stationUrl });
+        
+        // Setup audio
+        const audioElement = audioRef.current;
+        if (audioElement) {
+          audioElement.pause();
+          audioElement.crossOrigin = "anonymous";
+          if (audioElement.hlsInstance) {
+            audioElement.hlsInstance.destroy();
+            audioElement.hlsInstance = null;
+          }
+          if (Hls.isSupported() && stationUrl.endsWith('.m3u8')) {
+            const hls = new Hls();
+            hls.loadSource(stationUrl);
+            hls.attachMedia(audioElement);
+            audioElement.hlsInstance = hls;
+          } else {
+            audioElement.src = stationUrl;
+          }
+          audioElement.load();
+          audioElement.play().catch(console.error);
+          setAudioPlaying(true);
+        }
+      };
+    }
+  }, [countriesData, allStations]);
+
   return (
     <div className="globe-container">
       {/* Game Overlay UI */}
@@ -1165,5 +1281,4 @@ function App() {
 }
 
 export default App;
-
 
