@@ -20,6 +20,7 @@
     "dotenv": "^16.4.7",
     "hls.js": "^1.5.20",
     "howler": "^2.2.4",
+    "i18n-iso-countries": "^7.13.0",
     "node-fetch": "^3.3.2",
     "prop-types": "^15.8.1",
     "radio-browser": "^2.2.3",

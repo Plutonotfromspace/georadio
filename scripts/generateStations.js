@@ -1,25 +1,36 @@
 import fs from 'fs';
 import axios from 'axios';
 import { countries, languages } from 'countries-list';
+import i18nIsoCountries from 'i18n-iso-countries';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const enLocale = require('i18n-iso-countries/langs/en.json');
+i18nIsoCountries.registerLocale(enLocale);
 
 const BASE_URL = "https://de1.api.radio-browser.info/json";
+const WORLD_ATLAS_URL = "https://unpkg.com/world-atlas@2/countries-110m.json";
 const OUTPUT_FILE = "stations.json";
 const STATIONS_PER_COUNTRY = 25;
 
-/** 
- * Keywords typically associated with English or Anglo pop music.
- * We only filter these for countries WITHOUT "english" in their official language array.
+/**
+ * Build an object { "US": ["english"], "CA": ["english","french"], ... }
+ * from `countries-list`. We'll use this to:
+ * - identify which countries speak English
+ * - do weighted station picking based on the number of official languages
  */
-const ENGLISH_MUSIC_KEYWORDS = [
-  "top 40", "hits", "classic rock", "pop", "alternative",
-  "edm", "rnb", "hip hop", "trap", "house", "rock", "european",
-  "american", "british", "english",
+const OFFICIAL_LANGUAGES_BY_CC = {};
+Object.keys(countries).forEach((cc) => {
+  const langCodes = countries[cc].languages;
+  const langNames = langCodes.map((code) => {
+    const obj = languages[code];
+    return obj ? obj.name.toLowerCase() : code; // fallback if unknown
+  });
+  OFFICIAL_LANGUAGES_BY_CC[cc] = langNames;
+});
 
-];
-
-/** 
- * Some local genres to prioritize for certain countries (optional).
- * We'll push these up in the list for countries that have them.
+/**
+ * Local genres to prioritize in certain countries (optional).
  */
 const LOCAL_GENRES = {
   "DE": ["schlager", "volksmusik"],
@@ -34,59 +45,93 @@ const LOCAL_GENRES = {
   "CN": ["mandopop"]
 };
 
-/**
- * 1) Build an object { "US": ["english"], "CA": ["english","french"], ... }
- *    from `countries-list`.
+/** 
+ * Keywords typically associated with English or Anglo pop music.
+ * We'll filter these out for countries that do *not* officially speak English.
  */
-const OFFICIAL_LANGUAGES_BY_CC = {};
-Object.keys(countries).forEach((cc) => {
-  const langCodes = countries[cc].languages;
-  const langNames = langCodes.map((code) => {
-    const obj = languages[code];
-    return obj ? obj.name.toLowerCase() : code; // fallback if unknown
-  });
-  OFFICIAL_LANGUAGES_BY_CC[cc] = langNames;
-});
+const ENGLISH_MUSIC_KEYWORDS = [
+  "top 40", "hits", "classic rock", "pop", "alternative",
+  "edm", "rnb", "hip hop", "trap", "house", "rock"
+];
 
 /**
- * A helper object if you want to override some country names
- * from `countries-list` with shorter or more familiar ones.
+ * Weighted distribution for multiple official languages in a country:
+ * - 1 language => 100%
+ * - 2 langs => 90%, 10%
+ * - 3 langs => 80%, 10%, 10%
+ * - 4 langs => 70%, 10%, 10%, 10%
+ * - 5+ langs => 70% main, 30% split equally among the rest
  */
-const COUNTRY_NAME_OVERRIDES = {
-  "RU": "Russia",
-  "US": "United States",
-  "GB": "United Kingdom",
-  // Add more if needed...
-};
+function getLanguageWeights(langs) {
+  const count = langs.length;
+  if (count === 1) return { [langs[0]]: 1.0 };
 
-/**
- * Return the "world atlas" name of a country based on the ISO code.
- * If an override is provided, use that; otherwise use the `countries-list` name.
- * Fallback to the raw code if not found.
- */
-function getWorldAtlasName(cc) {
-  if (countries[cc]) {
-    if (COUNTRY_NAME_OVERRIDES[cc]) {
-      return COUNTRY_NAME_OVERRIDES[cc];
-    }
-    // e.g. "Russian Federation" if no override is present
-    return countries[cc].name; 
+  let mainWeight = 0.7;
+  switch (count) {
+    case 2: mainWeight = 0.9; break;
+    case 3: mainWeight = 0.8; break;
+    case 4: mainWeight = 0.7; break;
+    // For 5 or more, we keep main = 0.7
   }
-  return cc; // fallback if not found
+
+  const weights = {};
+  const mainLang = langs[0];
+  weights[mainLang] = mainWeight;
+
+  const remaining = 1.0 - mainWeight;
+  const otherCount = count - 1;
+  const eachOther = remaining / otherCount;
+
+  for (let i = 1; i < langs.length; i++) {
+    weights[langs[i]] = eachOther;
+  }
+  return weights;
 }
 
 /**
- * 2) Fetch ALL stations in one request (no hidebroken), with high limit.
+ * We’ll build atlasMap[alpha2] = "Country Name" from the world-atlas TopoJSON
+ * (e.g. atlasMap["RU"] = "Russia").
+ */
+const atlasMap = {};
+
+/**
+ * Load the world-atlas data from unpkg, parse the countries geometry,
+ * for each "feature.id" (numeric ISO) do numericToAlpha2 => store in atlasMap
+ */
+async function loadAtlasMap() {
+  console.log(`\nFetching world-atlas data from: ${WORLD_ATLAS_URL}`);
+  const { data } = await axios.get(WORLD_ATLAS_URL);
+
+  if (!data.objects || !data.objects.countries || !data.objects.countries.geometries) {
+    throw new Error("Unexpected format in world-atlas data!");
+  }
+
+  for (const feature of data.objects.countries.geometries) {
+    const numericCode = feature.id;               // e.g. "643"
+    const countryName = feature.properties?.name; // e.g. "Russia"
+    if (!numericCode || !countryName) continue;
+
+    const alpha2 = i18nIsoCountries.numericToAlpha2(numericCode);
+    if (alpha2) {
+      atlasMap[alpha2.toUpperCase()] = countryName; // store uppercase for consistency
+    }
+  }
+
+  console.log(`Built atlasMap with ${Object.keys(atlasMap).length} entries.\n`);
+}
+
+/**
+ * Fetch all stations in one request (limit=500000).
  */
 async function fetchAllStations() {
-  const url = `${BASE_URL}/stations/search?limit=500000`;
+  const url = `${BASE_URL}/stations/search?limit=500000&hidebroken=true`;
   console.log(`\nFetching all stations from: ${url}`);
   const response = await axios.get(url);
   return response.data;
 }
 
 /**
- * 3) Group stations by uppercase country code ("US", "FR", etc.).
+ * Group stations by uppercase country code ("US", "FR", etc.).
  */
 function groupByCountryCode(stations) {
   const grouped = {};
@@ -100,8 +145,7 @@ function groupByCountryCode(stations) {
 }
 
 /**
- * 4) "Rescue" stations from "UNKNOWN" if their .country includes certain keywords
- *    (purely optional).
+ * Rescue stations from "UNKNOWN" if their .country includes certain keywords (optional).
  */
 function reassignUnknownStations(grouped) {
   const unknownList = grouped["UNKNOWN"] || [];
@@ -126,70 +170,40 @@ function reassignUnknownStations(grouped) {
       remainUnknown.push(st);
     }
   }
+
   grouped["UNKNOWN"] = remainUnknown;
   console.log(`Reassigned ${rescuedCount} stations from UNKNOWN -> recognized codes.\n`);
 }
 
 /**
- * Weighted distribution for multiple languages in a country:
- * 1 lang => 100%
- * 2 langs => 90%, 10%
- * 3 langs => 80%, 10%, 10%
- * 4 langs => 70%, 10%, 10%, 10%
- * 5+ langs => 70% main, 30% split among others
- */
-function getLanguageWeights(langs) {
-  const count = langs.length;
-  if (count === 1) return { [langs[0]]: 1.0 };
-
-  let mainWeight = 0.7;
-  switch (count) {
-    case 2: mainWeight = 0.9; break;
-    case 3: mainWeight = 0.8; break;
-    case 4: mainWeight = 0.7; break;
-  }
-
-  const weights = {};
-  const mainLang = langs[0];
-  weights[mainLang] = mainWeight;
-
-  const remaining = 1.0 - mainWeight;
-  const otherCount = count - 1;
-  const eachOther = remaining / otherCount;
-
-  for (let i = 1; i < langs.length; i++) {
-    weights[langs[i]] = eachOther;
-  }
-  return weights;
-}
-
-/**
- * Filter out English music stations IF the country is NOT English-speaking.
- * We'll look at station name, tags, etc.
+ * Filter out English music if the country does NOT officially speak English.
+ * We'll look at station name, tags, etc., matching known English keywords.
  */
 function filterStationsByMusicLanguage(stations, countryCode) {
-  const isEnglishSpeaking = OFFICIAL_LANGUAGES_BY_CC[countryCode]?.includes("english");
+  // If the official languages include "english", then skip these checks:
+  const officialLangs = OFFICIAL_LANGUAGES_BY_CC[countryCode] || [];
+  const isEnglishSpeaking = officialLangs.includes("english");
 
   return stations.filter((station) => {
     if (!station.language || !station.tags) {
-      return false; // missing data
+      return false; // missing data => skip
     }
 
     const stationLang = station.language.toLowerCase();
     const stationTags = station.tags.toLowerCase();
     const stationName = station.name.toLowerCase();
 
-    // If this country DOES speak English officially, skip all these checks:
     if (isEnglishSpeaking) {
+      // If country is English-speaking, don't exclude on English basis
       return true;
     }
 
-    // If NOT English-speaking, exclude stations that mention "english" in tags or language
+    // Exclude if "english" is found in station language or tags
     if (stationLang.includes("english") || stationTags.includes("english")) {
       return false;
     }
 
-    // Exclude stations that might contain known English pop/rock keywords
+    // Exclude if name/tags contain typical English pop/rock keywords
     if (ENGLISH_MUSIC_KEYWORDS.some((kw) => stationName.includes(kw) || stationTags.includes(kw))) {
       return false;
     }
@@ -199,10 +213,10 @@ function filterStationsByMusicLanguage(stations, countryCode) {
 }
 
 /**
- * Sort stations so local genres appear first (for countries that have defined local genres).
+ * Sort stations so local genres appear first (for countries that have them).
  */
-function prioritizeLocalGenres(stations, countryCode) {
-  const localGenres = LOCAL_GENRES[countryCode] || [];
+function prioritizeLocalGenres(stations, cc) {
+  const localGenres = LOCAL_GENRES[cc] || [];
   if (localGenres.length === 0) return stations;
 
   return stations.sort((a, b) => {
@@ -218,68 +232,71 @@ function prioritizeLocalGenres(stations, countryCode) {
 }
 
 /**
- * Pick stations from each language bucket, factoring in the weighting distribution.
- * We'll only keep "exact single language" matches.
+ * For each country, we:
+ *  1) Bucket stations by their single official language (if any).
+ *  2) Use the Weighted distribution to pick from each language bucket.
+ *  3) Fill leftover from the main language bucket if needed.
+ *  4) Return up to 25.
  */
 function pickWeightedStationsForCountry(cc, stationList) {
   const officialLangs = OFFICIAL_LANGUAGES_BY_CC[cc] || [];
   if (officialLangs.length === 0) {
-    // No official data => take the first 25
+    // No official data => just take first 25
     return stationList.slice(0, STATIONS_PER_COUNTRY);
   }
 
-  // Bucket by exact single official language
+  // Create a bucket for each official language
   const buckets = {};
   for (const lang of officialLangs) {
     buckets[lang] = [];
   }
 
+  // Put stations into the correct bucket only if they have EXACTLY 1 language
+  // that matches an official language for the country.
   for (const st of stationList) {
     const splitted = st.language.toLowerCase().split(",").map(s => s.trim());
-    // station must have EXACTLY 1 language that is official
     if (splitted.length === 1 && officialLangs.includes(splitted[0])) {
       buckets[splitted[0]].push(st);
     }
-    // else skip
   }
 
+  // Sort each bucket so local genres appear first
+  for (const lang of officialLangs) {
+    buckets[lang] = prioritizeLocalGenres(buckets[lang], cc);
+  }
+
+  // Weighted distribution
   const weights = getLanguageWeights(officialLangs);
   const selected = [];
 
-  // gather stations based on weights
+  // Gather stations from each language bucket according to the weighting
   for (const lang of officialLangs) {
-    // local genres first
-    const sortedBucket = prioritizeLocalGenres(buckets[lang], cc);
     const portion = Math.floor(weights[lang] * STATIONS_PER_COUNTRY);
-    selected.push(...sortedBucket.slice(0, portion));
+    const subset = buckets[lang].slice(0, portion);
+    selected.push(...subset);
   }
 
-  // fill leftover from main language if needed
+  // If we still have fewer than 25, fill from the "main" language bucket
   let missing = STATIONS_PER_COUNTRY - selected.length;
   if (missing > 0) {
     const mainLang = officialLangs[0];
-    const mainBucket = prioritizeLocalGenres(buckets[mainLang], cc);
-
-    // how many we already took from mainLang
-    const alreadyChosen = selected.filter(s => {
-      return s.language.toLowerCase().trim() === mainLang;
-    }).length;
-
-    const leftover = mainBucket.slice(alreadyChosen);
+    const alreadyChosenCount = selected.filter(
+      (s) => s.language.toLowerCase().trim() === mainLang
+    ).length;
+    const leftover = buckets[mainLang].slice(alreadyChosenCount);
     selected.push(...leftover.slice(0, missing));
   }
 
+  // Return up to 25
   return selected.slice(0, STATIONS_PER_COUNTRY);
 }
 
 /**
- * Main function that:
- * - Filters out English music from non-English countries
- * - Does a weighted language distribution
- * - Writes up to 25 stations per country to a final JSON
- *
- * In this updated version, the finalData keys (and 'country' field)
- * use the "atlas" name from `countries-list` or an override.
+ * This is where we:
+ *  - Filter out English music (for non-English-speaking countries).
+ *  - Do the weighted station picking.
+ *  - Overwrite the final 'country' name with the atlas name from world-atlas (if found).
+ *  - Use that same atlas name as the key in the output JSON.
  */
 function pickUpTo25PerCountry(grouped) {
   const finalData = {};
@@ -288,26 +305,37 @@ function pickUpTo25PerCountry(grouped) {
     if (!stationList.length) continue;
 
     // 1) Filter out English music for non-English countries
-    const filteredMusic = filterStationsByMusicLanguage(stationList, cc);
+    const filtered = filterStationsByMusicLanguage(stationList, cc);
+    if (!filtered.length) continue;
 
     // 2) Weighted station picking
-    const chosen = pickWeightedStationsForCountry(cc, filteredMusic);
+    const chosen = pickWeightedStationsForCountry(cc, filtered);
     if (!chosen.length) continue;
 
-    // 3) Get the name from our "atlas" logic or from countries-list
-    const atlasName = getWorldAtlasName(cc); // e.g. "Russia" if RU => overridden
+    // 3) Atlas-based name lookup (fallback to countries-list or raw cc if missing)
+    //    Example: atlasMap["RU"] = "Russia"
+    let atlasName = atlasMap[cc];
+    if (!atlasName) {
+      // If we didn't find anything in world-atlas for this cc,
+      // fallback to `countries-list` name if present:
+      if (countries[cc]) {
+        atlasName = countries[cc].name; // e.g. "Russian Federation"
+      } else {
+        atlasName = cc; // last fallback
+      }
+    }
 
-    // 4) Build final stations, overwriting the 'country' field with atlasName
+    // 4) Construct final station objects
     const finalStations = chosen.map(st => ({
       name: st.name,
       url: st.url_resolved,
-      country: atlasName,              // Overwrite with atlas-based name
+      country: atlasName,  // Overwrite with atlas-based name
       countrycode: st.countrycode,
       language: st.language,
       bitrate: st.bitrate
     }));
 
-    // 5) Use the atlasName as the top-level key
+    // 5) Place them under finalData[atlasName]
     finalData[atlasName] = finalStations;
   }
 
@@ -315,27 +343,35 @@ function pickUpTo25PerCountry(grouped) {
 }
 
 /**
- * Main entry point
+ * MAIN
  */
 async function main() {
   try {
+    // Step A: Build atlasMap from world-atlas data
+    await loadAtlasMap();
+
+    // Step B: Fetch all radio stations
     console.log("Fetching massive list of all stations...");
     const allStations = await fetchAllStations();
     console.log(`Fetched ${allStations.length} stations.\n`);
 
+    // Step C: Group by country code
     console.log("Grouping by uppercase countrycode...");
     const grouped = groupByCountryCode(allStations);
 
+    // Step D: Reassign some "UNKNOWN" stations if possible
     console.log("Reassigning UNKNOWN stations...");
     reassignUnknownStations(grouped);
 
+    // Step E: Do final picking + filtering + rename to atlas-based name
     console.log("Filtering & picking stations per country...");
     const finalData = pickUpTo25PerCountry(grouped);
 
+    // Step F: Write out JSON
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify(finalData, null, 2));
     console.log(`\n✅ Saved station list to "${OUTPUT_FILE}"\n`);
 
-    // Debug info
+    // Step G: Debug info
     let totalCountries = 0, totalStations = 0;
     console.log("--- Station Counts by Country (finalData) ---");
     for (const [countryName, stations] of Object.entries(finalData)) {
@@ -347,6 +383,7 @@ async function main() {
     console.log(`Total stations in finalData: ${totalStations}\n`);
   } catch (err) {
     console.error("Failed to generate station list:", err.message);
+    console.error(err);
   }
 }
 

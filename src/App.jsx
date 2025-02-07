@@ -95,72 +95,6 @@ const getCountryCode = (feature) => {
   return 'un';
 };
 
-// NEW: Define stop words common in country names
-const stopWords = new Set([
-  "the", "of", "state", "federation", "republic", "democratic", "peoples"
-]);
-
-// UPDATED: Helper function to tokenize a name and remove stop words
-const tokenize = (name) => {
-  return name
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .split(/\s+/)
-    .filter(token => token && !stopWords.has(token));
-};
-
-// NEW: Simple Levenshtein implementation
-const levenshtein = (a, b) => {
-  const m = a.length, n = b.length;
-  if (!m) return n;
-  if (!n) return m;
-  const matrix = [];
-  for (let i = 0; i <= m; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= n; j++) {
-    matrix[0][j] = j;
-  }
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-      );
-    }
-  }
-  return matrix[m][n];
-};
-
-// NEW: Determine if two tokens essentially equal each other
-const tokensEqual = (a, b) => {
-  if (a === b) return true;
-  const dist = levenshtein(a, b);
-  return dist / Math.min(a.length, b.length) < 0.4;
-};
-
-// NEW: Robust match function based on token comparison
-const robustCountryMatch = (nameA, nameB, threshold = 0.5) => {
-  const tokensA = tokenize(nameA);
-  const tokensB = tokenize(nameB);
-  if (!tokensA.length || !tokensB.length) return false;
-  // Count one-to-one token matches
-  let matchCount = 0;
-  const used = new Set();
-  tokensA.forEach(tokenA => {
-    tokensB.forEach((tokenB, idx) => {
-      if (!used.has(idx) && tokensEqual(tokenA, tokenB)) {
-        matchCount++;
-        used.add(idx);
-      }
-    });
-  });
-  return (matchCount / Math.max(tokensA.length, tokensB.length)) >= threshold;
-};
-
 // Update DEBUG object to include station functions
 const DEBUG = {
   setTargetCountry: null,
@@ -239,6 +173,11 @@ function App() {
   // Add new state for correct guess
   const [correctGuess, setCorrectGuess] = useState(false);
   const [continueFading, setContinueFading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  // NEW: Add state for triggering scoreboard animation
+  const [scoreboardAnimationStage, setScoreboardAnimationStage] = useState('');
+  // NEW: State to track when the scoreboard is in the middle
+  const [scoreboardInMiddle, setScoreboardInMiddle] = useState(false);
 
   // Initialize GA when app loads
   useEffect(() => {
@@ -283,6 +222,7 @@ function App() {
       });
   }, []);
 
+  // Modify the stations fetch effect to only store the data
   useEffect(() => {
     async function fetchStationsOnce() {
       try {
@@ -319,20 +259,23 @@ function App() {
 
   // NEW: Animate score change using requestAnimationFrame.
   useEffect(() => {
-    let start = animatedScore;
-    let end = score;
-    let startTime = null;
-    const duration = 1000; // 1 second animation
-    function animate(time) {
-      if (!startTime) startTime = time;
-      const progress = Math.min((time - startTime) / duration, 1);
-      const current = Math.floor(start + (end - start) * progress);
-      setAnimatedScore(current);
-      if (progress < 1) requestAnimationFrame(animate);
-    }
-    requestAnimationFrame(animate);
+    if (scoreboardInMiddle) {
+      let start = animatedScore;
+      let end = score;
+      let startTime = null;
+      const duration = 1000; // 1 second animation
+      function animate(time) {
+        if (!startTime) startTime = time;
+        const progress = Math.min((time - startTime) / duration, 1);
+        const current = Math.floor(start + (end - start) * progress);
+        setAnimatedScore(current);
+        if (progress < 1) requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+    } 
+    /* Removed else branch resetting animatedScore to 0 */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [score]);
+  }, [scoreboardInMiddle, score]);
 
   /* Start a New Round: Now fetches a random radio station and sets the target country */
   const startNewRound = useCallback(() => {
@@ -368,7 +311,7 @@ function App() {
     const validLanguages = Object.entries(stationsByLanguage)
       .filter(([, stations]) => {
         const uniqueCountries = new Set(stations.map(s => s.sourceCountry));
-        return stations.length >= 2 && uniqueCountries.size > 0;
+        return stations.length >= 1 && uniqueCountries.size > 0;
       })
       .map(([lang]) => lang);
 
@@ -396,11 +339,10 @@ function App() {
 
     // 4. Get available countries that: 
     // a) Have stations in this language
-    // b) Haven't been used yet
     const availableCountries = [...new Set(stationsInLanguage.map(s => 
       (s.sourceCountry && s.sourceCountry.trim()) || (s.country && s.country.trim())
     ))]
-      .filter(country => country && !usedCountries.includes(country.toLowerCase()));
+      .filter(country => country);
 
     if (!availableCountries.length) {
       console.error('No available countries for language:', randomLanguage);
@@ -418,7 +360,7 @@ function App() {
     const target = countriesData.find(
       feature => {
         const featureName = feature.properties?.name || "";
-        return robustCountryMatch(featureName, randomCountry);
+        return featureName.toLowerCase() === randomCountry.toLowerCase();
       }
     );
 
@@ -493,7 +435,7 @@ function App() {
       }
       audioElement.load(); // force reload the audio source
     }
-  }, [countriesData, usedCountries, allStations, usedLanguages]);
+  }, [countriesData, allStations, usedLanguages]);
 
   // Remove or comment out the duplicated effect:
   /*
@@ -586,9 +528,6 @@ function App() {
       // Remove the setTimeout and add animation class
       document.querySelector('.audio-player').classList.add('flip-out');
       // Show the continue button with flip-in animation after audio player flips out
-      setTimeout(() => {
-        document.querySelector('.continue-button').classList.add('flip-in');
-      }, 500);
       // Existing correct guess handling...
       logEvent('game', 'correct_guess', `Round ${currentRound}: ${targetCountry.properties?.name}`);
       const targetName = targetCountry.properties?.name || targetCountry.id || 'Unknown';
@@ -744,6 +683,7 @@ function App() {
     setFeedback("");
     setAttempts(0);
     setScore(0);
+    setAnimatedScore(0);
     setGuesses([]);
     setUsedCountries([]); // Clear used countries for a fresh start
     startNewRound();
@@ -765,6 +705,7 @@ function App() {
 
   // Wrap handleAudioError in useCallback
   const handleAudioError = useCallback((error) => {
+    setIsLoading(true); // Keep loading state during error
     if (error?.code === 1) {
       setFeedback('Audio aborted or blocked. Please try another station or allow audio.');
       // ...any additional logic...
@@ -816,67 +757,49 @@ function App() {
     []
   );
 
-  // Custom audio play/pause handler
+  // Updated toggleAudio function
   const toggleAudio = () => {
     if (!audioRef.current) return;
     if (audioPlaying) {
       audioRef.current.pause();
+      setAudioPlaying(false);
     } else {
-      audioRef.current.play().catch((e) => {
-        if (!(e.message && e.message.includes("aborted"))) {
-          console.error("Audio playback error in toggleAudio:", e);
-          // Automatically fetch a new station on failure
-          callStationBroken();
-        }
-        // Silently ignore aborted errors.
-      });
+      setIsLoading(true); // Show spinner before play
+      audioRef.current
+        .play()
+        .then(() => {
+          setIsLoading(false); // Hide spinner once play promise resolves
+          setAudioPlaying(true);
+        })
+        .catch((e) => {
+          if (!(e.message && e.message.includes("aborted"))) {
+            console.error("Audio playback error in toggleAudio:", e);
+            callStationBroken();
+          }
+          setIsLoading(false); // Clear loading on error
+        });
     }
-    setAudioPlaying(!audioPlaying);
   };
 
   // Volume change handler
   const onVolumeChange = (e) => {
     const vol = Number(e.target.value);
-    setVolume(vol);
+    setVolume(vol); // Add this line to update the volume state
     if (audioRef.current) {
       audioRef.current.volume = vol / 100;
     }
   };
 
-  // Update game start to include better audio setup
+  // Update onGameStart to handle game initialization
   const onGameStart = () => {
-    // ...existing code...
     logEvent('game', 'start', 'New game started');
     setGameStarted(true);
-    startNewRound(); // explicitly start the first round
-    
-    // More robust initial audio setup with retries
-    const attemptPlay = (retryCount = 0) => {
-      if (retryCount > 2) {
-        console.log("Failed to play initial audio, trying new station...");
-        callStationBroken();
-        return;
-      }
-
-      setTimeout(() => {
-        if (audioRef.current && radioStation) {
-          audioRef.current.play()
-            .then(() => {
-              setAudioPlaying(true);
-              setFeedback("");
-            })
-            .catch(() => {  // Removed unused 'e' parameter
-              console.log(`Retry ${retryCount + 1} failed, trying again...`);
-              attemptPlay(retryCount + 1);
-            });
-        } else {
-          // If audio element or station not ready, retry
-          attemptPlay(retryCount + 1);
-        }
-      }, 500); // Increased delay to ensure audio is properly loaded
-    };
-
-    attemptPlay();
+    setCurrentRound(1);
+    setScore(0);
+    setAnimatedScore(0);
+    setUsedCountries([]);
+    setUsedLanguages(new Set());
+    startNewRound(); // Only start first round when game starts
   };
 
   // Debug useEffect to test station-country mappings in development mode
@@ -900,10 +823,10 @@ function App() {
         if (!sc) return; // Extra safeguard
         const found = countriesData.find(feature => {
           const featureName = feature.properties?.name || "";
-          return robustCountryMatch(featureName, sc);
+          return featureName.toLowerCase() === sc.toLowerCase();
         });
         if (!found) {
-          console.error('No match for station country:', sc, { tokens: tokenize(sc) });
+          console.error('No match for station country:', sc, { tokens: sc.toLowerCase() });
         } else {
           console.log('Match found for station country:', sc);
         }
@@ -917,7 +840,7 @@ function App() {
       console.debug('DEBUG - Globe country tokens:');
       countriesData.forEach(feature => {
         const originalName = feature.properties?.name || '';
-        const tokens = tokenize(originalName);
+        const tokens = originalName.toLowerCase();
         console.log({ originalName, tokens });
       });
     }
@@ -1007,11 +930,87 @@ function App() {
     }
   }, [countriesData, allStations]);
 
+  // Add loading handler for audio element
+  const handleAudioLoadStart = useCallback(() => {
+    setIsLoading(true);
+  }, []);
+
+  const handleAudioLoadEnd = useCallback(() => {
+    setIsLoading(false);
+  }, []);
+
+  // Update audio element setup
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (audioElement) {
+      audioElement.addEventListener('loadstart', handleAudioLoadStart);
+      audioElement.addEventListener('canplay', handleAudioLoadEnd);
+      audioElement.addEventListener('error', (e) => {
+        handleAudioError(e.target.error);
+      });
+    }
+    return () => {
+      if (audioElement) {
+        audioElement.removeEventListener('loadstart', handleAudioLoadStart);
+        audioElement.removeEventListener('canplay', handleAudioLoadEnd);
+        audioElement.removeEventListener('error', (e) => handleAudioError(e.target.error));
+      }
+    };
+  }, [handleAudioLoadStart, handleAudioLoadEnd, handleAudioError]);
+
+  // NEW: Clear loading spinner when audio is playing
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const handlePlaying = () => {
+      setIsLoading(false);
+    }
+    audio.addEventListener('playing', handlePlaying);
+    return () => {
+      audio.removeEventListener('playing', handlePlaying);
+    };
+  }, [audioRef]);
+
+  // NEW: Trigger scoreboard animation sequence on a correct guess
+  useEffect(() => {
+    if (correctGuess) {
+      // 1. Flip out at top position
+      setScoreboardAnimationStage('flip-out-center');
+      document.querySelector('.audio-player').classList.add('flip-out');
+      
+      // 2. Once flipped out, move to center position and start flip in
+      setTimeout(() => {
+        setScoreboardAnimationStage('centered flip-in-center');
+        
+        setTimeout(() => {
+          setScoreboardInMiddle(true);
+
+          // 3. After being visible in center, flip out
+          setTimeout(() => {
+            setScoreboardAnimationStage('centered flip-out-top');
+            
+            // 4. Once flipped out in center, move back to top and flip in
+            setTimeout(() => {
+              setScoreboardAnimationStage('top flip-in-top');
+              
+              // 5. Only show continue button after scoreboard animation is complete
+              setTimeout(() => {
+                setScoreboardAnimationStage('');
+                setScoreboardInMiddle(false);
+                // Show continue button after everything else is done
+                document.querySelector('.continue-button').classList.add('flip-in');
+              }, 500);
+            }, 500);
+          }, 3000);
+        }, 500);
+      }, 500);
+    }
+  }, [correctGuess]);
+
   return (
     <div className="globe-container">
-      {/* Game Overlay UI */}
-      <div className="overlay">
-        {/* Remove the h1 title */}
+      {/* Updated overlay: apply animation to entire overlay */}
+      <div className={`overlay ${scoreboardAnimationStage}`}>
         <div className="stats-container">
           <div className="stat-item">
             <span className="stat-label">SCORE</span>
@@ -1044,7 +1043,8 @@ function App() {
             onChange={onVolumeChange}
             className="volume-slider"
           />
-          {/* Hidden audio element; onError can remain or be removed */}
+          {/* Add loading indicator */}
+          {isLoading && <div className="loading-spinner"></div>}
           <audio 
             ref={audioRef} 
             style={{ display: 'none' }} 

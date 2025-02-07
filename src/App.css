@@ -171,7 +171,7 @@
   border-radius: 8px;
   padding: 12px 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  gap: 12px;
+  gap: 8px;
   pointer-events: all; /* Change from 'none' to 'all' */
 }
 
@@ -423,7 +423,7 @@
     min-width: 200px;
     max-width: 95%;
     padding: 8px 12px;
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: rgba(0, 0, 0, 9);
     gap: 8px;
     bottom: 20px; /* Adjust to prevent overlap */
     z-index: 35; /* Increase z-index for mobile */
@@ -543,6 +543,22 @@
     padding: 10px 20px;
     z-index: 40; /* Ensure it's above audio player */
   }
+
+  /* Enforce same spinner style as desktop */
+  /* Remove any .loading-spinner rule from here */
+  /* For example, if a spinner override existed, delete or comment it out */
+  /* .loading-spinner { ... } */
+
+  /* Add mobile-specific animation overrides */
+  @keyframes flipInFromCenter {
+    0% { transform: translate(-50%, -50%) rotateX(-90deg) scale(1.5); }
+    100% { transform: translate(-50%, -50%) rotateX(0) scale(1.5); }
+  }
+
+  @keyframes flipOutFromCenter {
+    0% { transform: translate(-50%, -50%) rotateX(0) scale(1.5); }
+    100% { transform: translate(-50%, -50%) rotateX(90deg) scale(1.5); }
+  }
 }
 
 /* Extra small devices */
@@ -579,6 +595,16 @@
   .confirm-button {
     padding: 8px 16px;
     font-size: 13px;
+  }
+
+  @keyframes flipInFromCenter {
+    0% { transform: translate(-50%, -50%) rotateX(-90deg) scale(1.5); }
+    100% { transform: translate(-50%, -50%) rotateX(0) scale(1.5); }
+  }
+
+  @keyframes flipOutFromCenter {
+    0% { transform: translate(-50%, -50%) rotateX(0) scale(1.5); }
+    100% { transform: translate(-50%, -50%) rotateX(90deg) scale(1.5); }
   }
 }
 
@@ -670,3 +696,116 @@
   border-radius: 8px;
 }
 */
+
+/* Move the global loading spinner rule here to enforce consistent style */
+.loading-spinner {
+  width: 20px !important;
+  height: 20px !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  border-top-color: #fff !important;
+  border-radius: 50% !important;
+  margin: 0 8px !important;
+  animation: spin 1s linear infinite !important;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* NEW: Scoreboard animation to center */
+@keyframes flipOutToCenter {
+  0% { transform: translateX(-50%) rotateX(0) scale(1); }
+  100% { transform: translateX(-50%) rotateX(90deg) scale(1); }
+}
+@keyframes flipInFromCenter {
+  0% { transform: translate(-50%, -50%) rotateX(-90deg) scale(var(--scoreboard-scale)); }
+  100% { transform: translate(-50%, -50%) rotateX(0) scale(var(--scoreboard-scale)); }
+}
+/* NEW: Scoreboard animation back to top */
+@keyframes flipOutFromCenter {
+  0% { transform: translate(-50%, -50%) rotateX(0) scale(var(--scoreboard-scale)); }
+  100% { transform: translate(-50%, -50%) rotateX(90deg) scale(var(--scoreboard-scale)); }
+}
+@keyframes flipInToTop {
+  0% { transform: translateX(-50%) rotateX(-90deg) scale(1); }
+  100% { transform: translateX(-50%) rotateX(0) scale(1); }
+}
+
+.flip-out-center {
+  animation: flipOutToCenter 0.5s ease-in-out forwards;
+}
+.flip-in-center {
+  animation: flipInFromCenter 0.5s ease-in-out forwards;
+}
+.flip-out-top {
+  animation: flipOutFromCenter 0.5s ease-in-out forwards;
+}
+.flip-in-top {
+  animation: flipInToTop 0.5s ease-in-out forwards;
+}
+
+/* UPDATED: Separate flips from position changes */
+@keyframes flipOutToCenter {
+  0% { transform: translateX(-50%) rotateX(0) scale(1); }
+  100% { transform: translateX(-50%) rotateX(90deg) scale(1); }
+}
+
+@keyframes flipOutFromCenter {
+  0% { transform: translate(-50%, -50%) rotateX(0) scale(var(--scoreboard-scale)); }
+  100% { transform: translate(-50%, -50%) rotateX(90deg) scale(var(--scoreboard-scale)); }
+}
+
+@keyframes flipInToTop {
+  0% { transform: translateX(-50%) rotateX(-90deg) scale(1); }
+  100% { transform: translateX(-50%) rotateX(0) scale(1); }
+}
+
+/* Class that moves to center immediately when added */
+.centered {
+  top: 50% !important;
+  transition: none !important;
+}
+
+/* Class that moves back to top immediately */
+.top {
+  top: 20px !important;
+  transition: none !important;
+}
+
+.flip-out-center {
+  animation: flipOutToCenter 0.5s ease-in-out forwards;
+}
+.flip-in-center {
+  animation: flipInFromCenter 0.5s ease-in-out forwards;
+}
+.flip-out-top {
+  animation: flipOutFromCenter 0.5s ease-in-out forwards;
+}
+.flip-in-top {
+  animation: flipInToTop 0.5s ease-in-out forwards;
+}
+
+/* NEW: Set default scoreboard scale for desktop */
+:root {
+  --scoreboard-scale: 2.5;
+}
+
+/* Mobile override for scoreboard scale */
+@media screen and (max-width: 768px) {
+  :root {
+    --scoreboard-scale: 0.5;
+  }
+
+  /* ...existing mobile code... */
+}
+
+/* Extra small devices override for scoreboard scale */
+@media screen and (max-width: 360px) {
+  :root {
+    --scoreboard-scale: 1.5;
+  }
+  /* ...existing extra small code... */
+}
+
