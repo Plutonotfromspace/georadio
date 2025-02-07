@@ -38,6 +38,15 @@
   position: relative;
 }
 
+/* NEW: Disable tap highlight and touch actions to prevent country highlighting effects on mobile */
+.globe-container,
+.globe-container * {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  -ms-touch-action: none;
+  outline: none;
+}
+
 /* Start modal overlay (card in foreground, game visible in background) */
 .start-modal {
   position: absolute;
@@ -395,7 +404,7 @@
   color: #666;
 }
 
-/* Mobile-specific styles */
+/* Mobile-specific styles (merging former 360px styles into 768px) */
 @media screen and (max-width: 768px) {
   .modal-card {
     width: 95%;
@@ -404,7 +413,6 @@
     overflow-y: auto;
   }
 
-  /* Keep other mobile adjustments */
   .credits-container {
     flex-direction: column;
     gap: 8px;
@@ -414,47 +422,50 @@
     display: none;
   }
 
-  /* Audio player adjustments for mobile */
+  /* Audio player (merged styles from 360px + 768px) */
   .audio-player {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
     width: auto;
-    min-width: 200px;
+    min-width: 180px; /* from the 360px rules */
     max-width: 95%;
-    padding: 8px 12px;
+    padding: 6px 10px; /* from the 360px rules */
     background-color: rgba(0, 0, 0, 9);
     gap: 8px;
     bottom: 20px; /* Adjust to prevent overlap */
-    z-index: 35; /* Increase z-index for mobile */
+    z-index: 35;
   }
 
   .audio-btn {
-    min-width: 60px;
-    font-size: 12px;
-    padding: 6px 8px;
+    min-width: 50px;  /* smaller from 360px */
+    font-size: 11px;  /* smaller from 360px */
+    padding: 4px 6px; /* smaller from 360px */
   }
 
-  /* Hide instructions text on mobile */
+  /* Either hide instructions entirely or keep them smaller */
   .audio-instructions {
     display: none;
+    /* or: font-size: 10px; if you still want to show them but smaller */
   }
 
-  /* Compact volume control */
   .volume-slider {
-    width: 80px;
+    width: 60px;  /* narrower from 360px */
     height: 24px;
   }
 
-  /* Make radio error more compact */
   .radio-error {
-    font-size: 11px;
+    font-size: 10px;  /* from 360px */
     padding: 4px 6px;
     white-space: nowrap;
     margin-left: 4px;
   }
 
-  /* Stats container adjustments */
+  .confirm-button {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
   .stats-container {
     padding: 4px 8px;
     gap: 12px;
@@ -468,7 +479,6 @@
     font-size: 14px;
   }
 
-  /* Round summary adjustments */
   .summary-card {
     width: 95%;
     padding: 16px;
@@ -490,7 +500,6 @@
     padding: 4px;
   }
 
-  /* Game over modal adjustments */
   .final-recap {
     max-height: 50vh;
   }
@@ -506,7 +515,7 @@
     bottom: 80px; /* Adjust to prevent overlap */
     left: 50%;
     transform: translateX(-50%);
-    background-color: #4CAF50;
+    background-color: #03A9F4;
     color: white;
     padding: 10px 20px;
     border-radius: 24px;
@@ -550,52 +559,16 @@
   /* .loading-spinner { ... } */
 
   /* Add mobile-specific animation overrides */
-  @keyframes flipInFromCenter {
-    0% { transform: translate(-50%, -50%) rotateX(-90deg) scale(1.5); }
-    100% { transform: translate(-50%, -50%) rotateX(0) scale(1.5); }
-  }
-
-  @keyframes flipOutFromCenter {
-    0% { transform: translate(-50%, -50%) rotateX(0) scale(1.5); }
-    100% { transform: translate(-50%, -50%) rotateX(90deg) scale(1.5); }
-  }
+@keyframes flipInFromCenter {
+  0% { transform: translate(-50%, -50%) rotateX(-90deg) scale(1.5); }
+  100% { transform: translate(-50%, -50%) rotateX(0) scale(1.5); }
 }
 
-/* Extra small devices */
-@media screen and (max-width: 360px) {
-  /* ...rest of existing extra small styles... */
-  .audio-btn {
-    font-size: 12px;
-    padding: 3px 6px;
-  }
+@keyframes flipOutFromCenter {
+  0% { transform: translate(-50%, -50%) rotateX(0) scale(1.5); }
+  100% { transform: translate(-50%, -50%) rotateX(90deg) scale(1.5); }
+}
 
-  .audio-instructions {
-    font-size: 10px;
-  }
-
-  .audio-player {
-    min-width: 180px;
-    padding: 6px 10px;
-  }
-
-  .audio-btn {
-    min-width: 50px;
-    font-size: 11px;
-    padding: 4px 6px;
-  }
-
-  .volume-slider {
-    width: 60px;
-  }
-
-  .radio-error {
-    font-size: 10px;
-  }
-
-  .confirm-button {
-    padding: 8px 16px;
-    font-size: 13px;
-  }
 
   @keyframes flipInFromCenter {
     0% { transform: translate(-50%, -50%) rotateX(-90deg) scale(1.5); }
@@ -795,17 +768,17 @@
 /* Mobile override for scoreboard scale */
 @media screen and (max-width: 768px) {
   :root {
-    --scoreboard-scale: 0.5;
+    --scoreboard-scale: 1.5;
   }
 
   /* ...existing mobile code... */
 }
 
-/* Extra small devices override for scoreboard scale */
-@media screen and (max-width: 360px) {
-  :root {
-    --scoreboard-scale: 1.5;
-  }
-  /* ...existing extra small code... */
+/* Disable text selection on mobile devices */
+html, body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 

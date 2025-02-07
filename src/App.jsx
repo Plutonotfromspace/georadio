@@ -448,6 +448,9 @@ function App() {
 
   /* Handle Guess - updated with logging and modal check */
   const onPolygonClick = (feature) => {
+    // NEW: Do nothing if a correct guess has been made
+    if (correctGuess) return;
+    
     if (showRoundModal || gameOver) return;
     if (!targetCountry) return;
     
@@ -518,13 +521,11 @@ function App() {
         setAudioPlaying(false);
       }
 
-      // Play success sound and show confetti
-      successSound.currentTime = 0;
-      successSound.play().catch(err => console.log('Audio play failed:', err));
+      // Play success sound using a cloned instance to ensure uninterrupted playback
+      const sfx = successSound.cloneNode();
+      sfx.play().catch(err => console.log('Audio play failed:', err));
+      
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      // Play success sound
-      successSound.currentTime = 0; // Reset sound to start
-      successSound.play().catch(err => console.log('Audio play failed:', err));
       // Remove the setTimeout and add animation class
       document.querySelector('.audio-player').classList.add('flip-out');
       // Show the continue button with flip-in animation after audio player flips out
@@ -799,7 +800,7 @@ function App() {
     setAnimatedScore(0);
     setUsedCountries([]);
     setUsedLanguages(new Set());
-    startNewRound(); // Only start first round when game starts
+    startNewRound(); // Starts new round after user gesture
   };
 
   // Debug useEffect to test station-country mappings in development mode
@@ -1047,7 +1048,8 @@ function App() {
           {isLoading && <div className="loading-spinner"></div>}
           <audio 
             ref={audioRef} 
-            style={{ display: 'none' }} 
+            muted={false}   // NEW: Ensure audio is unmuted on play
+            style={{ display: 'block' }}  // NEW: Make it visible for debugging (or remove to show custom player)
             onError={(e) => handleAudioError(e.target.error)}
           />
           {/* Always-visible clickable refresh message */}
