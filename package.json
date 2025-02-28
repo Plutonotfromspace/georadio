@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://plutonotfromspace.github.io/georadio",
+  "homepage": "https://georadio.io",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -21,6 +21,7 @@
     "hls.js": "^1.5.20",
     "howler": "^2.2.4",
     "i18n-iso-countries": "^7.13.0",
+    "lucide-react": "^0.475.0",
     "node-fetch": "^3.3.2",
     "prop-types": "^15.8.1",
     "radio-browser": "^2.2.3",

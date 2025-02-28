@@ -8,5 +8,5 @@ export default defineConfig({
     host: true, // Add this line to expose to all network interfaces
     port: 5173  // Specify the port explicitly
   },
-  base: '/georadio/'
+  base: '/'
 })
