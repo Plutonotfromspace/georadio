@@ -1,0 +1,6 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Point to sitemap
+Sitemap: https://georadio.io/sitemap.xml
