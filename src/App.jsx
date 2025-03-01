@@ -521,9 +521,12 @@ function App() {
         setAudioPlaying(false);
       }
 
-      // Play success sound using a cloned instance to ensure uninterrupted playback
+      // Play success sound with explicit volume control
       const sfx = successSound.cloneNode();
-      sfx.play().catch(err => console.log('Audio play failed:', err));
+      sfx.volume = 0.10; // Force volume to be very low (1%)
+      setTimeout(() => {
+        sfx.play().catch(err => console.log('Audio play failed:', err));
+      }, 10);
       
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
       // Remove the setTimeout and add animation class
@@ -801,6 +804,12 @@ function App() {
     setUsedCountries([]);
     setUsedLanguages(new Set());
     startNewRound(); // Starts new round after user gesture
+    // Ensure radioStation is set before starting game logic
+    if (radioStation && audioRef.current) {
+      audioRef.current.src = radioStation.url_resolved || radioStation.url;
+      audioRef.current.load(); // trigger loading immediately
+      console.log(`onGameStart: Station "${radioStation.name}" is being loaded.`);
+    }
   };
 
   // Debug useEffect to test station-country mappings in development mode
@@ -859,7 +868,7 @@ function App() {
   // Add success sound effect with lower volume
   const successSound = useMemo(() => {
     const audio = new Audio(`${import.meta.env.BASE_URL}audio/success.mp3`);
-    audio.volume = 0.1; // Set volume to 30%
+    audio.volume = 0.05; // Set volume to 5%
     return audio;
   }, []);
 
@@ -1008,6 +1017,16 @@ function App() {
     }
   }, [correctGuess]);
 
+  // NEW: Automatically load station when radioStation changes
+  useEffect(() => {
+    if (radioStation && audioRef.current) {
+      // Use resolved URL if available, fallback to radioStation.url
+      audioRef.current.src = radioStation.url_resolved || radioStation.url;
+      audioRef.current.load(); // Trigger buffering/loading
+      console.log(`Loading station: ${radioStation.name}`);
+    }
+  }, [radioStation]);
+
   return (
     <div className="globe-container">
       {/* Updated overlay: apply animation to entire overlay */}
@@ -1137,144 +1156,278 @@ function App() {
       )}
 
       {/* Start modal card overlay */}
-      {!gameStarted && (
-        <div className="start-modal">
-          <div className="modal-card">
-            <h2>Welcome to GeoRadio</h2>
-            
-            <section className="modal-section">
-              <h3>How to Play</h3>
-              <p>Listen to live radio stations and guess their country of origin by clicking on the globe. You have 5 rounds to score as many points as possible, with each round starting at 5000 points. Your score decreases with each incorrect guess, so choose wisely! After each guess, you&apos;ll be told if you&apos;re getting &quot;warmer&quot; or &quot;colder&quot; compared to your previous guess.</p>
-            </section>
-
-            <section className="modal-section">
-              <h3>Disclaimer</h3>
-              <p>Audio streams are pulled from a public radio API. Content may occasionally be inappropriate or unavailable.</p>
-            </section>
-
-            <div className="credits-container">
-              <div className="modal-section credits-section">
-                <span>Inspired by <a href="https://globle-game.com/" target="_blank" rel="noopener noreferrer" className="credit-link">Globle</a></span>
+        {!gameStarted && (
+          <div className="start-modal">
+            <div className="modal-card">
+          <h2>Welcome to GeoRadio</h2>
+          
+          <section className="modal-section">
+            <h3>How to Play</h3>
+            <p>Listen to live radio stations and guess their country of origin by clicking countries on the globe. 
+            <strong> Keep guessing</strong> until you find the right one! After each guess, the country will be colored:</p>
+            <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '20px', height: '20px', backgroundColor: '#b83700', borderRadius: '4px' }}></div>
+            <span>Dark red = Very close!</span>
               </div>
-              <div className="credits-divider"></div>
-              <div className="modal-section credits-section">
-                <span>Created by <a href="discord://discord.com/users/plutonotfromspace" className="credit-link">PlutoNotFromSpace</a></span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '20px', height: '20px', backgroundColor: '#fe7835', borderRadius: '4px' }}></div>
+            <span>Orange = Getting warmer</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '20px', height: '20px', backgroundColor: '#fef2dc', borderRadius: '4px' }}></div>
+            <span>White = Very cold</span>
               </div>
             </div>
+            <p style={{ marginTop: '10px' }}>You have 5 rounds to score as many points as possible. Each round starts at 5000 points and decreases with every wrong guess. Look for hints in the radio content like language, music style, or announcements!</p>
+          </section>
 
-            <button onClick={onGameStart}>Start Game</button>
+          <section className="modal-section">
+            <h3>Disclaimer</h3>
+            <p>Audio streams are pulled from a public radio API. Content may occasionally be inappropriate or unavailable.</p>
+          </section>
+
+          <div className="credits-container">
+            <div className="modal-section credits-section">
+              <span>Inspired by <a href="https://globle-game.com/" target="_blank" rel="noopener noreferrer" className="credit-link">Globle</a></span>
+            </div>
+            <div className="credits-divider"></div>
+            <div className="modal-section credits-section">
+              <span>Created by <a href="discord://discord.com/users/plutonotfromspace" className="credit-link">PlutoNotFromSpace</a></span>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Round Summary Modal */}
+          <button onClick={onGameStart}>Start Game</button>
+            </div>
+          </div>
+        )}
+
+        {/* Round Summary Modal - Redesigned */}
       {showRoundModal && (
         <div className="start-modal">
           <div className="modal-card summary-card">
-            <h2>Round {currentRound} Complete!</h2>
+            {/* Simplified header - made smaller and less prominent */}
+            <div className="round-badge-solo">#{currentRound}</div>
             
-            <div className="summary-station">
-              <p>You were listening to:</p>
-              <a 
-                href={radioStation.homepage || radioStation.url} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="station-link"
-              >
-                {radioStation.name || 'Unknown Station'}
-              </a>
+            {/* Enhanced country detection container with higher resolution flag */}
+            <div className="country-detection-hero">
+              <div className="country-flag-container">
+                <img 
+                  src={`https://flagcdn.com/w640/${getCountryCode(targetCountry)}.png`}
+                  alt={roundResults[currentRound - 1]?.target}
+                  onError={(e) => {
+                    e.target.src = 'https://flagcdn.com/w640/un.png'
+                  }}
+                  className="detected-flag"
+                />
+                <div className="country-name-overlay">
+                  <h2 className="country-name">{roundResults[currentRound - 1]?.target}</h2>
+                </div>
+              </div>
             </div>
-
-            <div className="summary-stats">
-              <p>It took you <span className="highlight">{roundResults[currentRound - 1]?.attempts} attempts</span> to find the correct country, earning you <span className="highlight">{roundResults[currentRound - 1]?.score} points</span>!</p>
+            
+            {/* Enhanced radio station info */}
+            <div className="station-info">
+              <div className="station-icon">📻</div>
+              <div className="station-details">
+                <h3 className="station-name">{radioStation.name || 'Unknown Station'}</h3>
+                <a 
+                  href={radioStation.homepage || radioStation.url} 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="station-url"
+                >
+                  Listen Online
+                </a>
+              </div>
             </div>
-
-            <div className="guesses-list">
-              <div className="guesses-container">
+            
+            {/* Score section with visual indicators */}
+            <div className="round-stats">
+              <div className="stat-box attempts">
+                <span className="stat-value">{roundResults[currentRound - 1]?.attempts}</span>
+                <span className="stat-label">Attempts</span>
+              </div>
+              <div className="score-arrow">→</div>
+              <div className="stat-box score">
+                <span className="stat-value">{roundResults[currentRound - 1]?.score}</span>
+                <span className="stat-label">Points</span>
+              </div>
+            </div>
+            
+            {/* Enhanced Guess History with improved visual journey */}
+            <div className="guesses-section">
+              <h4 className="guesses-title">Your Journey</h4>
+              <div className="journey-container">
                 {guesses.map((guess, index) => (
-                  <div key={index} className="guess-item">
-                    <img 
-                      src={`https://flagcdn.com/w80/${guess.countryCode}.png`}  // Changed from w20 to w80
-                      alt=""
-                      onError={(e) => {
-                        e.target.src = 'https://flagcdn.com/w80/un.png';  // Update fallback too
-                        console.log('Flag not found for:', guess);
-                      }}
-                      className="country-flag"
-                    />
-                    <span>{guess.name}</span>
+                  <div key={index} className={`journey-item ${index === guesses.length - 1 ? 'correct-guess' : ''}`}>
+                    <div className="journey-header">
+                      <span className="journey-number">{index + 1}</span>
+                      <span className="journey-name">{guess.name}</span>
+                      {index === guesses.length - 1 && <span className="journey-correct">✓ Correct!</span>}
+                    </div>
+                    <div className="journey-content">
+                      <img 
+                        src={`https://flagcdn.com/w80/${guess.countryCode}.png`} 
+                        alt=""
+                        onError={(e) => {
+                          e.target.src = 'https://flagcdn.com/w80/un.png'
+                        }}
+                        className="journey-flag"
+                      />
+                      <div className="journey-details">
+                        {index > 0 && (
+                          <div className="journey-distance-change">
+                            {guess.distance < guesses[index-1].distance ? (
+                              <span className="warmer">Warmer 🔥</span>
+                            ) : (
+                              <span className="colder">Colder ❄️</span>
+                            )}
+                          </div>
+                        )}
+                        <div className="journey-distance">
+                          <span className="distance-value">
+                            {guess.distance < 100 ? 
+                              `${Math.round(guess.distance)} km` : 
+                              `${Math.round(guess.distance / 100) / 10} thousand km`}
+                          </span>
+                          <div 
+                            className="distance-bar"
+                            style={{
+                              background: guess.color,
+                              width: `${Math.max(100 - (guess.distance / 150), 10)}%`
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                    {index < guesses.length - 1 && <div className="journey-arrow">↓</div>}
                   </div>
                 ))}
               </div>
             </div>
-
-            <button onClick={handleNextRound}>
-              {currentRound < 5 ? 'Next Round' : 'See Final Results'}
+            
+            {/* Next action button with clearer purpose */}
+            <button 
+              onClick={handleNextRound}
+              className="action-button"
+            >
+              {currentRound < 5 ? `Continue to Round ${currentRound + 1}` : 'See Final Results'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Final Game Summary Modal */}
+      {/* Final Game Summary Modal - Completely Redesigned */}
       {gameOver && (
         <div className="start-modal">
-          <div className="modal-card">
-            <h2>Game Over</h2>
-            <p className="final-score">
-              You scored <span className="score-highlight">{score}</span> points!
-            </p>
-            <h3 className="recap-header">Here is your recap</h3>
-            <div className="final-recap" style={{ maxHeight: '300px', overflowY: 'auto', margin: '16px 0' }}>
+          <div className="modal-card game-over-card">
+            {/* Trophy and Confetti Animation */}
+            <div className="trophy-container">
+              <div className="trophy-icon">🏆</div>
+              <div className="confetti-piece left"></div>
+              <div className="confetti-piece right"></div>
+            </div>
+            
+            <h2 className="game-over-title">Game Complete!</h2>
+            
+            {/* Final score with prominent display */}
+            <div className="final-score-container">
+              <div className="final-score-label">FINAL SCORE</div>
+              <div className="final-score-value">{score}</div>
+              <div className="score-decoration">
+                <div className="score-line"></div>
+                <div className="score-star">★</div>
+                <div className="score-line"></div>
+              </div>
+            </div>
+            
+            {/* Performance rating based on score */}
+            <div className="performance-rating">
+              {score >= 20000 ? "Globe Master!" : 
+               score >= 15000 ? "Geography Expert!" : 
+               score >= 10000 ? "World Traveler!" : 
+               score >= 5000 ? "Radio Explorer!" : 
+               "Novice Listener!"}
+            </div>
+            
+            {/* Round Journey Summary with Improved Visual Design */}
+            <h3 className="journey-title">Your Radio Journey</h3>
+            
+            <div className="game-journey">
               {roundResults.map(result => (
-                <div 
-                  key={result.round} 
-                  className="round-item"
-                  style={{ 
-                    marginBottom: '16px', 
-                    padding: '8px', 
-                    border: '2px solid #ccc', // updated border color to grey
-                    borderRadius: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.4)'
-                  }}
-                >
-                  <h4>Round {result.round}</h4>
-                  <div className="summary-station">
-                    <p>You were listening to:</p>
-                    <a 
-                      href={result.stationUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="station-link"
-                    >
-                      {result.stationName}
-                    </a>
+                <div key={result.round} className="journey-round">
+                  <div className="journey-round-header">
+                    <div className="round-country">
+                      {/* Flag and country name in header */}
+                      <img 
+                        src={`https://flagcdn.com/w160/${getCountryCode(countriesData.find(c => 
+                          c.properties?.name === result.target))}.png`}
+                        alt={result.target}
+                        onError={(e) => {
+                          e.target.src = 'https://flagcdn.com/w160/un.png'
+                        }}
+                        className="round-flag"
+                      />
+                      <h4>{result.target}</h4>
+                    </div>
+                    <div className="round-score">{result.score}</div>
                   </div>
-                  <div className="summary-stats">
-                    <p>
-                      It took you <span className="highlight">{result.attempts}</span> attempts, which earned you <span className="highlight">{result.score}</span> points!
-                    </p>
-                  </div>
-                  <div className="guesses-list">
-                    <div className="guesses-container">
-                      {result.guesses.map((guess, index) => (
-                        <div key={index} className="guess-item">
-                          <img 
-                            src={`https://flagcdn.com/w80/${guess.countryCode}.png`}  // Changed from w20 to w80
-                            alt=""
-                            onError={(e) => {
-                              e.target.src = 'https://flagcdn.com/w80/un.png';  // Update fallback too
-                            }}
-                            className="country-flag"
-                          />
-                          <span>{guess.name}</span>
-                        </div>
-                      ))}
+                  
+                  <div className="round-details">
+                    <div className="station-info">
+                      <div className="station-icon">📻</div>
+                      <div className="station-name-container">
+                        <span className="station-name">{result.stationName}</span>
+                        <a 
+                          href={result.stationUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="station-link"
+                        >
+                          Visit Station
+                        </a>
+                      </div>
+                    </div>
+                    
+                    <div className="guesses-summary">
+                      <div className="guesses-count">
+                        <span className="count-number">{result.attempts}</span>
+                        <span className="count-label">Guesses</span>
+                      </div>
+                      
+                      <div className="guess-flags">
+                        {result.guesses.slice(0, 5).map((guess, index) => (
+                          <div key={index} className={`mini-flag ${index === result.guesses.length - 1 ? 'correct-flag' : ''}`}>
+                            <img 
+                              src={`https://flagcdn.com/w80/${guess.countryCode}.png`}
+                              alt={guess.name}
+                              onError={(e) => {
+                                e.target.src = 'https://flagcdn.com/w80/un.png'
+                              }}
+                              title={guess.name}
+                            />
+                            {index === result.guesses.length - 1 && (
+                              <div className="correct-marker">✓</div>
+                            )}
+                          </div>
+                        ))}
+                        {result.guesses.length > 5 && (
+                          <div className="more-flags">+{result.guesses.length - 5}</div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={playAgain}>Play Again</button>
+            
+            {/* Action buttons with clearer hierarchy */}
+            <div className="game-over-actions">
+              <button onClick={playAgain} className="primary-button">
+                Play Again
+              </button>
+            </div>
           </div>
         </div>
       )}

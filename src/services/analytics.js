@@ -1,10 +1,10 @@
 import ReactGA from 'react-ga4';
 
 export const initGA = () => {
-  const isProd = window.location.hostname.includes('github.io');
+  const isProd = window.location.hostname !== 'localhost';
   ReactGA.initialize('G-VGWYCEN088', {
     gaOptions: {
-      cookieDomain: isProd ? 'plutonotfromspace.github.io' : 'localhost',
+      cookieDomain: isProd ? 'georadio.io' : 'localhost',
       cookieFlags: 'SameSite=None;Secure'
     },
     debug: !isProd

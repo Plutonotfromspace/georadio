@@ -3,6 +3,8 @@ import axios from 'axios';
 import { countries, languages } from 'countries-list';
 import i18nIsoCountries from 'i18n-iso-countries';
 import { createRequire } from 'module';
+import process from 'node:process';
+import readline from 'readline';
 
 const require = createRequire(import.meta.url);
 const enLocale = require('i18n-iso-countries/langs/en.json');
@@ -291,60 +293,141 @@ function pickWeightedStationsForCountry(cc, stationList) {
   return selected.slice(0, STATIONS_PER_COUNTRY);
 }
 
-/**
- * This is where we:
- *  - Filter out English music (for non-English-speaking countries).
- *  - Do the weighted station picking.
- *  - Overwrite the final 'country' name with the atlas name from world-atlas (if found).
- *  - Use that same atlas name as the key in the output JSON.
- */
-function pickUpTo25PerCountry(grouped) {
+// NEW: Function to test a station URL for availability and CORS compliance
+async function simulateBrowserEnvironment(url) {
+  // For HTTP URLs, try the HTTPS version since browsers will upgrade
+  const testUrl = url.toLowerCase().startsWith('http:') 
+    ? url.replace(/^http:/i, 'https:') 
+    : url;
+
+  try {
+    const response = await axios.head(testUrl, {
+      headers: { Origin: 'https://example.com' },
+      timeout: 5000
+    });
+    const allowOrigin = response.headers['access-control-allow-origin'];
+    const ctype = response.headers['content-type'] || "";
+
+    if (response.status < 400 &&
+        (allowOrigin === '*' || allowOrigin === 'https://example.com') &&
+        ctype.toLowerCase().startsWith("audio/")) {
+      return true;
+    }
+  } catch {
+    // HEAD failed, try GET with streaming
+    try {
+      const response = await axios.get(testUrl, {
+        headers: { Origin: 'https://example.com' },
+        timeout: 5000,
+        responseType: 'stream'
+      });
+      const allowOrigin = response.headers['access-control-allow-origin'];
+      const ctype = response.headers['content-type'] || "";
+      if (response.status < 400 &&
+          (allowOrigin === '*' || allowOrigin === 'https://example.com') &&
+          ctype.toLowerCase().startsWith("audio/")) {
+        return true;
+      }
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+// Modify testStation to skip stations failing browser checks
+async function testStation(station) {
+  // NEW: Browser-like check first
+  const browserOk = await simulateBrowserEnvironment(station.url);
+  if (!browserOk) {
+    return false;
+  }
+
+  try {
+    // Attempt a HEAD request first
+    const response = await axios.head(station.url, { timeout: 5000 });
+    if (response.status < 400) {
+      return true;
+    }
+  } catch {
+    try {
+      const response = await axios.get(station.url, { timeout: 5000, responseType: 'stream' });
+      if (response.status < 400) {
+        return true;
+      }
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+// NEW: Function to prompt user for a country code if not provided via CLI
+async function promptCountryCode() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  return new Promise(resolve => {
+    rl.question('Enter country code (or press Enter to process all countries): ', answer => {
+      rl.close();
+      resolve(answer.trim().toUpperCase());
+    });
+  });
+}
+
+// NEW: Function to pick up to 25 stations per country
+async function pickUpTo25PerCountry(grouped) {
   const finalData = {};
 
   for (const [cc, stationList] of Object.entries(grouped)) {
-    if (!stationList.length) continue;
-
     // 1) Filter out English music for non-English countries
     const filtered = filterStationsByMusicLanguage(stationList, cc);
     if (!filtered.length) continue;
 
+    console.log(`\nProcessing country ${cc} with ${stationList.length} stations.`);
+    
     // 2) Weighted station picking
-    const chosen = pickWeightedStationsForCountry(cc, filtered);
-    if (!chosen.length) continue;
+    const candidates = pickWeightedStationsForCountry(cc, filtered);
+    const extraCandidates = filtered.filter(st => !candidates.includes(st));
+    const allCandidates = [...candidates, ...extraCandidates];
 
-    // 3) Atlas-based name lookup (fallback to countries-list or raw cc if missing)
-    //    Example: atlasMap["RU"] = "Russia"
-    let atlasName = atlasMap[cc];
-    if (!atlasName) {
-      // If we didn't find anything in world-atlas for this cc,
-      // fallback to `countries-list` name if present:
-      if (countries[cc]) {
-        atlasName = countries[cc].name; // e.g. "Russian Federation"
+    // 3) Test each candidate in browser-simulated environment
+    const finalStations = [];
+    for (const candidate of allCandidates) {
+      if (finalStations.length >= STATIONS_PER_COUNTRY) break;
+      const working = await testStation(candidate);
+      if (working) {
+        finalStations.push(candidate);
+        console.log(`Country ${cc}: ${finalStations.length} working stations found so far.`);
       } else {
-        atlasName = cc; // last fallback
+        console.log(`Station "${candidate.name}" failed testing. Searching for alternative.`);
       }
     }
+    if (!finalStations.length) continue;
 
-    // 4) Construct final station objects
-    const finalStations = chosen.map(st => ({
+    console.log(`Finished processing ${cc}: ${finalStations.length} stations selected.`);
+
+    // 4) Atlas-based name lookup or fallback
+    let atlasName = atlasMap[cc];
+    if (!atlasName && countries[cc]) atlasName = countries[cc].name;
+    if (!atlasName) atlasName = cc;
+
+    // Construct final station objects
+    finalData[atlasName] = finalStations.map(st => ({
       name: st.name,
       url: st.url_resolved,
-      country: atlasName,  // Overwrite with atlas-based name
+      country: atlasName,
       countrycode: st.countrycode,
       language: st.language,
       bitrate: st.bitrate
     }));
-
-    // 5) Place them under finalData[atlasName]
-    finalData[atlasName] = finalStations;
   }
 
   return finalData;
 }
 
-/**
- * MAIN
- */
+// In main(), await the new asynchronous station picking step:
 async function main() {
   try {
     // Step A: Build atlasMap from world-atlas data
@@ -355,23 +438,34 @@ async function main() {
     const allStations = await fetchAllStations();
     console.log(`Fetched ${allStations.length} stations.\n`);
 
-    // Step C: Group by country code
+    // Step C: Group by country code (changed to let so we can reassign)
+    let grouped = groupByCountryCode(allStations);
     console.log("Grouping by uppercase countrycode...");
-    const grouped = groupByCountryCode(allStations);
 
     // Step D: Reassign some "UNKNOWN" stations if possible
     console.log("Reassigning UNKNOWN stations...");
     reassignUnknownStations(grouped);
 
-    // Step E: Do final picking + filtering + rename to atlas-based name
-    console.log("Filtering & picking stations per country...");
-    const finalData = pickUpTo25PerCountry(grouped);
+    // NEW: Get country code either from CLI or by prompting the user
+    let countryCode = process.argv[2] ? process.argv[2].toUpperCase() : await promptCountryCode();
+    if (countryCode) {
+      if (!grouped[countryCode] || !grouped[countryCode].length) {
+        console.log(`No stations available for country code: ${countryCode}`);
+        process.exit(1);
+      }
+      console.log(`Testing mode: Filtering stations for country code ${countryCode}`);
+      grouped = { [countryCode]: grouped[countryCode] };
+    }
+
+    // Step E: Do final picking + filtering + rename to atlas-based name (async testing)
+    console.log("Filtering, testing & picking stations per country...");
+    const finalData = await pickUpTo25PerCountry(grouped);
 
     // Step F: Write out JSON
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify(finalData, null, 2));
     console.log(`\n✅ Saved station list to "${OUTPUT_FILE}"\n`);
 
-    // Step G: Debug info
+    // Step G: Debug info (unchanged)
     let totalCountries = 0, totalStations = 0;
     console.log("--- Station Counts by Country (finalData) ---");
     for (const [countryName, stations] of Object.entries(finalData)) {
