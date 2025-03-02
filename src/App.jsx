@@ -1027,6 +1027,149 @@ function App() {
     }
   }, [radioStation]);
 
+  // Add this useEffect to handle animations after the round summary modal appears
+  useEffect(() => {
+    if (showRoundModal) {
+      // Play reveal sound
+      if (window.gameSounds?.reveal) {
+        window.gameSounds.reveal.play().catch(() => {});
+      }
+      
+      // Set a small timeout to ensure DOM is ready
+      setTimeout(() => {
+        // Execute score counter animation
+        const scoreValue = document.querySelector('.metric-value');
+        if (scoreValue) {
+          // Set the initial number value
+          let startValue = 0;
+          // Get the target value from the dataset or the DOM content
+          const endValue = parseInt(scoreValue.getAttribute('data-value') || roundResults[currentRound - 1]?.score, 10);
+          // Duration of the count animation in milliseconds
+          const duration = 1500;
+          // Start time reference
+          let startTime = null;
+          
+          // Animation function for counting up
+          const countUp = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            // Calculate progress
+            const progress = Math.min((timestamp - startTime) / duration, 1);
+            // Calculate current count value
+            const currentValue = Math.floor(progress * endValue);
+            // Update the displayed value
+            scoreValue.textContent = currentValue;
+            
+            // Continue animation if not complete
+            if (progress < 1) {
+              requestAnimationFrame(countUp);
+            } else {
+              // Ensure final value is exact
+              scoreValue.textContent = endValue;
+              
+              // Play success sound on completion
+              if (window.gameSounds?.click) {
+                window.gameSounds.click.play().catch(() => {});
+              }
+            }
+          };
+          
+          // Start the animation
+          requestAnimationFrame(countUp);
+        }
+        
+        // Apply score bar animation
+        const scoreBar = document.querySelector('.score-bar');
+        if (scoreBar) {
+          const scorePercent = Math.min(roundResults[currentRound - 1]?.score / 50, 100);
+          scoreBar.style.width = `${scorePercent}%`;
+        }
+        
+        // Apply attempts bar animation
+        const attemptsBar = document.querySelector('.attempts-bar');
+        if (attemptsBar) {
+          const attemptsPercent = Math.min(roundResults[currentRound - 1]?.attempts * 10, 100);
+          attemptsBar.style.width = `${attemptsPercent}%`;
+        }
+        
+        // Add shine animation to flag image
+        const flagReveal = document.querySelector('.flag-reveal');
+        if (flagReveal) {
+          flagReveal.addEventListener('load', () => {
+            // Flag reveal animation happens automatically via CSS now
+          });
+        }
+        
+        // Add click sound for game controls
+        const interactives = document.querySelectorAll('.game-continue-button, .journey-header, .retro-button');
+        interactives.forEach(element => {
+          element.addEventListener('click', () => {
+            if (window.gameSounds?.click) {
+              // Clone and play to allow overlapping sounds
+              const sound = window.gameSounds.click.cloneNode();
+              sound.volume = 0.1;
+              sound.play().catch(() => {});
+            }
+          });
+        });
+
+        // Add journey toggle interaction
+        const journeyHeader = document.querySelector('.journey-header');
+        const journeyContent = document.querySelector('.journey-content');
+        
+        if (journeyHeader && journeyContent) {
+          journeyHeader.addEventListener('click', () => {
+            journeyContent.classList.toggle('expanded');
+            journeyHeader.classList.toggle('active');
+          });
+        }
+        
+        // Trigger flag shine animation
+        const flagShine = document.querySelector('.flag-shine');
+        if (flagShine) {
+          // Already handled by CSS animation
+        }
+        
+      }, 100);
+    }
+  }, [showRoundModal, currentRound, roundResults]);
+
+  // Add this effect to initialize game sounds
+  useEffect(() => {
+    // Create a sound effects system
+    const sounds = {
+      success: new Audio(`${import.meta.env.BASE_URL}audio/success.mp3`),
+    };
+    
+    // Set volume for all sounds
+    Object.values(sounds).forEach(sound => {
+      sound.volume = 0.2;
+    });
+    
+    // Special case for success which should be louder
+    sounds.success.volume = 0.3;
+    
+    // Store in window for easy access
+    window.gameSounds = sounds;
+    
+    // Pre-load sounds by triggering them silently
+    for (const sound of Object.values(sounds)) {
+      sound.muted = true;
+      sound.play().catch(() => {});
+      sound.pause();
+      sound.currentTime = 0;
+      sound.muted = false;
+    }
+    
+    return () => {
+      // Clean up sounds
+      for (const sound of Object.values(sounds)) {
+        sound.pause();
+        sound.src = '';
+      }
+      delete window.gameSounds;
+    };
+  }, []);
+
   return (
     <div className="globe-container">
       {/* Updated overlay: apply animation to entire overlay */}
@@ -1105,14 +1248,15 @@ function App() {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return '#000000';  // black stroke for correct country
           }
-          return '#388E3C';  // default green stroke for other countries
+          return '#1B5E20';  // darker green stroke for better visibility
         }}
         polygonSideColor={d => {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return "#000000";  // solid color for sides when correct
           }
-          return "rgba(76, 175, 80, 0.1)";  // very light transparency for other countries
+          return "#2E7D32";  // slightly darker green for sides
         }}
+        polygonStrokeWidth={0.5}  // Increased stroke width
         polygonAltitude={d => {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return 0.02;  // extrude correct country
@@ -1123,7 +1267,7 @@ function App() {
           <span style="
             font-size: 18px; 
             font-weight: bold; 
-            font-family: Arial, sans-serif; 
+            font-family: 'Regular', sans-serif;
             color: white;
             padding: 0px;
             text-align: center;
@@ -1202,115 +1346,112 @@ function App() {
           </div>
         )}
 
-        {/* Round Summary Modal - Redesigned */}
+        {/* Round Summary Modal - Clean Modern Design */}
       {showRoundModal && (
-        <div className="start-modal">
-          <div className="modal-card summary-card">
-            {/* Simplified header - made smaller and less prominent */}
-            <div className="round-badge-solo">#{currentRound}</div>
-            
-            {/* Enhanced country detection container with higher resolution flag */}
-            <div className="country-detection-hero">
-              <div className="country-flag-container">
+        <div className="modal-overlay">
+          <div className="summary-modal">
+            <div className="modal-header">
+              <div className="round-indicator">Round {currentRound}</div>
+            </div>
+
+            {/* Country showcase with animated flag reveal and 3D hover effect */}
+            <div className="country-showcase">
+              <div className="flag-container">
                 <img 
                   src={`https://flagcdn.com/w640/${getCountryCode(targetCountry)}.png`}
                   alt={roundResults[currentRound - 1]?.target}
-                  onError={(e) => {
-                    e.target.src = 'https://flagcdn.com/w640/un.png'
-                  }}
-                  className="detected-flag"
+                  onError={(e) => e.target.src = 'https://flagcdn.com/w640/un.png'}
+                  className="flag-reveal"
                 />
-                <div className="country-name-overlay">
-                  <h2 className="country-name">{roundResults[currentRound - 1]?.target}</h2>
+                <div className="flag-shine"></div>
+              </div>
+              {/* Removed the country name h3 element that was here */}
+            </div>
+            
+            <div className="station-info-card">
+              <h4>Radio Station</h4>
+              <p className="station-name">{radioStation.name || 'Unknown Station'}</p>
+              <a 
+                href={radioStation.homepage || radioStation.url}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="visit-button"
+              >
+                Visit Station
+              </a>
+            </div>
+            
+            <div className="round-stats-container">
+              <div className="stat-card">
+                {/* Update this line to directly show the score */}
+                <span className="stat-value">{roundResults[currentRound - 1]?.score || 0}</span>
+                <div className="stat-bar-container">
+                  <div className="stat-bar" style={{ width: `${Math.min(roundResults[currentRound - 1]?.score / 50, 100)}%` }}></div>
                 </div>
-              </div>
-            </div>
-            
-            {/* Enhanced radio station info */}
-            <div className="station-info">
-              <div className="station-icon">📻</div>
-              <div className="station-details">
-                <h3 className="station-name">{radioStation.name || 'Unknown Station'}</h3>
-                <a 
-                  href={radioStation.homepage || radioStation.url} 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="station-url"
-                >
-                  Listen Online
-                </a>
-              </div>
-            </div>
-            
-            {/* Score section with visual indicators */}
-            <div className="round-stats">
-              <div className="stat-box attempts">
-                <span className="stat-value">{roundResults[currentRound - 1]?.attempts}</span>
-                <span className="stat-label">Attempts</span>
-              </div>
-              <div className="score-arrow">→</div>
-              <div className="stat-box score">
-                <span className="stat-value">{roundResults[currentRound - 1]?.score}</span>
                 <span className="stat-label">Points</span>
               </div>
+              
+              <div className="stat-divider"></div>
+              
+              <div className="stat-card">
+                <span className="stat-value">{roundResults[currentRound - 1]?.attempts || 0}</span>
+                <div className="stat-bar-container attempts-container">
+                  <div className="stat-bar attempts-bar" style={{ width: `${Math.min(roundResults[currentRound - 1]?.attempts * 10, 100)}%` }}></div>
+                </div>
+                <span className="stat-label">Attempts</span>
+              </div>
             </div>
             
-            {/* Enhanced Guess History with improved visual journey */}
-            <div className="guesses-section">
-              <h4 className="guesses-title">Your Journey</h4>
-              <div className="journey-container">
+            <div className="journey-section">
+              <div className="journey-header" onClick={() => {
+                const content = document.querySelector('.journey-list');
+                content.classList.toggle('expanded');
+                document.querySelector('.journey-header').classList.toggle('active');
+                
+                if (window.gameSounds?.click) {
+                  const sound = window.gameSounds.click.cloneNode();
+                  sound.volume = 0.1;
+                  sound.play().catch(() => {});
+                }
+              }}>
+                <h4>Your Journey</h4>
+                <span className="toggle-icon">▼</span>
+              </div>
+              
+              <div className="journey-list">
                 {guesses.map((guess, index) => (
-                  <div key={index} className={`journey-item ${index === guesses.length - 1 ? 'correct-guess' : ''}`}>
-                    <div className="journey-header">
-                      <span className="journey-number">{index + 1}</span>
-                      <span className="journey-name">{guess.name}</span>
-                      {index === guesses.length - 1 && <span className="journey-correct">✓ Correct!</span>}
-                    </div>
-                    <div className="journey-content">
+                  <div key={index} className={`guess-item ${index === guesses.length - 1 ? 'correct-guess' : ''}`}>
+                    <span className="guess-number">{index + 1}</span>
+                    <div className="guess-details">
                       <img 
                         src={`https://flagcdn.com/w80/${guess.countryCode}.png`} 
                         alt=""
-                        onError={(e) => {
-                          e.target.src = 'https://flagcdn.com/w80/un.png'
-                        }}
-                        className="journey-flag"
+                        onError={(e) => e.target.src = 'https://flagcdn.com/w80/un.png'}
+                        className="guess-flag"
                       />
-                      <div className="journey-details">
+                      <div className="guess-info">
+                        <p className="guess-name">{guess.name}</p>
                         {index > 0 && (
-                          <div className="journey-distance-change">
-                            {guess.distance < guesses[index-1].distance ? (
-                              <span className="warmer">Warmer 🔥</span>
-                            ) : (
-                              <span className="colder">Colder ❄️</span>
-                            )}
-                          </div>
-                        )}
-                        <div className="journey-distance">
-                          <span className="distance-value">
-                            {guess.distance < 100 ? 
-                              `${Math.round(guess.distance)} km` : 
-                              `${Math.round(guess.distance / 100) / 10} thousand km`}
+                          <span className={guess.distance < guesses[index-1].distance ? "closer" : "farther"}>
+                            {guess.distance < guesses[index-1].distance ? 'Closer' : 'Farther'}
                           </span>
-                          <div 
-                            className="distance-bar"
-                            style={{
-                              background: guess.color,
-                              width: `${Math.max(100 - (guess.distance / 150), 10)}%`
-                            }}
-                          ></div>
-                        </div>
+                        )}
+                        <span className="guess-distance">
+                          {guess.distance < 100 ? 
+                            `${Math.round(guess.distance)} km` : 
+                            `${Math.round(guess.distance / 100) / 10} thousand km`}
+                        </span>
                       </div>
                     </div>
-                    {index < guesses.length - 1 && <div className="journey-arrow">↓</div>}
+                    {index === guesses.length - 1 && <span className="correct-mark">✓</span>}
                   </div>
                 ))}
               </div>
             </div>
             
-            {/* Next action button with clearer purpose */}
             <button 
+              className="continue-modal-button"
               onClick={handleNextRound}
-              className="action-button"
             >
               {currentRound < 5 ? `Continue to Round ${currentRound + 1}` : 'See Final Results'}
             </button>
@@ -1318,116 +1459,52 @@ function App() {
         </div>
       )}
 
-      {/* Final Game Summary Modal - Completely Redesigned */}
+      {/* Completely redesigned Game Over Modal */}
       {gameOver && (
-        <div className="start-modal">
-          <div className="modal-card game-over-card">
-            {/* Trophy and Confetti Animation */}
-            <div className="trophy-container">
-              <div className="trophy-icon">🏆</div>
-              <div className="confetti-piece left"></div>
-              <div className="confetti-piece right"></div>
+        <div className="modal-overlay">
+          <div className="game-over-modal">
+            <div className="game-over-header">
+              <div className="medal-icon">🏆</div>
+              <h2>Game Over</h2>
             </div>
             
-            <h2 className="game-over-title">Game Complete!</h2>
-            
-            {/* Final score with prominent display */}
-            <div className="final-score-container">
-              <div className="final-score-label">FINAL SCORE</div>
-              <div className="final-score-value">{score}</div>
-              <div className="score-decoration">
-                <div className="score-line"></div>
-                <div className="score-star">★</div>
-                <div className="score-line"></div>
-              </div>
+            <div className="final-score-display">
+              <div className="score-value">{score}</div>
+              <div className="score-label">FINAL SCORE</div>
             </div>
             
-            {/* Performance rating based on score */}
-            <div className="performance-rating">
-              {score >= 20000 ? "Globe Master!" : 
-               score >= 15000 ? "Geography Expert!" : 
-               score >= 10000 ? "World Traveler!" : 
-               score >= 5000 ? "Radio Explorer!" : 
-               "Novice Listener!"}
-            </div>
-            
-            {/* Round Journey Summary with Improved Visual Design */}
-            <h3 className="journey-title">Your Radio Journey</h3>
-            
-            <div className="game-journey">
+            <div className="rounds-grid">
               {roundResults.map(result => (
-                <div key={result.round} className="journey-round">
-                  <div className="journey-round-header">
-                    <div className="round-country">
-                      {/* Flag and country name in header */}
+                <div key={result.round} className="round-card">
+                  <div className="round-header">
+                    <div className="round-number">{result.round}</div>
+                    <div className="round-points">{result.score} pts</div>
+                  </div>
+                  
+                  <div className="round-content">
+                    <div className="flag-container">
                       <img 
                         src={`https://flagcdn.com/w160/${getCountryCode(countriesData.find(c => 
                           c.properties?.name === result.target))}.png`}
                         alt={result.target}
-                        onError={(e) => {
-                          e.target.src = 'https://flagcdn.com/w160/un.png'
-                        }}
-                        className="round-flag"
+                        onError={(e) => e.target.src = 'https://flagcdn.com/w160/un.png'}
                       />
-                      <h4>{result.target}</h4>
                     </div>
-                    <div className="round-score">{result.score}</div>
-                  </div>
-                  
-                  <div className="round-details">
-                    <div className="station-info">
-                      <div className="station-icon">📻</div>
-                      <div className="station-name-container">
-                        <span className="station-name">{result.stationName}</span>
-                        <a 
-                          href={result.stationUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="station-link"
-                        >
-                          Visit Station
-                        </a>
-                      </div>
-                    </div>
-                    
-                    <div className="guesses-summary">
-                      <div className="guesses-count">
-                        <span className="count-number">{result.attempts}</span>
-                        <span className="count-label">Guesses</span>
-                      </div>
-                      
-                      <div className="guess-flags">
-                        {result.guesses.slice(0, 5).map((guess, index) => (
-                          <div key={index} className={`mini-flag ${index === result.guesses.length - 1 ? 'correct-flag' : ''}`}>
-                            <img 
-                              src={`https://flagcdn.com/w80/${guess.countryCode}.png`}
-                              alt={guess.name}
-                              onError={(e) => {
-                                e.target.src = 'https://flagcdn.com/w80/un.png'
-                              }}
-                              title={guess.name}
-                            />
-                            {index === result.guesses.length - 1 && (
-                              <div className="correct-marker">✓</div>
-                            )}
-                          </div>
-                        ))}
-                        {result.guesses.length > 5 && (
-                          <div className="more-flags">+{result.guesses.length - 5}</div>
-                        )}
-                      </div>
+                    <div className="round-country-name">{result.target}</div>
+                    <div className="round-guesses">
+                      <span className="guesses-count">{result.attempts}</span> guesses
                     </div>
                   </div>
                 </div>
               ))}
             </div>
             
-            {/* Action buttons with clearer hierarchy */}
-            <div className="game-over-actions">
-              <button onClick={playAgain} className="primary-button">
-                Play Again
-              </button>
-            </div>
+            <button 
+              className="play-again-button"
+              onClick={playAgain}
+            >
+              Play Again
+            </button>
           </div>
         </div>
       )}

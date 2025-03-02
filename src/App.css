@@ -1,3 +1,20 @@
+/* Add custom font declarations at the top */
+@font-face {
+  font-family: 'CustomHeader';
+  src: url('/fonts/customheader.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Regular';
+  src: url('/fonts/regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Main app container */
 #root {
   max-width: 100%;
@@ -17,7 +34,7 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   z-index: 10;
   max-width: 80vw;
-  font-family: 'Inter', 'Poppins', sans-serif;
+  font-family: 'Regular', sans-serif;
 }
 
 /* Remove the h1 styling since we don't need it anymore */
@@ -28,7 +45,6 @@
 /* Score and attempts */
 .overlay div {
   font-size: 16px;
-  margin-bottom: 8px;
 }
 
 /* Globe container (inherits flex layout from body) */
@@ -75,7 +91,6 @@
   /* Enable touch scrolling on mobile */
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  -ms-touch-action: pan-y;
 }
 
 .modal-card h2 {
@@ -83,6 +98,7 @@
   margin-bottom: 24px;
   font-size: 32px;
   color: #1a1a1a;
+  font-family: 'CustomHeader', 'Audiowide', cursive;
 }
 
 .modal-section {
@@ -161,6 +177,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  
 }
 
 .modal-card p {
@@ -175,6 +192,7 @@
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  font-family: 'Regular', sans-serif;
 }
 
 .modal-card button:hover {
@@ -208,6 +226,7 @@
   border-radius: 4px;
   padding: 4px 8px;
   cursor: pointer;
+  font-family: 'Regular', sans-serif;
 }
 
 .audio-btn:hover {
@@ -238,8 +257,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  margin: 12px 0;
+  margin: 5px 0;
   padding: 8px 16px;
   background-color: rgba(255, 255, 255, 0.9);
   border-radius: 6px;
@@ -506,7 +524,6 @@
 
   .stats-container {
     padding: 4px 8px;
-    gap: 12px;
   }
 
   .stat-value {
@@ -593,7 +610,7 @@
   }
 
   /* Enforce same spinner style as desktop */
-  /* Remove any .loading-spinner rule from here */
+  /* Remove any .loading-spinner rule from here to enforce consistent style */
   /* For example, if a spinner override existed, delete or comment it out */
   /* .loading-spinner { ... } */
 
@@ -645,6 +662,7 @@
   opacity: 1;
   transition: transform 0.5s ease-in-out, opacity 0.3s ease-in-out;
   transform-origin: center bottom;
+  font-family: 'Regular', sans-serif;
 }
 
 .continue-button.fade-out {
@@ -955,6 +973,7 @@ html, body {
 }
 
 .country-name {
+  font-family: 'CustomHeader', sans-serif;
   font-size: 22px;
   font-weight: bold;
   margin: 0;
@@ -1031,8 +1050,13 @@ html, body {
 }
 
 .stat-box .stat-value {
-  font-size: 28px;
-  font-weight: bold;
+  font-family: 'CustomHeader', sans-serif;
+  font-size: 42px;
+  font-weight: normal;
+  line-height: 1;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 2;
 }
 
 .stat-box .stat-label {
@@ -1172,6 +1196,10 @@ html, body {
     font-size: 24px;
   }
   
+  .stat-box .stat-label {
+    font-size: 12px;
+  }
+  
   .guesses-container {
     max-height: 180px;
   }
@@ -1218,6 +1246,7 @@ html, body {
 
 /* Make country name larger and more prominent */
 .country-name {
+  font-family: 'CustomHeader', sans-serif;
   font-size: 28px;
   font-weight: bold;
   margin: 10px 0 0 0;
@@ -1330,6 +1359,7 @@ html, body {
 }
 
 .country-name-overlay .country-name {
+  font-family: 'CustomHeader', sans-serif;
   color: white;
   font-size: 32px;
   font-weight: 700;
@@ -1371,6 +1401,7 @@ html, body {
   box-shadow: 0 3px 8px rgba(0,0,0,0.08);
   position: relative;
   transition: all 0.3s ease;
+  margin-bottom: 15px;
 }
 
 .journey-item:hover {
@@ -1594,7 +1625,7 @@ html, body {
   color: #03A9F4;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
   margin: 10px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Regular', sans-serif;
 }
 
 .score-decoration {
@@ -1936,5 +1967,2511 @@ html, body {
 .start-modal * {
   touch-action: auto;
   -ms-touch-action: auto;
+}
+
+/* PRIMARY INFO PANEL - New section for the round summary modal */
+.primary-info-panel {
+  background: linear-gradient(135deg, #f8fbff 0%, #f0f4f9 100%);
+  border-radius: 14px;
+  padding: 24px;
+  margin: 10px 0 25px;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border: 1px solid rgba(3, 169, 244, 0.1);
+}
+
+/* STATION SPOTLIGHT - Enhanced radio station info */
+.station-spotlight {
+  text-align: center;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Updated round stats to be more visually striking */
+.round-stats {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 15px 0;
+}
+
+/* Make the stat boxes more prominent */
+.stat-box {
+  padding: 15px 25px;
+  border-radius: 10px;
+  min-width: 100px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: transform 0.3s ease;
+}
+
+.stat-box:hover {
+  transform: translateY(-3px);
+}
+
+.stat-box .stat-value {
+  font-family: 'CustomHeader', sans-serif;
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 5px;
+}
+
+.stat-box .stat-label {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.score {
+  background: linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 100%);
+  color: #0277bd;
+}
+
+.attempts {
+  background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
+  color: #424242;
+}
+
+/* COLLAPSIBLE SECTION - For journey container */
+.collapsible-section {
+  margin: 20px 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.collapse-toggle {
+  width: 100%;
+  background: #f5f5f5;
+  border: none;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #666;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.collapse-toggle:hover {
+  background: #eeeeee;
+}
+
+.collapse-toggle.active {
+  background: #e3f2fd;
+  color: #0288d1;
+}
+
+.toggle-icon {
+  transition: transform 0.3s ease;
+}
+
+.collapse-toggle.active .toggle-icon {
+  transform: rotate(180deg);
+}
+
+/* Journey container modifications */
+.journey-container {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease;
+  padding: 0 15px;
+  background: #fafafa;
+}
+
+.journey-container.expanded {
+  max-height: 350px;
+  padding: 15px;
+  overflow-y: auto;
+}
+
+/* Pulse animation for the continue button */
+.pulse-animation {
+  animation: buttonPulse 2s infinite;
+}
+
+@keyframes buttonPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(3, 169, 244, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(3, 169, 244, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(3, 169, 244, 0);
+  }
+}
+
+/* Enhanced action button */
+.action-button {
+  background: linear-gradient(135deg, #03A9F4 0%, #039BE5 100%);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 25px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(3, 169, 244, 0.3);
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+}
+
+.action-button:hover {
+  background: linear-gradient(135deg, #039BE5 0%, #0288D1 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(3, 169, 244, 0.4);
+}
+
+.action-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(3, 169, 244, 0.3);
+}
+
+.action-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: all 0.6s ease;
+}
+
+.action-button:hover::after {
+  left: 100%;
+}
+
+/* Fade in animations */
+@keyframes fadeInUp {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile adaptations for the redesigned round modal */
+@media screen and (max-width: 768px) {
+  .primary-info-panel {
+    padding: 16px;
+    margin-bottom: 15px;
+  }
+  
+  .station-icon-large {
+    font-size: 36px;
+    margin-bottom: 12px;
+  }
+  
+  .station-name-large {
+    font-size: 20px;
+    margin-bottom: 12px;
+  }
+  
+  .station-url-large {
+    font-size: 14px;
+    padding: 8px 20px;
+  }
+  
+  .round-stats {
+    gap: 10px;
+    padding: 10px 0;
+  }
+  
+  .stat-box {
+    padding: 10px 15px;
+    min-width: 80px;
+  }
+  
+  .stat-box .stat-value {
+    font-size: 28px;
+  }
+  
+  .stat-box .stat-label {
+    font-size: 12px;
+  }
+  
+  .score-divider.vertical {
+    height: 50px;
+  }
+  
+  .action-button {
+    font-size: 16px;
+    padding: 14px;
+  }
+  
+  .collapse-toggle {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+  
+  .journey-container.expanded {
+    max-height: 300px;
+  }
+}
+
+/* Game-like overlay effect */
+.game-overlay {
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Game-style modal with enhanced depth and 3D effects */
+.game-modal {
+  background: linear-gradient(135deg, #f9fafc 0%, #edf2f7 100%);
+  border-radius: 16px;
+  box-shadow: 
+    0 10px 25px rgba(0,0,0,0.2),
+    0 0 0 1px rgba(255,255,255,0.15) inset,
+    0 5px 10px rgba(0,0,0,0.1) inset;
+  border: none;
+  overflow: hidden;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+@keyframes modalAppear {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Rotate animation for the round badge */
+.rotate-on-appear {
+  animation: rotateIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes rotateIn {
+  0% { transform: rotate(-180deg) scale(0.5); opacity: 0; }
+  100% { transform: rotate(0) scale(1); opacity: 1; }
+}
+
+/* Game-like button styling with 3D effect and glow */
+.game-button {
+  position: relative;
+  background: linear-gradient(135deg, #0288d1 0%, #03A9F4 100%);
+  color: white;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: 50px;
+  padding: 14px 30px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 0 #026fa8, 
+    0 5px 8px rgba(0,0,0,0.2);
+  text-transform: uppercase;
+  overflow: hidden;
+  transform: translateY(0);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.game-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 0 #026fa8, 
+    0 8px 12px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #039BE5 0%, #29B6F6 100%);
+}
+
+.game-button:active {
+  transform: translateY(3px);
+  box-shadow: 
+    0 1px 0 #026fa8, 
+    0 2px 4px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #0277BD 0%, #0288D1 100%);
+}
+
+/* Button icon styling */
+.button-icon {
+  font-size: 20px;
+}
+
+/* Special styling for listen button */
+.listen-button {
+  width: auto;
+  display: inline-flex;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #7b1fa2 0%, #9c27b0 100%);
+  box-shadow: 
+    0 4px 0 #6a1b9a, 
+    0 5px 8px rgba(0,0,0,0.2);
+}
+
+.listen-button:hover {
+  box-shadow: 
+    0 6px 0 #6a1b9a, 
+    0 8px 12px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #8e24aa 0%, #ab47bc 100%);
+}
+
+.listen-button:active {
+  box-shadow: 
+    0 1px 0 #6a1b9a, 
+    0 2px 4px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%);
+}
+
+/* Continue button with enhanced styling */
+.continue-game-button {
+  width: 100%;
+  position: relative;
+  background: linear-gradient(135deg, #00897b 0%, #26a69a 100%);
+  box-shadow: 
+    0 4px 0 #00796b, 
+    0 5px 8px rgba(0,0,0,0.2);
+  margin-top: 30px;
+}
+
+.continue-game-button:hover {
+  box-shadow: 
+    0 6px 0 #00796b, 
+    0 8px 12px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #009688 0%, #4db6ac 100%);
+}
+
+.continue-game-button:active {
+  box-shadow: 
+    0 1px 0 #00796b, 
+    0 2px 4px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #00796b 0%, #009688 100%);
+}
+
+/* Pulsating glow effect for buttons */
+.button-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50px;
+  background: transparent;
+  box-shadow: 0 0 20px 5px rgba(0, 137, 123, 0.5);
+  opacity: 0;
+  animation: buttonGlowPulse 2s ease-in-out infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+@keyframes buttonGlowPulse {
+  0% { opacity: 0; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* Enhanced primary info panel with depth effect */
+.primary-info-panel {
+  background: linear-gradient(135deg, #f8fbff 0%, #f0f4f9 100%);
+  border-radius: 20px;
+  padding: 24px;
+  margin: 15px 0 30px;
+  box-shadow: 
+    0 8px 16px rgba(0, 0, 0, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 -3px 0 rgba(0, 0, 0, 0.05) inset;
+  border: none;
+  transform: translateZ(10px);
+  position: relative;
+}
+
+/* Enhanced station spotlight with game-like elements */
+.station-spotlight {
+  text-align: center;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 2px dashed rgba(0, 0, 0, 0.1);
+}
+
+.station-icon-large {
+  font-size: 48px;
+  margin-bottom: 16px;
+  text-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  display: inline-block;
+}
+
+@keyframes floatUpDown {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+
+.station-name-large {
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0 0 20px;
+  background: linear-gradient(135deg, #0277bd 0%, #29B6F6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+  letter-spacing: 0.5px;
+}
+
+/* Station controls container */
+.station-controls {
+  margin: 15px 0 5px;
+}
+
+/* Enhanced stats boxes with 3D effect */
+.round-stats {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  padding: 15px 0 5px;
+}
+
+.stat-box {
+  padding: 22px 25px;
+  border-radius: 16px;
+  min-width: 110px;
+  text-align: center;
+  box-shadow: 
+    0 8px 16px rgba(0,0,0,0.08),
+    0 -2px 0 rgba(0,0,0,0.05) inset,
+    0 1px 0 rgba(255,255,255,0.8) inset;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+}
+
+.stat-box::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%);
+  pointer-events: none;
+}
+
+.stat-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 
+    0 12px 20px rgba(0,0,0,0.1),
+    0 -2px 0 rgba(0,0,0,0.05) inset,
+    0 1px 0 rgba(255,255,255,0.8) inset;
+}
+
+/* Animated counter for score value */
+.count-up-animation {
+  animation: countBounce 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.8s both;
+}
+
+@keyframes countBounce {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.stat-box .stat-value {
+  font-family: 'CustomHeader', sans-serif;
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.stat-box .stat-label {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  position: relative;
+  z-index: 2;
+}
+
+/* Enhanced score and attempts boxes */
+.score {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #0277bd;
+}
+
+.attempts {
+  background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+  color: #424242;
+}
+
+/* Divider with enhanced styling */
+.score-divider.vertical {
+  width: 2px;
+  height: 60px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 1px;
+  margin: 0;
+  box-shadow: 1px 0 0 rgba(255,255,255,0.5);
+}
+
+/* Flag reveal with animation */
+.country-detection-hero {
+  position: relative;
+  margin: 0 0 30px 0;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 
+    0 10px 25px rgba(0,0,0,0.15),
+    0 0 0 1px rgba(255,255,255,0.1) inset;
+  transform: translateZ(5px);
+}
+
+/* Card flip animation for country reveal */
+.flip-in-animation {
+  animation: cardFlip 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s both;
+}
+
+@keyframes cardFlip {
+  0% { 
+    transform: rotateY(90deg) scale(0.9); 
+    opacity: 0;
+  }
+  100% { 
+    transform: rotateY(0) scale(1); 
+    opacity: 1;
+  }
+}
+
+.country-detection-hero .country-flag-container {
+  position: relative;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+}
+
+.country-detection-hero .detected-flag {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: transform 0.8s ease;
+}
+
+.country-detection-hero:hover .detected-flag {
+  transform: scale(1.05);
+}
+
+/* Enhanced country name overlay */
+.country-name-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.8) 70%);
+  padding: 50px 20px 20px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.country-name-overlay .country-name {
+  font-family: 'CustomHeader', sans-serif;
+  color: white;
+  font-size: 36px;
+  font-weight: 800;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  letter-spacing: 0.5px;
+}
+
+/* Enhanced collapsible section with game-like toggle */
+.collapsible-section {
+  margin: 25px 0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transform: translateZ(5px);
+  background: #fff;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.collapse-toggle.game-toggle {
+  width: 100%;
+  background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
+  border: none;
+  padding: 16px 20px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #555;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 -2px 0 rgba(0,0,0,0.05) inset;
+}
+
+.collapse-toggle.game-toggle:hover {
+  background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
+  color: #333;
+}
+
+.collapse-toggle.game-toggle.active {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #0277bd;
+}
+
+.toggle-icon {
+  transition: transform 0.3s ease;
+  font-size: 12px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-toggle.active .toggle-icon {
+  transform: rotate(180deg);
+  background: rgba(255,255,255,0.2);
+}
+
+/* Journey container modifications for game-like appearance */
+.journey-container {
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.5s ease;
+  padding: 0 15px;
+  background: #fafafa;
+}
+
+.journey-container.expanded {
+  max-height: 350px;
+  padding: 20px 15px;
+  overflow-y: auto;
+}
+
+/* Enhanced journey items */
+.journey-item {
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+  position: relative;
+  transition: all 0.3s ease;
+  margin-bottom: 15px;
+}
+
+.journey-item:hover {
+  box-shadow: 0 6px 12px rgba(0,0,0,0.12);
+  transform: translateY(-3px);
+}
+
+.journey-item.correct-guess {
+  background: linear-gradient(to right, #e8f5e9, #f1f8e9);
+  border-left: 5px solid #4CAF50;
+}
+
+/* Updated animations for mobile */
+@media screen and (max-width: 768px) {
+  .primary-info-panel {
+    padding: 18px;
+  }
+  
+  .station-icon-large {
+    font-size: 38px;
+  }
+  
+  .station-name-large {
+    font-size: 24px;
+  }
+  
+  .round-stats {
+    gap: 20px;
+  }
+  
+  .stat-box {
+    padding: 15px 20px;
+    min-width: 90px;
+  }
+  
+  .stat-box .stat-value {
+    font-size: 32px;
+  }
+  
+  .score-divider.vertical {
+    height: 50px;
+  }
+  
+  .game-button {
+    font-size: 16px;
+    padding: 12px 24px;
+  }
+  
+  .country-name-overlay .country-name {
+    font-size: 28px;
+  }
+  
+  .collapse-toggle {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+}
+
+/* Add this code to make score counter animation work */
+@keyframes countUp {
+  from {
+    opacity: 0.3;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Script to animate the score counters */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* Improved pulse animation for buttons */
+.pulse-animation {
+  position: relative;
+}
+
+.pulse-animation::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50px;
+  animation: pulseBorder 2s infinite;
+  box-shadow: 0 0 0 0 rgba(0, 137, 123, 0.7);
+}
+
+@keyframes pulseBorder {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 137, 123, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 137, 123, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 137, 123, 0);
+  }
+}
+
+/* Animation for correct journey item */
+.journey-item.correct-guess {
+  animation: correctGlow 2s ease-in-out infinite;
+}
+
+@keyframes correctGlow {
+  0% { box-shadow: 0 3px 8px rgba(0,0,0,0.08); }
+  50% { box-shadow: 0 3px 15px rgba(76, 175, 80, 0.4); }
+  100% { box-shadow: 0 3px 8px rgba(0,0,0,0.08); }
+}
+
+/* Add counter animation script */
+.count-up-animation {
+  visibility: hidden;
+}
+
+.count-up-animation::before {
+  visibility: visible;
+  content: attr(data-value);
+  animation: countUp 1.5s ease-out forwards;
+}
+
+/* Game Modal Container - Root element */
+.game-modal-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  perspective: 1000px;
+}
+
+/* Game Frame - Creates a border with futuristic styling */
+.game-modal-frame {
+  width: 90%;
+  max-width: 650px;
+  background: linear-gradient(135deg, #222946 0%, #1a1f36 100%);
+  border-radius: 8px;
+  position: relative;
+  box-shadow: 
+    0 0 30px rgba(0, 208, 255, 0.5),
+    0 0 60px rgba(0, 208, 255, 0.3);
+  transform-style: preserve-3d;
+  overflow: hidden;
+}
+
+.game-frame-top, 
+.game-frame-bottom {
+  height: 10px;
+  width: 100%;
+  position: absolute;
+  left: 0;
+  background: var(--primary-color);
+  z-index: 10;
+}
+
+.game-frame-top {
+  top: 0;
+  background: linear-gradient(to right, 
+    transparent, 
+    var(--primary-color) 20%, 
+    var(--primary-color) 80%, 
+    transparent);
+  box-shadow: 0 0 15px var(--primary-color);
+}
+
+.game-frame-bottom {
+  bottom: 0;
+  background: linear-gradient(to right, 
+    transparent, 
+    var(--primary-color) 20%, 
+    var(--primary-color) 80%, 
+    transparent);
+  box-shadow: 0 0 15px var(--primary-color);
+}
+
+.game-frame-content {
+  padding: 25px 10px;
+  max-height: 80vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Game Card - Main content container */
+.game-card {
+  background-color: #1a1c2e;
+  border-radius: 12px;
+  padding: 20px;
+  color: var(--light-text);
+  position: relative;
+  box-shadow: 
+    0 5px 15px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+/* Modal Header with Neon Styling */
+.game-modal-header {
+  text-align: center;
+  position: relative;
+  margin-bottom: 30px;
+}
+
+.game-round-badge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  background: var(--primary-color);
+  color: #000;
+  border-radius: 50%;
+  font-family: var(--game-heading);
+  font-weight: 700;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 0 10px var(--primary-color),
+    0 0 20px rgba(0, 208, 255, 0.4);
+  animation: pulseBadge 2s infinite;
+  text-shadow: 0 0 5px rgba(255,255,255,0.7);
+}
+
+.game-title {
+  font-family: var(--game-heading);
+  font-size: 32px;
+  margin: 0;
+  background: linear-gradient(to right, #00d0ff, #00ffd9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 1px;
+  text-shadow: 
+    0 0 10px rgba(0, 208, 255, 0.7),
+    0 0 20px rgba(0, 208, 255, 0.5);
+}
+
+.neon-line {
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(to right, 
+    transparent, 
+    var(--primary-color) 20%, 
+    var(--primary-light) 50%,
+    var(--primary-color) 80%, 
+    transparent);
+  margin: 15px auto 0;
+  box-shadow: 0 0 10px var(--primary-color);
+}
+
+/* Country Reveal Container */
+.country-reveal-container {
+  position: relative;
+  margin: 20px 0 30px;
+  perspective: 800px;
+}
+
+.country-flag-wrapper {
+  width: 100%;
+  height: 180px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 
+    0 5px 15px rgba(0,0,0,0.4),
+    0 0 0 1px rgba(0, 208, 255, 0.3);
+  transform-style: preserve-3d;
+}
+
+.flag-reveal {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.flag-shine {
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.3), 
+    transparent
+  );
+  transform: skewX(-25deg);
+}
+
+.country-name-reveal {
+  text-align: center;
+  margin-top: 15px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 208, 255, 0.3);
+}
+
+.country-name-reveal h3 {
+  margin: 0;
+  font-family: var(--game-heading);
+  font-size: 28px;
+  color: var(--light-text);
+  display: none;
+}
+
+/* Radio Station Panel */
+.radio-station-panel {
+  background-color: #252940;
+  border-radius: 10px;
+  margin: 25px 0;
+  border: 2px solid rgba(0, 208, 255, 0.3);
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.panel-header {
+  background: var(--primary-color);
+  color: #000;
+  padding: 10px 15px;
+  font-family: var(--game-heading);
+  font-weight: 700;
+  font-size: 16px;
+  text-align: center;
+  letter-spacing: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-icon {
+  font-size: 18px;
+}
+
+.station-display {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+}
+
+.station-name-scroll {
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+  padding: 10px 15px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
+  position: relative;
+}
+
+.station-name-text {
+  display: block;
+  color: var(--highlight);
+  font-family: var(--game-text);
+  font-weight: 700;
+  font-size: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  text-shadow: 0 0 5px rgba(0, 255, 217, 0.7);
+}
+
+.retro-button {
+  background: linear-gradient(to bottom, #7b1fa2, #6a1b9a); 
+  border: 0;
+  border-radius: 30px;
+  padding: 8px 18px;
+  color: white;
+  font-family: var(--game-text);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  box-shadow: 
+    0 4px 0 #4a148c,
+    0 5px 8px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tune-in-btn {
+  padding: 10px 20px;
+}
+
+.retro-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 0 #4a148c,
+    0 8px 12px rgba(0,0,0,0.4);
+}
+
+.retro-button:active {
+  transform: translateY(3px);
+  box-shadow: 
+    0 1px 0 #4a148c,
+    0 2px 4px rgba(0,0,0,0.4);
+}
+
+.btn-icon {
+  font-size: 16px;
+}
+
+/* Game Metrics Container */
+.game-metrics-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 25px 0;
+}
+
+.metric-box {
+  background: #252940;
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.metric-value {
+  font-family: var(--game-heading);
+  font-size: 42px;
+  color: white;
+  text-shadow: 0 0 10px var(--primary-color);
+  position: relative;
+  z-index: 2;
+}
+
+.metric-bar-container {
+  width: 100%;
+  height: 8px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+
+.metric-bar {
+  height: 100%;
+  width: 0; /* Will be set by inline style */
+  border-radius: 4px;
+  transition: width 1.5s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+}
+
+.score-bar {
+  background: linear-gradient(to right, #00d0ff, #00ffd9);
+  box-shadow: 0 0 10px rgba(0, 208, 255, 0.7);
+  width: 100%;
+}
+
+.attempts-bar {
+  background: linear-gradient(to right, #ffd166, #ef476f);
+  box-shadow: 0 0 10px rgba(239, 71, 111, 0.7);
+  width: 100%;
+}
+
+.metric-label {
+  font-family: var(--game-text);
+  color: #a0a6c4;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Journey Drawer */
+.journey-box {
+  background-color: #252940;
+  border-radius: 10px;
+  margin: 30px 0;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.journey-header {
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(to right, #2d3047, #252940);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.3s ease;
+}
+
+.journey-header:hover {
+  background: linear-gradient(to right, #33364f, #2a2e4a);
+}
+
+.journey-header.active {
+  background: linear-gradient(to right, #252940, #1f2335);
+}
+
+.journey-title {
+  font-family: var(--game-heading);
+  font-size: 18px;
+  color: var(--light-text);
+  letter-spacing: 1px;
+}
+
+.journey-toggle {
+  font-size: 12px;
+  color: var(--primary-color);
+  background: rgba(0,0,0,0.3);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.journey-header.active .journey-toggle {
+  transform: rotate(180deg);
+  background: rgba(0, 208, 255, 0.2);
+}
+
+.journey-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease;
+  background: rgba(0,0,0,0.15);
+}
+
+.journey-content.expanded {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.journey-path {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* Journey Steps */
+.journey-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  position: relative;
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--light-text);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--game-heading);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.step-info {
+  flex: 1;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  padding: 10px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-flag {
+  width: 60px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}
+
+.step-name {
+  font-size: 16px;
+  color: var(--light-text);
+  font-weight: 600;
+  margin: 0 0 5px;
+}
+
+.step-indicator {
+  font-family: var(--game-text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 5px;
+  display: inline-block;
+  margin-bottom: 5px;
+  width: fit-content;
+}
+
+.warmer {
+  color: #ff7b00;
+  background: rgba(255, 123, 0, 0.15);
+}
+
+.colder {
+  color: #00d0ff;
+  background: rgba(0, 208, 255, 0.15);
+}
+
+.step-distance {
+  font-family: var(--game-text);
+  font-size: 14px;
+  color: #a0a6c4;
+}
+
+.step-connector {
+  position: absolute;
+  left: 16px;
+  top: 32px;
+  bottom: -15px;
+  width: 2px;
+  background: rgba(255,255,255,0.1);
+  z-index: 0;
+}
+
+.correct-step .step-number {
+  background: var(--correct);
+  color: #000;
+  box-shadow: 0 0 10px rgba(0, 255, 141, 0.7);
+}
+
+.correct-step .step-info {
+  background: rgba(0, 255, 141, 0.1);
+  border: 1px solid var(--correct);
+}
+
+/* Continue Button */
+.game-continue-button {
+  width: 100%;
+  background: linear-gradient(to bottom, #00897b, #00796b);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  padding: 20px;
+  font-family: var(--game-heading);
+  font-size: 18px;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  margin-top: 30px;
+  box-shadow: 
+    0 5px 0 #004d40,
+    0 6px 15px rgba(0,0,0,0.4);
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+
+.continue-text {
+  position: relative;
+  z-index: 3;
+}
+
+.game-continue-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 8px 0 #004d40,
+    0 10px 20px rgba(0,0,0,0.4);
+}
+
+.game-continue-button:active {
+  transform: translateY(3px);
+  box-shadow: 
+    0 2px 0 #004d40,
+    0 3px 5px rgba(0,0,0,0.4);
+}
+
+.button-effects {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.button-shine {
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.3), 
+    transparent
+  );
+  transform: skewX(-25deg);
+}
+
+.button-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border-radius: 30px;
+  box-shadow: 0 0 30px rgba(0, 255, 141, 0.8);
+}
+
+/* Animations */
+@keyframes modalEntrance {
+  0% { transform: scale(0.8) rotateX(10deg); opacity: 0; }
+  100% { transform: scale(1) rotateX(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes buttonFadeIn {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes revealFromBottom {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes panelReveal {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes flagReveal {
+  0% { opacity: 0; transform: rotateY(90deg); }
+  100% { opacity: 1; transform: rotateY(0); }
+}
+
+@keyframes flagZoomPulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.05); }
+}
+
+@keyframes flagShine {
+  0% { left: -100%; }
+  100% { left: 150%; }
+}
+
+@keyframes buttonShine {
+  0% { left: -100%; }
+  100% { left: 150%; }
+}
+
+@keyframes buttonGlow {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes textGlow {
+  0% { text-shadow: 0 0 10px rgba(0, 208, 255, 0.7), 0 0 20px rgba(0, 208, 255, 0.5); }
+  100% { text-shadow: 0 0 15px rgba(0, 208, 255, 0.9), 0 0 30px rgba(0, 208, 255, 0.7); }
+}
+
+@keyframes pulseBadge {
+  0% { box-shadow: 0 0 10px var(--primary-color), 0 0 20px rgba(0, 208, 255, 0.4); }
+  50% { box-shadow: 0 0 15px var(--primary-color), 0 0 25px rgba(0, 208, 255, 0.6); }
+  100% { box-shadow: 0 0 10px var(--primary-color), 0 0 20px rgba(0, 208, 255, 0.4); }
+}
+
+@keyframes pulseCorrect {
+  0% { box-shadow: 0 0 10px rgba(0, 255, 141, 0.7); }
+  100% { box-shadow: 0 0 20px rgba(0, 255, 141, 0.9); }
+}
+
+@keyframes antenna {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-3px); }
+}
+
+@keyframes textScroll {
+  0% { text-indent: 0; }
+  50% { text-indent: max(-100%, -100px); }
+  100% { text-indent: 0; }
+}
+
+@keyframes bounce {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-3px); }
+}
+
+@keyframes countUpValue {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+@keyframes barFill {
+  0% { width: 0; }
+  100% { width: var(--width, 100%); }
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+  .game-modal-frame {
+    width: 95%;
+    max-width: 450px;
+  }
+  
+  .game-frame-content {
+    padding: 15px 5px;
+  }
+  
+  .game-card {
+    padding: 15px;
+  }
+  
+  .game-title {
+    font-size: 24px;
+  }
+  
+  .game-round-badge {
+    width: 35px;
+    height: 35px;
+    font-size: 18px;
+  }
+  
+  .country-flag-wrapper {
+    height: 140px;
+  }
+  
+  .country-name-reveal h3 {
+    font-size: 22px;
+  }
+  
+  .metric-value {
+    font-size: 36px;
+  }
+  
+  .journey-title {
+    font-size: 16px;
+  }
+  
+  .game-continue-button {
+    padding: 15px;
+    font-size: 16px;
+  }
+  
+  .panel-header {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+  
+  .station-name-text {
+    font-size: 16px;
+  }
+}
+
+/* Overriding previous modal styling */
+.start-modal {
+  backdrop-filter: blur(8px);
+}
+
+/* Add these enhanced animated styles for the round summary modal */
+
+/* Modal overlay with enhanced backdrop filter and animated entrance */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  perspective: 1200px;
+  
+  /* Add these properties to enable touch scrolling on the entire overlay */
+  touch-action: pan-y;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Main modal container with 3D entrance animation */
+.summary-modal {
+  max-width: 500px;
+  width: 90%;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 20px;
+  box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.05) inset;
+  padding: 28px;
+  transform-style: preserve-3d;
+  max-height: 85vh;
+  overflow-y: auto;
+  transform: translateZ(0);
+  animation: modalEnter 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  
+  /* Ensure modal doesn't consume all vertical space on smaller screens */
+  margin: 20px 0;
+  position: relative;
+}
+
+/* Ensure journey container has proper touch scrolling too */
+.journey-list.expanded {
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 16px;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+
+/* Also update the game-over-modal for consistency */
+.game-over-modal {
+  /* ...existing code... */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  margin: 20px 0; /* Add margin to prevent sticking to edges */
+}
+
+/* Override the disabling of touch events from globe-container for modal content */
+.modal-overlay,
+.modal-overlay * {
+  touch-action: auto !important;
+}
+
+/* Ensure iOS (especially older versions) handles touch events properly */
+@supports (-webkit-touch-callout: none) {
+  .modal-overlay,
+  .summary-modal,
+  .journey-list.expanded,
+  .game-over-modal {
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Modal header with animated round indicator */
+.modal-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.round-indicator {
+  background: linear-gradient(135deg, #039BE5 0%, #03A9F4 100%);
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  padding: 8px 14px;
+  border-radius: 20px;
+  margin-right: 16px;
+  box-shadow: 0 4px 10px rgba(3, 169, 244, 0.3);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 28px;
+  color: #333;
+  font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Country showcase with animated flag reveal and 3D hover effect */
+.country-showcase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 30px;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.flag-container {
+  width: 220px;
+  height: 140px;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.25),
+    0 3px 6px rgba(0, 0, 0, 0.2);
+  position: relative;
+  transform: translateZ(30px);
+  transition: transform 0.3s ease;
+}
+
+.flag-container:hover {
+  transform: translateZ(40px) scale(1.05);
+}
+
+.country-flag-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Flag shine animation */
+.flag-container::after {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 80%;
+  height: 300%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(25deg);
+  animation: flagShine 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes flagShine {
+  0% { left: -100%; }
+  100% { left: 150%; }
+}
+
+.country-name {
+  font-family: 'CustomHeader', sans-serif;
+  font-size: 36px;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(135deg, #333333 0%, #555555 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+  transform: translateZ(25px);
+}
+
+/* Radio station info card with floating animation and depth */
+.station-info-card {
+  background: linear-gradient(135deg, #e7f5ff 0%, #f5f9fc 100%);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 30px;
+  border: 1px solid rgba(3, 169, 244, 0.1);
+  box-shadow: 
+    0 10px 20px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset,
+    0 -3px 0 rgba(0, 0, 0, 0.05) inset;
+  transform: translateZ(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated station icon */
+.station-info-card::before {
+  content: '📻';
+  position: absolute;
+  top: -15px;
+  right: -15px;
+  font-size: 60px;
+  opacity: 0.07;
+  animation: floatUpDown 2s ease-in-out infinite;
+}
+
+.station-info-card h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  text-transform: uppercase;
+  color: #039BE5;
+  letter-spacing: 0.08em;
+  position: relative;
+  display: inline-block;
+}
+
+/* Line under heading */
+.station-info-card h4::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #039BE5, transparent);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+.station-name {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  color: #333;
+  word-break: break-word;
+  position: relative;
+}
+
+/* Enhanced visit button with shine effect */
+.visit-button {
+  display: inline-block;
+  background: linear-gradient(135deg, #03A9F4 0%, #039BE5 100%);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 50px;
+  transition: all 0.3s;
+  box-shadow: 0 4px 10px rgba(3, 169, 244, 0.3);
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(5px);
+}
+
+.visit-button:hover {
+  background: linear-gradient(135deg, #039BE5 0%, #0288D1 100%);
+  transform: translateY(-3px) translateZ(5px);
+  box-shadow: 0 6px 15px rgba(3, 169, 244, 0.4);
+}
+
+.visit-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255,255,255,0.2), 
+    transparent
+  );
+  transition: all 0.6s ease;
+}
+
+.visit-button:hover::after {
+  left: 100%;
+}
+
+/* Round statistics display with animated counters and progress bars */
+.round-stats-container {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+  transform: translateZ(5px);
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.stat-value {
+  font-family: 'CustomHeader', sans-serif;
+  font-size: 36px;
+  font-weight: 800;
+  color: #333;
+  margin-bottom: 10px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.stat-bar-container {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #03A9F4, #29B6F6);
+  border-radius: 4px;
+  width: 100%;
+  box-shadow: 0 0 10px rgba(3, 169, 244, 0.5);
+}
+
+.attempts-bar {
+  background: linear-gradient(90deg, #FF9800, #FFC107);
+  box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-divider {
+  width: 2px;
+  background: linear-gradient(to bottom, transparent, #e0e7ee, transparent);
+  margin: 0 15px;
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Journey section with dynamic expansion animation */
+.journey-section {
+  margin-bottom: 30px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 
+    0 8px 20px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  transform: translateZ(5px);
+  position: relative;
+}
+
+.journey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #f5f9fc 0%, #e7f5ff 100%);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+  z-index: 2;
+}
+
+.journey-header:hover {
+  background: linear-gradient(135deg, #e7f1fb 0%, #d8ebff 100%);
+}
+
+.journey-header.active {
+  background: linear-gradient(135deg, #e3f2fd 0%, #d0e8ff 100%);
+}
+
+.journey-header h4 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+}
+
+/* Add a map pin icon before the heading */
+.journey-header h4::before {
+  content: '🗺️';
+  margin-right: 10px;
+  font-size: 20px;
+}
+
+.toggle-icon {
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3, 169, 244, 0.1);
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.journey-header.active .toggle-icon {
+  transform: rotate(180deg);
+  background: rgba(3, 169, 244, 0.2);
+}
+
+.journey-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+.journey-list.expanded {
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 16px;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Animated guess items with staggered entrance */
+.guess-item {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: 
+    0 4px 10px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s;
+}
+
+.guess-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.guess-number {
+  background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+  color: #666;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  margin-right: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.guess-details {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+}
+
+.guess-flag {
+  width: 45px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-right: 14px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+  transition: transform 0.3s;
+}
+
+.guess-flag:hover {
+  transform: scale(1.1);
+}
+
+.guess-info {
+  flex-grow: 1;
+}
+
+.guess-name {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+.closer {
+  color: #28a745;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.closer::before {
+  content: '🔥';
+  margin-right: 5px;
+  font-size: 14px;
+}
+
+.farther {
+  color: #2196f3;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.farther::before {
+  content: '❄️';
+  margin-right: 5px;
+  font-size: 14px;
+}
+
+.guess-distance {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.correct-mark {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  margin-left: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 0 15px rgba(40, 167, 69, 0.4);
+}
+
+.correct-guess {
+  background: linear-gradient(135deg, #f0fff4 0%, #ebfff0 100%);
+  border-left: 4px solid #28a745;
+}
+
+/* Enhanced continue button with 3D effect and animation */
+.continue-modal-button {
+  background: linear-gradient(135deg, #03A9F4 0%, #0288D1 100%);
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  border: none;
+  border-radius: 50px;
+  padding: 16px 28px;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 
+    0 6px 0 #026fa8, 
+    0 8px 15px rgba(0, 0, 0, 0.2);
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(10px);
+  letter-spacing: 0.5px;
+  font-family: 'Regular', sans-serif;
+}
+
+.continue-modal-button:hover {
+  background: linear-gradient(135deg, #039BE5 0%, #0299E3 100%);
+  transform: translateY(-4px) translateZ(10px);
+  box-shadow: 
+    0 10px 0 #026fa8, 
+    0 12px 20px rgba(0, 0, 0, 0.25);
+}
+
+.continue-modal-button:active {
+  transform: translateY(2px) translateZ(10px);
+  box-shadow: 
+    0 4px 0 #026fa8, 
+    0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+.continue-modal-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.3), 
+    transparent
+  );
+  transition: all 0.6s ease;
+}
+
+.continue-modal-button:hover::after {
+  left: 100%;
+}
+
+/* Shine effect for button */
+.continue-modal-button::before {
+  content: '→';
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 22px;
+}
+
+@keyframes arrowMove {
+  from { right: 30px; }
+  to { right: 25px; }
+}
+
+/* Mobile adaptations */
+@media screen and (max-width: 768px) {
+  .summary-modal {
+    width: 95%;
+    padding: 20px;
+  }
+
+  .modal-header h2 {
+    font-size: 22px;
+  }
+
+  .flag-container {
+    width: 160px;
+    height: 100px;
+  }
+
+  .country-name {
+    font-size: 28px;
+  }
+
+  .stat-value {
+    font-size: 34px;
+  }
+
+  .journey-list.expanded {
+    max-height: 250px;
+  }
+
+  .guess-flag {
+    width: 36px;
+    height: 22px;
+  }
+
+  .guess-name {
+    font-size: 14px;
+  }
+
+  .continue-modal-button {
+    font-size: 16px;
+    padding: 14px 20px;
+  }
+  
+  .continue-modal-button::before {
+    right: 20px;
+    font-size: 18px;
+  }
+}
+
+/* Game Over Modal - Light Theme Redesign */
+.game-over-modal {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  padding: 30px;
+  max-width: 680px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  color: #333;
+  animation: modalFadeIn 0.5s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.game-over-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 25px;
+  position: relative;
+}
+
+.medal-icon {
+  font-size: 2.5rem;
+  margin-right: 15px;
+  color: #FFD700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  animation: medalGlow 2s infinite alternate;
+}
+
+@keyframes medalGlow {
+  from { text-shadow: 0 0 10px rgba(255, 215, 0, 0.3); }
+  to { text-shadow: 0 0 20px rgba(255, 215, 0, 0.7); }
+}
+
+.game-over-header h2 {
+  font-size: 2.2rem;
+  margin: 0;
+  background: linear-gradient(to right, #333, #03A9F4);
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 1px;
+  font-family: 'CustomHeader', sans-serif;
+}
+
+.final-score-display {
+  background: linear-gradient(135deg, #e7f5ff 0%, #f5f9fc 100%);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 30px;
+  border: 1px solid rgba(3, 169, 244, 0.2);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+.score-value {
+  font-size: 4rem;
+  font-weight: 800;
+  color: #03A9F4;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 0;
+  animation: scoreCountUp 2s ease-out;
+  font-family: 'CustomHeader', sans-serif;
+}
+
+@keyframes scoreCountUp {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.score-label {
+  font-size: 1rem;
+  color: #666;
+  letter-spacing: 2px;
+  margin-top: 5px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.rounds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.round-card {
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #eee;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.round-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.round-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #f5f9fc 0%, #e7f5ff 100%);
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.round-number {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 30px;
+  height: 30px;
+  background: #03A9F4;
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.round-points {
+  font-weight: bold;
+  color: #03A9F4;
+}
+
+.round-content {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.round-content .flag-container {
+  width: 120px;
+  height: 80px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.round-content .flag-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.round-content .flag-container:hover img {
+  transform: scale(1.1);
+}
+
+.round-country-name {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.round-guesses {
+  font-size: 0.9rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.guesses-count {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #444;
+}
+
+.play-again-button {
+  width: 100%;
+  background: linear-gradient(135deg, #03A9F4 0%, #039BE5 100%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 16px 28px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 6px 0 #026fa8, 0 8px 15px rgba(0, 0, 0, 0.2);
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(10px);
+  letter-spacing: 0.5px;
+  font-family: 'Regular', sans-serif;
+  text-transform: uppercase;
+}
+
+.play-again-button:hover {
+  background: linear-gradient(135deg, #039BE5 0%, #0299E3 100%);
+  transform: translateY(-4px) translateZ(10px);
+  box-shadow: 0 10px 0 #026fa8, 0 12px 20px rgba(0, 0, 0, 0.25);
+}
+
+.play-again-button:active {
+  transform: translateY(2px) translateZ(10px);
+  box-shadow: 0 4px 0 #026fa8, 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+.play-again-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.3), 
+    transparent
+  );
+  transition: all 0.6s ease;
+}
+
+.play-again-button:hover::after {
+  left: 100%;
+}
+
+/* Add arrow icon to the button */
+.play-again-button::before {
+  content: '↺';
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 22px;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.play-again-button:hover::before {
+  opacity: 1;
+  right: 25px;
 }
 

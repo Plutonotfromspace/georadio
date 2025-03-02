@@ -1,3 +1,45 @@
+/* Adding gaming fonts */
+@import url('https://fonts.googleapis.com/css2?family=Audiowide&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+@font-face {
+  font-family: 'CustomHeader';
+  src: url('/fonts/customheader.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Regular';
+  src: url('/fonts/regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Game theme colors */
+  --primary-color: #00d0ff;
+  --primary-dark: #0091c7;
+  --primary-light: #80e7ff;
+  --secondary-color: #ff9100;
+  --secondary-dark: #c56200;
+  --secondary-light: #ffc466;
+  --dark-bg: #1a1c2e;
+  --dark-surface: #2d3047;
+  --light-text: #f0f2ff;
+  --highlight: #00ffd9;
+  --correct: #00ff8d;
+  --warning: #ffce00;
+  --danger: #ff5252;
+  
+  /* Game font families */
+  --game-heading: 'CustomHeader', 'Audiowide', cursive;
+  --game-text: 'Regular', sans-serif;
+  --game-pixel: 'Press Start 2P', cursive;
+}
+
 /* Global Reset */
 * {
   margin: 0;
@@ -9,10 +51,17 @@
 html, body, #root {
   width: 100%;
   height: 100%;
-  font-family: sans-serif;
+  font-family: var(--game-text);
   background: linear-gradient(to bottom, #b3e5fc 0%, #fff0d8 100%);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Ensure we have pixelated rendering for pixel art if used */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
