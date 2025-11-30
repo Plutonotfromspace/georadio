@@ -9,14 +9,15 @@ export const initGA = () => {
     return;
   }
 
+  // GA is already configured in index.html with send_page_view: false
+  // This function is kept for compatibility with existing code
+  // Additional runtime configuration can be added here if needed
   const isProd = window.location.hostname !== 'localhost';
   
-  // Configure GA4 with appropriate settings
-  window.gtag('config', GA_MEASUREMENT_ID, {
-    debug_mode: !isProd,
-    cookie_domain: isProd ? 'georadio.io' : 'auto',
-    anonymize_ip: true
-  });
+  if (!isProd) {
+    // Enable debug mode only in development
+    window.gtag('set', { debug_mode: true });
+  }
 };
 
 export const logPageView = () => {
