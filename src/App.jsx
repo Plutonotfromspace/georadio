@@ -949,6 +949,21 @@ function App() {
     setIsLoading(false);
   }, []);
 
+  // Handler for flag image load errors - sets fallback UN flag
+  const handleFlagError = useCallback((e) => {
+    const src = e.target.src;
+    // Determine the correct fallback based on the current URL pattern
+    if (src.includes('/w640/')) {
+      e.target.src = 'https://flagcdn.com/w640/un.png';
+    } else if (src.includes('/w80/')) {
+      e.target.src = 'https://flagcdn.com/w80/un.png';
+    } else if (src.includes('/w40/')) {
+      e.target.src = 'https://flagcdn.com/w40/un.png';
+    } else {
+      e.target.src = 'https://flagcdn.com/w80/un.png';
+    }
+  }, []);
+
   // Update audio element setup
   useEffect(() => {
     const audioElement = audioRef.current;
@@ -1362,7 +1377,7 @@ function App() {
                 <img 
                   src={`https://flagcdn.com/w640/${getCountryCode(targetCountry)}.png`}
                   alt={roundResults[currentRound - 1]?.target}
-                  onError={(e) => { e.target.src = 'https://flagcdn.com/w640/un.png'; }}
+                  onError={handleFlagError}
                   className="country-flag-img"
                 />
               </div>
@@ -1412,7 +1427,7 @@ function App() {
                       <img 
                         src={`https://flagcdn.com/w40/${guess.countryCode}.png`}
                         alt=""
-                        onError={(e) => { e.target.src = 'https://flagcdn.com/w40/un.png'; }}
+                        onError={handleFlagError}
                         className="guess-mini-flag"
                       />
                       <span className="guess-country-name">{guess.name}</span>
@@ -1462,7 +1477,7 @@ function App() {
                         src={`https://flagcdn.com/w80/${getCountryCode(countriesData.find(c => 
                           c.properties?.name === result.target))}.png`}
                         alt={result.target}
-                        onError={(e) => { e.target.src = 'https://flagcdn.com/w80/un.png'; }}
+                        onError={handleFlagError}
                         className="round-summary-flag"
                       />
                       <div className="round-summary-info">
