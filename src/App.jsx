@@ -638,13 +638,20 @@ function App() {
       // Trigger closing animation
       setModalClosing(true);
       
-      // Wait for modal animation to complete
+      // Animate heatmap colors to green before clearing
+      // Update all guesses to have the default green color
+      if (guesses.length > 0) {
+        const greenGuesses = guesses.map(g => ({ ...g, color: '#4CAF50' }));
+        setGuesses(greenGuesses);
+      }
+      
+      // Wait for BOTH modal animation AND color transition to complete
       setTimeout(() => {
         setCurrentRound(currentRound + 1);
         setShowRoundModal(false);
         setModalClosing(false);
         setAttempts(0);
-        setGuesses([]);
+        setGuesses([]); // Now safe to clear - colors already match default
         setPreloadedFlagUrl(null); // Reset preloaded flag for next round
         
         startNewRound();
@@ -664,7 +671,7 @@ function App() {
               });
           }
         }, 100);
-      }, 250); // Wait for modal animation
+      }, 400); // Wait for modal (250ms) + color transition (300ms with buffer)
       
       // Flip in audio player - only when continuing to next round
       audioPlayer.classList.add('flip-in-reset');
@@ -712,7 +719,14 @@ function App() {
     // Trigger closing animation
     setModalClosing(true);
     
-    // Wait for modal animation to complete
+    // Animate heatmap colors to green before clearing (for game over modal)
+    // Note: roundResults guesses are stored, but we need to clear the main guesses
+    if (guesses.length > 0) {
+      const greenGuesses = guesses.map(g => ({ ...g, color: '#4CAF50' }));
+      setGuesses(greenGuesses);
+    }
+    
+    // Wait for modal animation AND color transition to complete
     setTimeout(() => {
       // ...existing playAgain code...
       logEvent('game', 'replay', 'Game replayed');
@@ -738,7 +752,7 @@ function App() {
           audioPlayer.classList.remove('flip-in-reset');
         }, 500);
       }
-    }, 250); // Wait for modal animation
+    }, 400); // Wait for modal (250ms) + color transition (300ms with buffer)
   };
 
   // Helper to mimic "Station broken?" button
