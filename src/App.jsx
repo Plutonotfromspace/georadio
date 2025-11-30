@@ -189,6 +189,35 @@ function App() {
     logPageView();
   }, []);
 
+  /* Helper function to parse hex color to RGB */
+  function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+  }
+
+  /* Helper function to convert RGB to hex */
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(x => {
+      const hex = Math.round(x).toString(16);
+      return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+  }
+
+  /* Helper function to interpolate between two colors */
+  function interpolateColor(color1, color2, factor) {
+    const c1 = hexToRgb(color1);
+    const c2 = hexToRgb(color2);
+    return rgbToHex(
+      c1.r + (c2.r - c1.r) * factor,
+      c1.g + (c2.g - c1.g) * factor,
+      c1.b + (c2.b - c1.b) * factor
+    );
+  }
+
   /* Distance to Color Scale */
   function getColor(distance) {
     if (distance > 12000) return '#fef2dc';
@@ -638,40 +667,73 @@ function App() {
       // Trigger closing animation
       setModalClosing(true);
       
-      // Animate heatmap colors to green before clearing
-      // Update all guesses to have the default green color
-      if (guesses.length > 0) {
-        const greenGuesses = guesses.map(g => ({ ...g, color: '#4CAF50' }));
-        setGuesses(greenGuesses);
+      // Animate heatmap colors to green using requestAnimationFrame
+      const targetColor = '#4CAF50';
+      const animationDuration = 300; // 300ms animation
+      const startTime = performance.now();
+      const originalColors = guesses.map(g => g.color);
+      
+      function animateColors(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        
+        // Ease-out function for smoother animation
+        const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+        
+        // Update each guess with interpolated color
+        const animatedGuesses = guesses.map((g, i) => ({
+          ...g,
+          color: interpolateColor(originalColors[i], targetColor, easeOutProgress)
+        }));
+        setGuesses(animatedGuesses);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateColors);
+        } else {
+          // Animation complete - wait a bit more then clear
+          setTimeout(() => {
+            setCurrentRound(currentRound + 1);
+            setShowRoundModal(false);
+            setModalClosing(false);
+            setAttempts(0);
+            setGuesses([]); // Now safe to clear - colors already match default
+            setPreloadedFlagUrl(null); // Reset preloaded flag for next round
+            
+            startNewRound();
+            
+            // Start playing audio after a short delay to ensure proper setup
+            setTimeout(() => {
+              if (audioRef.current && radioStation) {
+                audioRef.current.play()
+                  .then(() => {
+                    setAudioPlaying(true);
+                    setFeedback(""); // Changed from "Audio playing. Take your guess!" to empty string
+                  })
+                  .catch(e => {
+                    if (!(e.message && e.message.includes("aborted"))) {
+                      console.error("Audio playback error:", e);
+                    }
+                  });
+              }
+            }, 100);
+          }, 100); // Small buffer after animation completes
+        }
       }
       
-      // Wait for BOTH modal animation AND color transition to complete
-      setTimeout(() => {
-        setCurrentRound(currentRound + 1);
-        setShowRoundModal(false);
-        setModalClosing(false);
-        setAttempts(0);
-        setGuesses([]); // Now safe to clear - colors already match default
-        setPreloadedFlagUrl(null); // Reset preloaded flag for next round
-        
-        startNewRound();
-        
-        // Start playing audio after a short delay to ensure proper setup
+      if (guesses.length > 0) {
+        requestAnimationFrame(animateColors);
+      } else {
+        // No guesses to animate, just proceed
         setTimeout(() => {
-          if (audioRef.current && radioStation) {
-            audioRef.current.play()
-              .then(() => {
-                setAudioPlaying(true);
-                setFeedback(""); // Changed from "Audio playing. Take your guess!" to empty string
-              })
-              .catch(e => {
-                if (!(e.message && e.message.includes("aborted"))) {
-                  console.error("Audio playback error:", e);
-                }
-              });
-          }
-        }, 100);
-      }, 400); // Wait for modal (250ms) + color transition (300ms with buffer)
+          setCurrentRound(currentRound + 1);
+          setShowRoundModal(false);
+          setModalClosing(false);
+          setAttempts(0);
+          setGuesses([]);
+          setPreloadedFlagUrl(null);
+          startNewRound();
+        }, 250);
+      }
       
       // Flip in audio player - only when continuing to next round
       audioPlayer.classList.add('flip-in-reset');
@@ -719,40 +781,78 @@ function App() {
     // Trigger closing animation
     setModalClosing(true);
     
-    // Animate heatmap colors to green before clearing (for game over modal)
-    // Note: roundResults guesses are stored, but we need to clear the main guesses
-    if (guesses.length > 0) {
-      const greenGuesses = guesses.map(g => ({ ...g, color: '#4CAF50' }));
-      setGuesses(greenGuesses);
+    // Animate heatmap colors to green using requestAnimationFrame (for game over modal)
+    const targetColor = '#4CAF50';
+    const animationDuration = 300; // 300ms animation
+    const startTime = performance.now();
+    const originalColors = guesses.map(g => g.color);
+    
+    function animateColorsPlayAgain(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      
+      // Ease-out function for smoother animation
+      const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+      
+      // Update each guess with interpolated color
+      const animatedGuesses = guesses.map((g, i) => ({
+        ...g,
+        color: interpolateColor(originalColors[i], targetColor, easeOutProgress)
+      }));
+      setGuesses(animatedGuesses);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateColorsPlayAgain);
+      } else {
+        // Animation complete - wait a bit more then reset
+        setTimeout(() => {
+          logEvent('game', 'replay', 'Game replayed');
+          setCurrentRound(1);
+          setRoundResults([]);
+          setGameOver(false);
+          setModalClosing(false);
+          setFeedback("");
+          setAttempts(0);
+          setScore(0);
+          setAnimatedScore(0);
+          setGuesses([]);
+          setPreloadedFlagUrl(null); // Reset preloaded flag
+          setUsedCountries([]); // Clear used countries for a fresh start
+          
+          startNewRound();
+          // Reset audio player animations
+          const audioPlayer = document.querySelector('.audio-player');
+          if (audioPlayer) {
+            audioPlayer.classList.remove('flip-out');
+            audioPlayer.classList.add('flip-in-reset');
+            setTimeout(() => {
+              audioPlayer.classList.remove('flip-in-reset');
+            }, 500);
+          }
+        }, 100); // Small buffer after animation completes
+      }
     }
     
-    // Wait for modal animation AND color transition to complete
-    setTimeout(() => {
-      // ...existing playAgain code...
-      logEvent('game', 'replay', 'Game replayed');
-      setCurrentRound(1);
-      setRoundResults([]);
-      setGameOver(false);
-      setModalClosing(false);
-      setFeedback("");
-      setAttempts(0);
-      setScore(0);
-      setAnimatedScore(0);
-      setGuesses([]);
-      setPreloadedFlagUrl(null); // Reset preloaded flag
-      setUsedCountries([]); // Clear used countries for a fresh start
-      
-      startNewRound();
-      // Reset audio player animations
-      const audioPlayer = document.querySelector('.audio-player');
-      if (audioPlayer) {
-        audioPlayer.classList.remove('flip-out');
-        audioPlayer.classList.add('flip-in-reset');
-        setTimeout(() => {
-          audioPlayer.classList.remove('flip-in-reset');
-        }, 500);
-      }
-    }, 400); // Wait for modal (250ms) + color transition (300ms with buffer)
+    if (guesses.length > 0) {
+      requestAnimationFrame(animateColorsPlayAgain);
+    } else {
+      // No guesses to animate, just proceed
+      setTimeout(() => {
+        logEvent('game', 'replay', 'Game replayed');
+        setCurrentRound(1);
+        setRoundResults([]);
+        setGameOver(false);
+        setModalClosing(false);
+        setFeedback("");
+        setAttempts(0);
+        setScore(0);
+        setAnimatedScore(0);
+        setGuesses([]);
+        setPreloadedFlagUrl(null);
+        setUsedCountries([]);
+        startNewRound();
+      }, 250);
+    }
   };
 
   // Helper to mimic "Station broken?" button
