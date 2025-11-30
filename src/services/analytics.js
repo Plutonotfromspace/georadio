@@ -1,35 +1,41 @@
-const GA_MEASUREMENT_ID = 'G-VGWYCEN088';
-
 // Check if gtag is available (loaded from index.html)
 const isGtagLoaded = () => typeof window.gtag === 'function';
 
+/**
+ * Initialize Google Analytics
+ * GA4 is already configured in index.html, this enables debug mode in development
+ */
 export const initGA = () => {
   if (!isGtagLoaded()) {
     console.warn('Google Analytics gtag.js not loaded');
     return;
   }
 
-  // GA is already configured in index.html with send_page_view: false
-  // This function is kept for compatibility with existing code
-  // Additional runtime configuration can be added here if needed
   const isProd = window.location.hostname !== 'localhost';
   
   if (!isProd) {
-    // Enable debug mode only in development
     window.gtag('set', { debug_mode: true });
   }
 };
 
+/**
+ * Log page view - Note: GA4 auto-tracks page views by default
+ * This can be used for SPA navigation if needed in the future
+ */
 export const logPageView = () => {
-  if (!isGtagLoaded()) return;
-  
-  window.gtag('event', 'page_view', {
-    page_path: window.location.pathname,
-    page_title: document.title,
-    page_location: window.location.href
-  });
+  // GA4 automatically tracks page views, this is kept for compatibility
+  // but is no longer needed for single-page apps with no routing
 };
 
+/**
+ * Log custom events for game interactions
+ * Events tracked:
+ * - game/start: When user starts a new game
+ * - game/correct_guess: When user guesses correctly
+ * - game/next_round: When user moves to next round
+ * - game/game_over: When game ends
+ * - game/replay: When user plays again
+ */
 export const logEvent = (category, action, label) => {
   if (!isGtagLoaded()) return;
   
