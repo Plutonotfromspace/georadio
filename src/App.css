@@ -3580,11 +3580,66 @@ html, body {
   z-index: 100;
   perspective: 1200px;
   
+  /* Smooth fade-in animation for backdrop */
+  animation: overlayFadeIn 0.3s ease-out forwards;
+  
   /* Add these properties to enable touch scrolling on the entire overlay */
   touch-action: pan-y;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+}
+
+/* Overlay fade-in animation */
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
+/* Overlay fade-out animation */
+@keyframes overlayFadeOut {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+}
+
+/* Modal slide-out animation */
+@keyframes modalSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+}
+
+/* Closing state for overlay */
+.modal-overlay.closing {
+  animation: overlayFadeOut 0.25s ease-in forwards;
+}
+
+/* Closing state for modals */
+.round-summary-modal.closing,
+.game-complete-modal.closing,
+.start-modal-card.closing {
+  animation: modalSlideOut 0.25s ease-in forwards;
 }
 
 /* Main modal container with 3D entrance animation */

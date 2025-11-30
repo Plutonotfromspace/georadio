@@ -173,6 +173,8 @@ function App() {
   // Add new state for correct guess
   const [correctGuess, setCorrectGuess] = useState(false);
   const [continueFading, setContinueFading] = useState(false);
+  // Modal closing animation states
+  const [modalClosing, setModalClosing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   // NEW: Add state for triggering scoreboard animation
   const [scoreboardAnimationStage, setScoreboardAnimationStage] = useState('');
@@ -623,27 +625,35 @@ function App() {
         setAudioPlaying(false);
       }
       
-      setCurrentRound(currentRound + 1);
-      setShowRoundModal(false);
-      setAttempts(0);
-      setGuesses([]);
-      startNewRound();
+      // Trigger closing animation
+      setModalClosing(true);
       
-      // Start playing audio after a short delay to ensure proper setup
+      // Wait for animation to complete before removing modal
       setTimeout(() => {
-        if (audioRef.current && radioStation) {
-          audioRef.current.play()
-            .then(() => {
-              setAudioPlaying(true);
-              setFeedback(""); // Changed from "Audio playing. Take your guess!" to empty string
-            })
-            .catch(e => {
-              if (!(e.message && e.message.includes("aborted"))) {
-                console.error("Audio playback error:", e);
-              }
-            });
-        }
-      }, 100);
+        setCurrentRound(currentRound + 1);
+        setShowRoundModal(false);
+        setModalClosing(false);
+        setAttempts(0);
+        setGuesses([]);
+        startNewRound();
+        
+        // Start playing audio after a short delay to ensure proper setup
+        setTimeout(() => {
+          if (audioRef.current && radioStation) {
+            audioRef.current.play()
+              .then(() => {
+                setAudioPlaying(true);
+                setFeedback(""); // Changed from "Audio playing. Take your guess!" to empty string
+              })
+              .catch(e => {
+                if (!(e.message && e.message.includes("aborted"))) {
+                  console.error("Audio playback error:", e);
+                }
+              });
+          }
+        }, 100);
+      }, 250); // Match animation duration
+      
       // Flip in audio player - only when continuing to next round
       audioPlayer.classList.add('flip-in-reset');
       setTimeout(() => {
@@ -651,8 +661,16 @@ function App() {
       }, 500);
     } else {
       logEvent('game', 'game_over', `Final score: ${score}`);
-      setShowRoundModal(false);
-      setGameOver(true);
+      
+      // Trigger closing animation
+      setModalClosing(true);
+      
+      // Wait for animation to complete before switching to game over
+      setTimeout(() => {
+        setShowRoundModal(false);
+        setModalClosing(false);
+        setGameOver(true);
+      }, 250);
     }
   };
 
@@ -679,27 +697,34 @@ function App() {
       );
     }
 
-    // ...existing playAgain code...
-    logEvent('game', 'replay', 'Game replayed');
-    setCurrentRound(1);
-    setRoundResults([]);
-    setGameOver(false);
-    setFeedback("");
-    setAttempts(0);
-    setScore(0);
-    setAnimatedScore(0);
-    setGuesses([]);
-    setUsedCountries([]); // Clear used countries for a fresh start
-    startNewRound();
-    // Reset audio player animations
-    const audioPlayer = document.querySelector('.audio-player');
-    if (audioPlayer) {
-      audioPlayer.classList.remove('flip-out');
-      audioPlayer.classList.add('flip-in-reset');
-      setTimeout(() => {
-        audioPlayer.classList.remove('flip-in-reset');
-      }, 500);
-    }
+    // Trigger closing animation
+    setModalClosing(true);
+    
+    // Wait for animation to complete
+    setTimeout(() => {
+      // ...existing playAgain code...
+      logEvent('game', 'replay', 'Game replayed');
+      setCurrentRound(1);
+      setRoundResults([]);
+      setGameOver(false);
+      setModalClosing(false);
+      setFeedback("");
+      setAttempts(0);
+      setScore(0);
+      setAnimatedScore(0);
+      setGuesses([]);
+      setUsedCountries([]); // Clear used countries for a fresh start
+      startNewRound();
+      // Reset audio player animations
+      const audioPlayer = document.querySelector('.audio-player');
+      if (audioPlayer) {
+        audioPlayer.classList.remove('flip-out');
+        audioPlayer.classList.add('flip-in-reset');
+        setTimeout(() => {
+          audioPlayer.classList.remove('flip-in-reset');
+        }, 500);
+      }
+    }, 250);
   };
 
   // Helper to mimic "Station broken?" button
@@ -1326,7 +1351,7 @@ function App() {
 
               {/* Simple Instructions */}
               <p className="start-text">
-                Listen to a radio station and guess which country it's from.
+                Listen to a radio station and guess which country it&apos;s from.
               </p>
               
               {/* Color Legend - Essential for understanding feedback */}
@@ -1360,8 +1385,8 @@ function App() {
 
         {/* Round Summary Modal - Simplified */}
       {showRoundModal && (
-        <div className="modal-overlay">
-          <div className="round-summary-modal">
+        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`}>
+          <div className={`round-summary-modal ${modalClosing ? 'closing' : ''}`}>
             {/* Country Reveal - Primary Focus */}
             <div className="country-reveal">
               <div className="country-flag-wrapper">
@@ -1391,8 +1416,8 @@ function App() {
 
       {/* Game Over Modal - Simplified */}
       {gameOver && (
-        <div className="modal-overlay">
-          <div className="game-complete-modal">
+        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`}>
+          <div className={`game-complete-modal ${modalClosing ? 'closing' : ''}`}>
             {/* Final Score - Hero Element */}
             <div className="final-score-hero">
               <div className="final-score-number">{score}</div>
