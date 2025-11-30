@@ -182,8 +182,6 @@ function App() {
   const [scoreboardInMiddle, setScoreboardInMiddle] = useState(false);
   // NEW: State for preloaded flag image
   const [preloadedFlagUrl, setPreloadedFlagUrl] = useState(null);
-  // NEW: State for fading out globe colors during round transition
-  const [globeColorsFading, setGlobeColorsFading] = useState(false);
 
   // Initialize GA when app loads
   useEffect(() => {
@@ -640,19 +638,13 @@ function App() {
       // Trigger closing animation
       setModalClosing(true);
       
-      // Start fading out globe colors smoothly FIRST
-      // This triggers Globe's built-in 300ms transition to default color
-      setGlobeColorsFading(true);
-      
-      // Wait for BOTH modal animation (250ms) AND globe color fade (300ms) to complete
+      // Wait for modal animation to complete
       setTimeout(() => {
         setCurrentRound(currentRound + 1);
         setShowRoundModal(false);
         setModalClosing(false);
         setAttempts(0);
-        // Clear guesses AFTER the color transition is done
         setGuesses([]);
-        setGlobeColorsFading(false);
         setPreloadedFlagUrl(null); // Reset preloaded flag for next round
         
         startNewRound();
@@ -672,7 +664,7 @@ function App() {
               });
           }
         }, 100);
-      }, 400); // Wait for globe color transition (300ms) + buffer
+      }, 250); // Wait for modal animation
       
       // Flip in audio player - only when continuing to next round
       audioPlayer.classList.add('flip-in-reset');
@@ -720,11 +712,7 @@ function App() {
     // Trigger closing animation
     setModalClosing(true);
     
-    // Start fading out globe colors smoothly FIRST
-    // This triggers Globe's built-in 300ms transition to default color
-    setGlobeColorsFading(true);
-    
-    // Wait for BOTH modal animation AND globe color fade to complete
+    // Wait for modal animation to complete
     setTimeout(() => {
       // ...existing playAgain code...
       logEvent('game', 'replay', 'Game replayed');
@@ -736,9 +724,7 @@ function App() {
       setAttempts(0);
       setScore(0);
       setAnimatedScore(0);
-      // Clear guesses AFTER the color transition is done
       setGuesses([]);
-      setGlobeColorsFading(false);
       setPreloadedFlagUrl(null); // Reset preloaded flag
       setUsedCountries([]); // Clear used countries for a fresh start
       
@@ -752,7 +738,7 @@ function App() {
           audioPlayer.classList.remove('flip-in-reset');
         }, 500);
       }
-    }, 400); // Wait for globe color transition (300ms) + buffer
+    }, 250); // Wait for modal animation
   };
 
   // Helper to mimic "Station broken?" button
@@ -1239,7 +1225,7 @@ function App() {
   }, []);
 
   return (
-    <div className={`globe-container ${globeColorsFading ? 'colors-fading' : ''}`}>
+    <div className="globe-container">
       {/* Updated overlay: apply animation to entire overlay */}
       <div className={`overlay ${scoreboardAnimationStage}`}>
         <div className="stats-container">
@@ -1301,11 +1287,6 @@ function App() {
         backgroundColor="rgba(0,0,0,0)"
         polygonsData={countriesData}
         polygonCapColor={(d) => {
-          // When fading out, return default color to trigger smooth transition
-          if (globeColorsFading) {
-            return '#4CAF50';
-          }
-          
           const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
           // ...existing guess color logic...
           const guess = guesses.find((g) => g.id === polygonId);

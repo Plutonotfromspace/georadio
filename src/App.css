@@ -54,16 +54,6 @@
   position: relative;
 }
 
-/* Globe canvas transition for smooth color fading */
-.globe-container canvas {
-  transition: filter 0.4s ease-out;
-}
-
-/* When colors are fading, apply a hue-rotate and saturation change to shift colors to green */
-.globe-container.colors-fading canvas {
-  filter: saturate(0.3) hue-rotate(80deg);
-}
-
 /* NEW: Disable tap highlight and touch actions to prevent country highlighting effects on mobile */
 .globe-container,
 .globe-container * {
