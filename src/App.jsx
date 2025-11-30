@@ -180,6 +180,10 @@ function App() {
   const [scoreboardAnimationStage, setScoreboardAnimationStage] = useState('');
   // NEW: State to track when the scoreboard is in the middle
   const [scoreboardInMiddle, setScoreboardInMiddle] = useState(false);
+  // NEW: State for preloaded flag image
+  const [preloadedFlagUrl, setPreloadedFlagUrl] = useState(null);
+  // NEW: State for fading out globe colors during round transition
+  const [globeColorsFading, setGlobeColorsFading] = useState(false);
 
   // Initialize GA when app loads
   useEffect(() => {
@@ -574,6 +578,14 @@ function App() {
       }
       // When guess is correct, set correctGuess to true
       setCorrectGuess(true);
+      
+      // Preload the flag image for the modal
+      const flagCode = getCountryCode(targetCountry);
+      const flagUrl = `https://flagcdn.com/w640/${flagCode}.png`;
+      const flagImg = new Image();
+      flagImg.src = flagUrl;
+      flagImg.onload = () => setPreloadedFlagUrl(flagUrl);
+      
       if (globeEl.current) {
         // Offset to the left: subtract from the target country's longitude
         const cameraOffset = {
@@ -628,6 +640,9 @@ function App() {
       // Trigger closing animation
       setModalClosing(true);
       
+      // Start fading out globe colors smoothly
+      setGlobeColorsFading(true);
+      
       // Wait for animation to complete before removing modal
       setTimeout(() => {
         setCurrentRound(currentRound + 1);
@@ -635,6 +650,13 @@ function App() {
         setModalClosing(false);
         setAttempts(0);
         setGuesses([]);
+        setPreloadedFlagUrl(null); // Reset preloaded flag for next round
+        
+        // Wait a bit more for colors to finish fading, then reset
+        setTimeout(() => {
+          setGlobeColorsFading(false);
+        }, 300);
+        
         startNewRound();
         
         // Start playing audio after a short delay to ensure proper setup
@@ -700,6 +722,9 @@ function App() {
     // Trigger closing animation
     setModalClosing(true);
     
+    // Start fading out globe colors smoothly
+    setGlobeColorsFading(true);
+    
     // Wait for animation to complete
     setTimeout(() => {
       // ...existing playAgain code...
@@ -713,7 +738,14 @@ function App() {
       setScore(0);
       setAnimatedScore(0);
       setGuesses([]);
+      setPreloadedFlagUrl(null); // Reset preloaded flag
       setUsedCountries([]); // Clear used countries for a fresh start
+      
+      // Wait a bit more for colors to finish fading, then reset
+      setTimeout(() => {
+        setGlobeColorsFading(false);
+      }, 300);
+      
       startNewRound();
       // Reset audio player animations
       const audioPlayer = document.querySelector('.audio-player');
@@ -1273,6 +1305,11 @@ function App() {
         backgroundColor="rgba(0,0,0,0)"
         polygonsData={countriesData}
         polygonCapColor={(d) => {
+          // When fading out, return default color to trigger smooth transition
+          if (globeColorsFading) {
+            return '#4CAF50';
+          }
+          
           const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
           // ...existing guess color logic...
           const guess = guesses.find((g) => g.id === polygonId);
@@ -1391,7 +1428,7 @@ function App() {
             <div className="country-reveal">
               <div className="country-flag-wrapper">
                 <img 
-                  src={`https://flagcdn.com/w640/${getCountryCode(targetCountry)}.png`}
+                  src={preloadedFlagUrl || `https://flagcdn.com/w640/${getCountryCode(targetCountry)}.png`}
                   alt={roundResults[currentRound - 1]?.target}
                   onError={handleFlagError}
                   className="country-flag-img"
