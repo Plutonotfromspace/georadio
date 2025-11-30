@@ -1239,7 +1239,7 @@ function App() {
   }, []);
 
   return (
-    <div className="globe-container">
+    <div className={`globe-container ${globeColorsFading ? 'colors-fading' : ''}`}>
       {/* Updated overlay: apply animation to entire overlay */}
       <div className={`overlay ${scoreboardAnimationStage}`}>
         <div className="stats-container">
