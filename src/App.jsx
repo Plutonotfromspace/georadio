@@ -191,18 +191,22 @@ function App() {
 
   /* Helper function to parse hex color to RGB */
   function hexToRgb(hex) {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    // Handle null/undefined
+    if (!hex) return null;
+    // Ensure hex is a string
+    const hexStr = String(hex);
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hexStr);
     return result ? {
       r: parseInt(result[1], 16),
       g: parseInt(result[2], 16),
       b: parseInt(result[3], 16)
-    } : { r: 0, g: 0, b: 0 };
+    } : null;
   }
 
   /* Helper function to convert RGB to hex */
   function rgbToHex(r, g, b) {
     return '#' + [r, g, b].map(x => {
-      const hex = Math.round(x).toString(16);
+      const hex = Math.round(Math.max(0, Math.min(255, x))).toString(16);
       return hex.length === 1 ? '0' + hex : hex;
     }).join('');
   }
@@ -211,6 +215,8 @@ function App() {
   function interpolateColor(color1, color2, factor) {
     const c1 = hexToRgb(color1);
     const c2 = hexToRgb(color2);
+    // If either color is invalid, return the target color (color2) or a default
+    if (!c1 || !c2) return color2 || '#4CAF50';
     return rgbToHex(
       c1.r + (c2.r - c1.r) * factor,
       c1.g + (c2.g - c1.g) * factor,
@@ -671,7 +677,9 @@ function App() {
       const targetColor = '#4CAF50';
       const animationDuration = 300; // 300ms animation
       const startTime = performance.now();
-      const originalColors = guesses.map(g => g.color);
+      // Capture a snapshot of guesses at the start of animation to avoid stale closures
+      const guessesSnapshot = [...guesses];
+      const originalColors = guessesSnapshot.map(g => g.color || '#4CAF50');
       
       function animateColors(currentTime) {
         const elapsed = currentTime - startTime;
@@ -680,8 +688,8 @@ function App() {
         // Ease-out function for smoother animation
         const easeOutProgress = 1 - Math.pow(1 - progress, 3);
         
-        // Update each guess with interpolated color
-        const animatedGuesses = guesses.map((g, i) => ({
+        // Update each guess with interpolated color using the snapshot
+        const animatedGuesses = guessesSnapshot.map((g, i) => ({
           ...g,
           color: interpolateColor(originalColors[i], targetColor, easeOutProgress)
         }));
@@ -785,7 +793,9 @@ function App() {
     const targetColor = '#4CAF50';
     const animationDuration = 300; // 300ms animation
     const startTime = performance.now();
-    const originalColors = guesses.map(g => g.color);
+    // Capture a snapshot of guesses at the start of animation to avoid stale closures
+    const guessesSnapshot = [...guesses];
+    const originalColors = guessesSnapshot.map(g => g.color || '#4CAF50');
     
     function animateColorsPlayAgain(currentTime) {
       const elapsed = currentTime - startTime;
@@ -794,8 +804,8 @@ function App() {
       // Ease-out function for smoother animation
       const easeOutProgress = 1 - Math.pow(1 - progress, 3);
       
-      // Update each guess with interpolated color
-      const animatedGuesses = guesses.map((g, i) => ({
+      // Update each guess with interpolated color using the snapshot
+      const animatedGuesses = guessesSnapshot.map((g, i) => ({
         ...g,
         color: interpolateColor(originalColors[i], targetColor, easeOutProgress)
       }));
