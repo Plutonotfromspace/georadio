@@ -640,22 +640,20 @@ function App() {
       // Trigger closing animation
       setModalClosing(true);
       
-      // Start fading out globe colors smoothly
+      // Start fading out globe colors smoothly FIRST
+      // This triggers Globe's built-in 300ms transition to default color
       setGlobeColorsFading(true);
       
-      // Wait for animation to complete before removing modal
+      // Wait for BOTH modal animation (250ms) AND globe color fade (300ms) to complete
       setTimeout(() => {
         setCurrentRound(currentRound + 1);
         setShowRoundModal(false);
         setModalClosing(false);
         setAttempts(0);
+        // Clear guesses AFTER the color transition is done
         setGuesses([]);
+        setGlobeColorsFading(false);
         setPreloadedFlagUrl(null); // Reset preloaded flag for next round
-        
-        // Wait a bit more for colors to finish fading, then reset
-        setTimeout(() => {
-          setGlobeColorsFading(false);
-        }, 300);
         
         startNewRound();
         
@@ -674,7 +672,7 @@ function App() {
               });
           }
         }, 100);
-      }, 250); // Match animation duration
+      }, 400); // Wait for globe color transition (300ms) + buffer
       
       // Flip in audio player - only when continuing to next round
       audioPlayer.classList.add('flip-in-reset');
@@ -722,10 +720,11 @@ function App() {
     // Trigger closing animation
     setModalClosing(true);
     
-    // Start fading out globe colors smoothly
+    // Start fading out globe colors smoothly FIRST
+    // This triggers Globe's built-in 300ms transition to default color
     setGlobeColorsFading(true);
     
-    // Wait for animation to complete
+    // Wait for BOTH modal animation AND globe color fade to complete
     setTimeout(() => {
       // ...existing playAgain code...
       logEvent('game', 'replay', 'Game replayed');
@@ -737,14 +736,11 @@ function App() {
       setAttempts(0);
       setScore(0);
       setAnimatedScore(0);
+      // Clear guesses AFTER the color transition is done
       setGuesses([]);
+      setGlobeColorsFading(false);
       setPreloadedFlagUrl(null); // Reset preloaded flag
       setUsedCountries([]); // Clear used countries for a fresh start
-      
-      // Wait a bit more for colors to finish fading, then reset
-      setTimeout(() => {
-        setGlobeColorsFading(false);
-      }, 300);
       
       startNewRound();
       // Reset audio player animations
@@ -756,7 +752,7 @@ function App() {
           audioPlayer.classList.remove('flip-in-reset');
         }, 500);
       }
-    }, 250);
+    }, 400); // Wait for globe color transition (300ms) + buffer
   };
 
   // Helper to mimic "Station broken?" button
