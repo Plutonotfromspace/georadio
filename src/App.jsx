@@ -1346,161 +1346,141 @@ function App() {
           </div>
         )}
 
-        {/* Round Summary Modal - Clean Modern Design */}
+        {/* Round Summary Modal - Redesigned with UX/UI fundamentals */}
       {showRoundModal && (
         <div className="modal-overlay">
-          <div className="summary-modal">
-            <div className="modal-header">
-              <div className="round-indicator">Round {currentRound}</div>
+          <div className="round-summary-modal">
+            {/* Success Header */}
+            <div className="round-success-header">
+              <span className="success-icon">✓</span>
+              <span className="round-badge">Round {currentRound}/5</span>
             </div>
 
-            {/* Country showcase with animated flag reveal and 3D hover effect */}
-            <div className="country-showcase">
-              <div className="flag-container">
+            {/* Country Reveal - Primary Focus */}
+            <div className="country-reveal">
+              <div className="country-flag-wrapper">
                 <img 
                   src={`https://flagcdn.com/w640/${getCountryCode(targetCountry)}.png`}
                   alt={roundResults[currentRound - 1]?.target}
-                  onError={(e) => e.target.src = 'https://flagcdn.com/w640/un.png'}
-                  className="flag-reveal"
+                  onError={(e) => { e.target.src = 'https://flagcdn.com/w640/un.png'; }}
+                  className="country-flag-img"
                 />
-                <div className="flag-shine"></div>
               </div>
-              {/* Removed the country name h3 element that was here */}
+              <h2 className="country-name-title">{roundResults[currentRound - 1]?.target || 'Unknown'}</h2>
             </div>
-            
-            <div className="station-info-card">
-              <h4>Radio Station</h4>
-              <p className="station-name">{radioStation.name || 'Unknown Station'}</p>
-              <a 
-                href={radioStation.homepage || radioStation.url}
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="visit-button"
-              >
-                Visit Station
-              </a>
-            </div>
-            
-            <div className="round-stats-container">
-              <div className="stat-card">
-                {/* Update this line to directly show the score */}
-                <span className="stat-value">{roundResults[currentRound - 1]?.score || 0}</span>
-                <div className="stat-bar-container">
-                  <div className="stat-bar" style={{ width: `${Math.min(roundResults[currentRound - 1]?.score / 50, 100)}%` }}></div>
-                </div>
-                <span className="stat-label">Points</span>
+
+            {/* Score Display - Secondary Focus */}
+            <div className="round-score-section">
+              <div className="score-box">
+                <span className="score-number">{roundResults[currentRound - 1]?.score || 0}</span>
+                <span className="score-text">points earned</span>
               </div>
-              
-              <div className="stat-divider"></div>
-              
-              <div className="stat-card">
-                <span className="stat-value">{roundResults[currentRound - 1]?.attempts || 0}</span>
-                <div className="stat-bar-container attempts-container">
-                  <div className="stat-bar attempts-bar" style={{ width: `${Math.min(roundResults[currentRound - 1]?.attempts * 10, 100)}%` }}></div>
-                </div>
-                <span className="stat-label">Attempts</span>
+              <div className="attempts-box">
+                <span className="attempts-number">{roundResults[currentRound - 1]?.attempts || 0}</span>
+                <span className="attempts-text">{roundResults[currentRound - 1]?.attempts === 1 ? 'guess' : 'guesses'}</span>
               </div>
             </div>
-            
-            <div className="journey-section">
-              <div className="journey-header" onClick={() => {
-                const content = document.querySelector('.journey-list');
-                content.classList.toggle('expanded');
-                document.querySelector('.journey-header').classList.toggle('active');
-                
-                if (window.gameSounds?.click) {
-                  const sound = window.gameSounds.click.cloneNode();
-                  sound.volume = 0.1;
-                  sound.play().catch(() => {});
-                }
-              }}>
-                <h4>Your Journey</h4>
-                <span className="toggle-icon">▼</span>
+
+            {/* Station Info - Tertiary */}
+            <div className="station-section">
+              <div className="station-label">🎵 Station</div>
+              <div className="station-name-link">
+                <a 
+                  href={radioStation?.homepage || radioStation?.url}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  {radioStation?.name || 'Unknown Station'}
+                </a>
               </div>
-              
-              <div className="journey-list">
-                {guesses.map((guess, index) => (
-                  <div key={index} className={`guess-item ${index === guesses.length - 1 ? 'correct-guess' : ''}`}>
-                    <span className="guess-number">{index + 1}</span>
-                    <div className="guess-details">
+            </div>
+
+            {/* Journey Toggle - Optional Detail */}
+            {guesses.length > 1 && (
+              <details className="journey-details">
+                <summary className="journey-summary">
+                  <span>View your {guesses.length} guesses</span>
+                  <span className="journey-chevron">›</span>
+                </summary>
+                <div className="journey-guesses">
+                  {guesses.map((guess, index) => (
+                    <div 
+                      key={index} 
+                      className={`journey-guess-item ${index === guesses.length - 1 ? 'correct' : ''}`}
+                    >
+                      <span className="guess-num">{index + 1}</span>
                       <img 
-                        src={`https://flagcdn.com/w80/${guess.countryCode}.png`} 
+                        src={`https://flagcdn.com/w40/${guess.countryCode}.png`}
                         alt=""
-                        onError={(e) => e.target.src = 'https://flagcdn.com/w80/un.png'}
-                        className="guess-flag"
+                        onError={(e) => { e.target.src = 'https://flagcdn.com/w40/un.png'; }}
+                        className="guess-mini-flag"
                       />
-                      <div className="guess-info">
-                        <p className="guess-name">{guess.name}</p>
-                        {index > 0 && (
-                          <span className={guess.distance < guesses[index-1].distance ? "closer" : "farther"}>
-                            {guess.distance < guesses[index-1].distance ? 'Closer' : 'Farther'}
-                          </span>
-                        )}
-                        <span className="guess-distance">
-                          {guess.distance < 100 ? 
-                            `${Math.round(guess.distance)} km` : 
-                            `${Math.round(guess.distance / 100) / 10} thousand km`}
-                        </span>
-                      </div>
+                      <span className="guess-country-name">{guess.name}</span>
+                      {index === guesses.length - 1 && <span className="correct-badge">✓</span>}
                     </div>
-                    {index === guesses.length - 1 && <span className="correct-mark">✓</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
+                  ))}
+                </div>
+              </details>
+            )}
             
+            {/* Primary Action */}
             <button 
-              className="continue-modal-button"
+              className="round-continue-btn"
               onClick={handleNextRound}
             >
-              {currentRound < 5 ? `Continue to Round ${currentRound + 1}` : 'See Final Results'}
+              {currentRound < 5 ? 'Next Round' : 'See Results'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Completely redesigned Game Over Modal */}
+      {/* Game Over Modal - Redesigned with UX/UI fundamentals */}
       {gameOver && (
         <div className="modal-overlay">
-          <div className="game-over-modal">
-            <div className="game-over-header">
-              <div className="medal-icon">🏆</div>
-              <h2>Game Over</h2>
+          <div className="game-complete-modal">
+            {/* Celebration Header */}
+            <div className="completion-header">
+              <span className="trophy-icon">🏆</span>
+              <h1 className="completion-title">Game Complete!</h1>
             </div>
             
-            <div className="final-score-display">
-              <div className="score-value">{score}</div>
-              <div className="score-label">FINAL SCORE</div>
+            {/* Final Score - Hero Element */}
+            <div className="final-score-hero">
+              <div className="final-score-number">{score}</div>
+              <div className="final-score-label">Total Points</div>
+              <div className="final-score-subtitle">out of 25,000 possible</div>
             </div>
             
-            <div className="rounds-grid">
-              {roundResults.map(result => (
-                <div key={result.round} className="round-card">
-                  <div className="round-header">
-                    <div className="round-number">{result.round}</div>
-                    <div className="round-points">{result.score} pts</div>
-                  </div>
-                  
-                  <div className="round-content">
-                    <div className="flag-container">
+            {/* Rounds Summary - Visual List */}
+            <div className="rounds-summary">
+              <h3 className="rounds-title">Your Journey</h3>
+              <div className="rounds-list">
+                {roundResults.map(result => (
+                  <div key={result.round} className="round-summary-item">
+                    <div className="round-summary-left">
                       <img 
-                        src={`https://flagcdn.com/w160/${getCountryCode(countriesData.find(c => 
+                        src={`https://flagcdn.com/w80/${getCountryCode(countriesData.find(c => 
                           c.properties?.name === result.target))}.png`}
                         alt={result.target}
-                        onError={(e) => e.target.src = 'https://flagcdn.com/w160/un.png'}
+                        onError={(e) => { e.target.src = 'https://flagcdn.com/w80/un.png'; }}
+                        className="round-summary-flag"
                       />
+                      <div className="round-summary-info">
+                        <span className="round-summary-country">{result.target}</span>
+                        <span className="round-summary-attempts">
+                          {result.attempts} {result.attempts === 1 ? 'guess' : 'guesses'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="round-country-name">{result.target}</div>
-                    <div className="round-guesses">
-                      <span className="guesses-count">{result.attempts}</span> guesses
-                    </div>
+                    <div className="round-summary-score">+{result.score}</div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
             
+            {/* Primary Action */}
             <button 
-              className="play-again-button"
+              className="play-again-btn"
               onClick={playAgain}
             >
               Play Again
