@@ -765,16 +765,17 @@ function App() {
   // Update the useEffect to include handleAudioError in dependencies
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (audioElement) {
-      audioElement.addEventListener('error', (e) => handleAudioError(e.target.error));
-    }
+    if (!audioElement) return;
+    
+    // Store the error handler reference for proper cleanup
+    const errorHandler = (e) => handleAudioError(e.target.error);
+    audioElement.addEventListener('error', errorHandler);
+    
     return () => {
-      if (audioElement) {
-        audioElement.removeEventListener('error', (e) => handleAudioError(e.target.error));
-      }
+      audioElement.removeEventListener('error', errorHandler);
       cleanupAudio();
     };
-  }, [handleAudioError, cleanupAudio]); // Add handleAudioError to dependencies
+  }, [handleAudioError, cleanupAudio]);
 
   /* Globe Material */
   const globeMaterial = useMemo(
@@ -917,9 +918,11 @@ function App() {
         const stationUrl = station.url_resolved || station.url;
         setRadioStation({ ...station, url_resolved: stationUrl });
         
-        // Setup audio using helper function
+        // Setup and play audio
         const audioElement = audioRef.current;
         if (audioElement) {
+          // Pause current playback before switching to new station
+          // Note: setupAudioSource handles HLS cleanup internally
           audioElement.pause();
           setupAudioSource(stationUrl);
           audioElement.play().catch(console.error);
