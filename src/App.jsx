@@ -3,7 +3,7 @@ import Globe from 'react-globe.gl';
 import { feature } from 'topojson-client';
 import * as THREE from 'three';
 import './index.css';
-import './app.css';
+import './App.css';
 import Hls from 'hls.js';
 import { geoCentroid } from 'd3-geo';
 import { countries } from 'countries-list';
