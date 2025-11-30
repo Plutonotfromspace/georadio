@@ -5044,3 +5044,160 @@ html, body {
   }
 }
 
+/* ---- START MODAL - REDESIGNED ---- */
+.start-modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px 24px;
+  max-width: 420px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+  -webkit-overflow-scrolling: touch;
+}
+
+.start-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.start-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.start-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  font-family: 'CustomHeader', 'Arial', sans-serif;
+}
+
+.start-section {
+  margin-bottom: 20px;
+}
+
+.start-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 8px 0;
+}
+
+.start-text {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.start-text strong {
+  color: #1e293b;
+}
+
+.color-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.start-disclaimer {
+  font-size: 12px;
+  color: #94a3b8;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.start-credits {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.start-credits a {
+  color: #64748b;
+  text-decoration: none;
+}
+
+.start-credits a:hover {
+  text-decoration: underline;
+}
+
+.credits-separator {
+  color: #cbd5e1;
+}
+
+.start-game-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  font-family: 'Regular', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.start-game-btn:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.start-game-btn:active {
+  transform: translateY(0);
+}
+
+/* Mobile Responsiveness for Start Modal */
+@media screen and (max-width: 480px) {
+  .start-modal-card {
+    padding: 20px 16px;
+    width: 94%;
+  }
+  
+  .start-title {
+    font-size: 28px;
+  }
+  
+  .start-icon {
+    font-size: 40px;
+  }
+}
+

@@ -1314,49 +1314,63 @@ function App() {
         </button>
       )}
 
-      {/* Start modal card overlay */}
+      {/* Start modal card overlay - Redesigned */}
         {!gameStarted && (
-          <div className="start-modal">
-            <div className="modal-card">
-          <h2>Welcome to GeoRadio</h2>
-          
-          <section className="modal-section">
-            <h3>How to Play</h3>
-            <p>Listen to live radio stations and guess their country of origin by clicking countries on the globe. 
-            <strong> Keep guessing</strong> until you find the right one! After each guess, the country will be colored:</p>
-            <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: '#b83700', borderRadius: '4px' }}></div>
-            <span>Dark red = Very close!</span>
+          <div className="modal-overlay">
+            <div className="start-modal-card">
+              {/* Header */}
+              <div className="start-header">
+                <span className="start-icon">🌍</span>
+                <h1 className="start-title">GeoRadio</h1>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: '#fe7835', borderRadius: '4px' }}></div>
-            <span>Orange = Getting warmer</span>
+
+              {/* How to Play */}
+              <div className="start-section">
+                <h3 className="start-section-title">How to Play</h3>
+                <p className="start-text">
+                  Listen to live radio stations and guess their country of origin by clicking on the globe. 
+                  <strong> Keep guessing</strong> until you find the right one!
+                </p>
+                <div className="color-legend">
+                  <div className="legend-item">
+                    <div className="legend-color" style={{ backgroundColor: '#b83700' }}></div>
+                    <span>Very close!</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color" style={{ backgroundColor: '#fe7835' }}></div>
+                    <span>Getting warmer</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color" style={{ backgroundColor: '#fef2dc', border: '1px solid #e2e8f0' }}></div>
+                    <span>Very cold</span>
+                  </div>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: '#fef2dc', borderRadius: '4px' }}></div>
-            <span>White = Very cold</span>
+
+              {/* Scoring Info */}
+              <div className="start-section">
+                <h3 className="start-section-title">Scoring</h3>
+                <p className="start-text">
+                  5 rounds. Each round starts at 5,000 points and decreases with each wrong guess.
+                </p>
               </div>
-            </div>
-            <p style={{ marginTop: '10px' }}>You have 5 rounds to score as many points as possible. Each round starts at 5000 points and decreases with every wrong guess. Look for hints in the radio content like language, music style, or announcements!</p>
-          </section>
 
-          <section className="modal-section">
-            <h3>Disclaimer</h3>
-            <p>Audio streams are pulled from a public radio API. Content may occasionally be inappropriate or unavailable.</p>
-          </section>
+              {/* Disclaimer */}
+              <div className="start-disclaimer">
+                Audio streams are from a public radio API. Content may occasionally be unavailable.
+              </div>
 
-          <div className="credits-container">
-            <div className="modal-section credits-section">
-              <span>Inspired by <a href="https://globle-game.com/" target="_blank" rel="noopener noreferrer" className="credit-link">Globle</a></span>
-            </div>
-            <div className="credits-divider"></div>
-            <div className="modal-section credits-section">
-              <span>Created by <a href="discord://discord.com/users/plutonotfromspace" className="credit-link">PlutoNotFromSpace</a></span>
-            </div>
-          </div>
+              {/* Credits */}
+              <div className="start-credits">
+                <span>Inspired by <a href="https://globle-game.com/" target="_blank" rel="noopener noreferrer">Globle</a></span>
+                <span className="credits-separator">•</span>
+                <span>By <a href="discord://discord.com/users/plutonotfromspace">PlutoNotFromSpace</a></span>
+              </div>
 
-          <button onClick={onGameStart}>Start Game</button>
+              {/* CTA Button */}
+              <button className="start-game-btn" onClick={onGameStart}>
+                Start Game
+              </button>
             </div>
           </div>
         )}
@@ -1365,12 +1379,6 @@ function App() {
       {showRoundModal && (
         <div className="modal-overlay">
           <div className="round-summary-modal">
-            {/* Success Header */}
-            <div className="round-success-header">
-              <span className="success-icon">✓</span>
-              <span className="round-badge">Round {currentRound}/5</span>
-            </div>
-
             {/* Country Reveal - Primary Focus */}
             <div className="country-reveal">
               <div className="country-flag-wrapper">
