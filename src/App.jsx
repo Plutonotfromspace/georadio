@@ -1314,7 +1314,7 @@ function App() {
         </button>
       )}
 
-      {/* Start modal card overlay - Redesigned */}
+      {/* Start modal card overlay - Minimalist */}
         {!gameStarted && (
           <div className="modal-overlay">
             <div className="start-modal-card">
@@ -1324,58 +1324,41 @@ function App() {
                 <h1 className="start-title">GeoRadio</h1>
               </div>
 
-              {/* How to Play */}
-              <div className="start-section">
-                <h3 className="start-section-title">How to Play</h3>
-                <p className="start-text">
-                  Listen to live radio stations and guess their country of origin by clicking on the globe. 
-                  <strong> Keep guessing</strong> until you find the right one!
-                </p>
-                <div className="color-legend">
-                  <div className="legend-item">
-                    <div className="legend-color" style={{ backgroundColor: '#b83700' }}></div>
-                    <span>Very close!</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-color" style={{ backgroundColor: '#fe7835' }}></div>
-                    <span>Getting warmer</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-color" style={{ backgroundColor: '#fef2dc', border: '1px solid #e2e8f0' }}></div>
-                    <span>Very cold</span>
-                  </div>
+              {/* Simple Instructions */}
+              <p className="start-text">
+                Listen to a radio station and guess which country it's from.
+              </p>
+              
+              {/* Color Legend - Essential for understanding feedback */}
+              <div className="color-legend">
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#b83700' }}></div>
+                  <span>Very close!</span>
                 </div>
-              </div>
-
-              {/* Scoring Info */}
-              <div className="start-section">
-                <h3 className="start-section-title">Scoring</h3>
-                <p className="start-text">
-                  5 rounds. Each round starts at 5,000 points and decreases with each wrong guess.
-                </p>
-              </div>
-
-              {/* Disclaimer */}
-              <div className="start-disclaimer">
-                Audio streams are from a public radio API. Content may occasionally be unavailable.
-              </div>
-
-              {/* Credits */}
-              <div className="start-credits">
-                <span>Inspired by <a href="https://globle-game.com/" target="_blank" rel="noopener noreferrer">Globle</a></span>
-                <span className="credits-separator">•</span>
-                <span>By <a href="discord://discord.com/users/plutonotfromspace">PlutoNotFromSpace</a></span>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#fe7835' }}></div>
+                  <span>Getting warmer</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#fef2dc', border: '1px solid #e2e8f0' }}></div>
+                  <span>Cold</span>
+                </div>
               </div>
 
               {/* CTA Button */}
               <button className="start-game-btn" onClick={onGameStart}>
-                Start Game
+                Play
               </button>
+
+              {/* Credits - Minimal footer */}
+              <div className="start-credits">
+                <span>Inspired by <a href="https://globle-game.com/" target="_blank" rel="noopener noreferrer">Globle</a></span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Round Summary Modal - Redesigned with UX/UI fundamentals */}
+        {/* Round Summary Modal - Simplified */}
       {showRoundModal && (
         <div className="modal-overlay">
           <div className="round-summary-modal">
@@ -1390,61 +1373,10 @@ function App() {
                 />
               </div>
               <h2 className="country-name-title">{roundResults[currentRound - 1]?.target || 'Unknown'}</h2>
-            </div>
-
-            {/* Score Display - Secondary Focus */}
-            <div className="round-score-section">
-              <div className="score-box">
-                <span className="score-number">{roundResults[currentRound - 1]?.score || 0}</span>
-                <span className="score-text">points earned</span>
-              </div>
-              <div className="attempts-box">
-                <span className="attempts-number">{roundResults[currentRound - 1]?.attempts || 0}</span>
-                <span className="attempts-text">{roundResults[currentRound - 1]?.attempts === 1 ? 'guess' : 'guesses'}</span>
+              <div className="round-score-inline">
+                +{roundResults[currentRound - 1]?.score || 0} points
               </div>
             </div>
-
-            {/* Station Info - Tertiary */}
-            <div className="station-section">
-              <div className="station-label">🎵 Station</div>
-              <div className="station-name-link">
-                <a 
-                  href={radioStation?.homepage || radioStation?.url}
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  {radioStation?.name || 'Unknown Station'}
-                </a>
-              </div>
-            </div>
-
-            {/* Journey Toggle - Optional Detail */}
-            {guesses.length > 1 && (
-              <details className="journey-details">
-                <summary className="journey-summary">
-                  <span>View your {guesses.length} guesses</span>
-                  <span className="journey-chevron">›</span>
-                </summary>
-                <div className="journey-guesses">
-                  {guesses.map((guess, index) => (
-                    <div 
-                      key={index} 
-                      className={`journey-guess-item ${index === guesses.length - 1 ? 'correct' : ''}`}
-                    >
-                      <span className="guess-num">{index + 1}</span>
-                      <img 
-                        src={`https://flagcdn.com/w40/${guess.countryCode}.png`}
-                        alt=""
-                        onError={handleFlagError}
-                        className="guess-mini-flag"
-                      />
-                      <span className="guess-country-name">{guess.name}</span>
-                      {index === guesses.length - 1 && <span className="correct-badge">✓</span>}
-                    </div>
-                  ))}
-                </div>
-              </details>
-            )}
             
             {/* Primary Action */}
             <button 
@@ -1457,26 +1389,18 @@ function App() {
         </div>
       )}
 
-      {/* Game Over Modal - Redesigned with UX/UI fundamentals */}
+      {/* Game Over Modal - Simplified */}
       {gameOver && (
         <div className="modal-overlay">
           <div className="game-complete-modal">
-            {/* Celebration Header */}
-            <div className="completion-header">
-              <span className="trophy-icon">🏆</span>
-              <h1 className="completion-title">Game Complete!</h1>
-            </div>
-            
             {/* Final Score - Hero Element */}
             <div className="final-score-hero">
               <div className="final-score-number">{score}</div>
-              <div className="final-score-label">Total Points</div>
-              <div className="final-score-subtitle">out of 25,000 possible</div>
+              <div className="final-score-label">points</div>
             </div>
             
             {/* Rounds Summary - Visual List */}
             <div className="rounds-summary">
-              <h3 className="rounds-title">Your Journey</h3>
               <div className="rounds-list">
                 {roundResults.map(result => (
                   <div key={result.round} className="round-summary-item">
@@ -1488,12 +1412,7 @@ function App() {
                         onError={handleFlagError}
                         className="round-summary-flag"
                       />
-                      <div className="round-summary-info">
-                        <span className="round-summary-country">{result.target}</span>
-                        <span className="round-summary-attempts">
-                          {result.attempts} {result.attempts === 1 ? 'guess' : 'guesses'}
-                        </span>
-                      </div>
+                      <span className="round-summary-country">{result.target}</span>
                     </div>
                     <div className="round-summary-score">+{result.score}</div>
                   </div>

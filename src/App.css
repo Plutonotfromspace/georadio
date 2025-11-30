@@ -4484,18 +4484,16 @@ html, body {
    - Responsive design
    ============================================ */
 
-/* ---- ROUND SUMMARY MODAL ---- */
+/* ---- ROUND SUMMARY MODAL - SIMPLIFIED ---- */
 .round-summary-modal {
   background: #ffffff;
   border-radius: 16px;
   padding: 24px;
-  max-width: 400px;
+  max-width: 300px;
   width: 90%;
-  max-height: 85vh;
-  overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease-out;
-  -webkit-overflow-scrolling: touch;
+  text-align: center;
 }
 
 @keyframes modalSlideIn {
@@ -4509,50 +4507,19 @@ html, body {
   }
 }
 
-/* Success Header */
-.round-success-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.success-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  border-radius: 50%;
-  font-size: 20px;
-  font-weight: bold;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-}
-
-.round-badge {
-  background: #f1f5f9;
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 20px;
-}
-
 /* Country Reveal - Primary Focus */
 .country-reveal {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .country-flag-wrapper {
-  width: 180px;
-  height: 120px;
-  margin: 0 auto 16px;
-  border-radius: 12px;
+  width: 160px;
+  height: 100px;
+  margin: 0 auto 12px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
 .country-flag-img {
@@ -4562,61 +4529,17 @@ html, body {
 }
 
 .country-name-title {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: #1e293b;
-  margin: 0;
+  margin: 0 0 8px 0;
   font-family: 'CustomHeader', 'Arial', sans-serif;
 }
 
-/* Score Display - Secondary Focus */
-.round-score-section {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.score-box,
-.attempts-box {
-  flex: 1;
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-}
-
-.score-box {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  border: 1px solid #bfdbfe;
-}
-
-.attempts-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-}
-
-.score-number {
-  display: block;
-  font-size: 32px;
-  font-weight: 700;
-  color: #2563eb;
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
-.score-text {
-  font-size: 13px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.attempts-number {
-  display: block;
-  font-size: 32px;
-  font-weight: 700;
-  color: #475569;
-  line-height: 1;
-  margin-bottom: 4px;
+.round-score-inline {
+  font-size: 18px;
+  font-weight: 600;
+  color: #10b981;
 }
 
 .attempts-text {
@@ -4781,7 +4704,7 @@ html, body {
 /* Primary Action Button */
 .round-continue-btn {
   width: 100%;
-  padding: 16px 24px;
+  padding: 14px 24px;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   font-size: 16px;
@@ -4805,92 +4728,46 @@ html, body {
 }
 
 
-/* ---- GAME COMPLETE MODAL ---- */
+/* ---- GAME COMPLETE MODAL - SIMPLIFIED ---- */
 .game-complete-modal {
   background: #ffffff;
-  border-radius: 20px;
-  padding: 32px 24px;
-  max-width: 440px;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 340px;
   width: 90%;
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
-  animation: modalSlideIn 0.4s ease-out;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
   -webkit-overflow-scrolling: touch;
-}
-
-/* Celebration Header */
-.completion-header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.trophy-icon {
-  font-size: 48px;
-  display: block;
-  margin-bottom: 8px;
-  animation: trophyBounce 0.6s ease-out;
-}
-
-@keyframes trophyBounce {
-  0% { transform: scale(0) rotate(-15deg); }
-  50% { transform: scale(1.2) rotate(5deg); }
-  100% { transform: scale(1) rotate(0); }
-}
-
-.completion-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-  font-family: 'CustomHeader', 'Arial', sans-serif;
 }
 
 /* Final Score - Hero Element */
 .final-score-hero {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  border: 2px solid #bfdbfe;
-  border-radius: 16px;
-  padding: 24px;
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .final-score-number {
-  font-size: 56px;
+  font-size: 48px;
   font-weight: 800;
   color: #2563eb;
   line-height: 1;
-  margin-bottom: 4px;
   font-family: 'CustomHeader', 'Arial', sans-serif;
 }
 
 .final-score-label {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e40af;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.final-score-subtitle {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   color: #64748b;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 /* Rounds Summary */
 .rounds-summary {
-  margin-bottom: 24px;
-}
-
-.rounds-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #475569;
-  margin: 0 0 12px 0;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 20px;
 }
 
 .rounds-list {
@@ -4903,69 +4780,50 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px;
+  padding: 10px 12px;
   background: #f8fafc;
-  border-radius: 10px;
-  transition: background 0.2s;
-}
-
-.round-summary-item:hover {
-  background: #f1f5f9;
+  border-radius: 8px;
 }
 
 .round-summary-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   flex: 1;
 }
 
 .round-summary-flag {
-  width: 40px;
-  height: 26px;
+  width: 32px;
+  height: 20px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 3px;
   flex-shrink: 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.round-summary-info {
-  min-width: 0;
-  flex: 1;
 }
 
 .round-summary-country {
-  display: block;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: #1e293b;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.round-summary-attempts {
-  display: block;
-  font-size: 12px;
-  color: #64748b;
-}
-
 .round-summary-score {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
   color: #10b981;
   flex-shrink: 0;
-  padding-left: 12px;
 }
 
 /* Play Again Button */
 .play-again-btn {
   width: 100%;
-  padding: 18px 24px;
+  padding: 14px 24px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   border: none;
   border-radius: 12px;
@@ -4973,8 +4831,6 @@ html, body {
   transition: all 0.2s;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
   font-family: 'Regular', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .play-again-btn:hover {
@@ -5044,23 +4900,20 @@ html, body {
   }
 }
 
-/* ---- START MODAL - REDESIGNED ---- */
+/* ---- START MODAL - MINIMALIST ---- */
 .start-modal-card {
   background: #ffffff;
   border-radius: 16px;
-  padding: 28px 24px;
-  max-width: 420px;
+  padding: 32px 24px;
+  max-width: 340px;
   width: 90%;
-  max-height: 85vh;
-  overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease-out;
-  -webkit-overflow-scrolling: touch;
+  text-align: center;
 }
 
 .start-header {
-  text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .start-icon {
@@ -5070,40 +4923,25 @@ html, body {
 }
 
 .start-title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: #1e293b;
   margin: 0;
   font-family: 'CustomHeader', 'Arial', sans-serif;
 }
 
-.start-section {
-  margin-bottom: 20px;
-}
-
-.start-section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #475569;
-  margin: 0 0 8px 0;
-}
-
 .start-text {
-  font-size: 14px;
+  font-size: 15px;
   color: #64748b;
   line-height: 1.5;
-  margin: 0;
-}
-
-.start-text strong {
-  color: #1e293b;
+  margin: 0 0 16px 0;
 }
 
 .color-legend {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-bottom: 20px;
   padding: 12px;
   background: #f8fafc;
   border-radius: 10px;
@@ -5118,31 +4956,16 @@ html, body {
 }
 
 .legend-color {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 4px;
   flex-shrink: 0;
 }
 
-.start-disclaimer {
-  font-size: 12px;
-  color: #94a3b8;
-  padding: 12px;
-  background: #f8fafc;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  text-align: center;
-}
-
 .start-credits {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   color: #94a3b8;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+  margin-top: 16px;
 }
 
 .start-credits a {
@@ -5154,16 +4977,12 @@ html, body {
   text-decoration: underline;
 }
 
-.credits-separator {
-  color: #cbd5e1;
-}
-
 .start-game-btn {
   width: 100%;
-  padding: 16px 24px;
+  padding: 14px 24px;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   border: none;
   border-radius: 12px;
