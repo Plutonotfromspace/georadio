@@ -513,11 +513,472 @@ Fixed-position UI that appears based on game state, not blocking.
 
 ---
 
-**Next Steps (Phase 3 — Improvement Plan):**
-1. Recommended unified modal architecture
-2. Modern 2025 visual & interaction standards
-3. Content & copy guidelines
-4. Migration roadmap with quick wins
-5. Code examples for the most common patterns
+# 🚀 Phase 3 — Improvement Plan
 
-**Awaiting approval to proceed to Phase 3.**
+## 1. Unified Modal Architecture
+
+### Recommended Component Structure
+
+```
+src/
+├── components/
+│   ├── Modal/
+│   │   ├── Modal.jsx           # Base modal with a11y built-in
+│   │   ├── Modal.css           # Consolidated modal styles
+│   │   ├── ModalOverlay.jsx    # Backdrop component
+│   │   ├── useModal.js         # Custom hook for modal state
+│   │   └── index.js            # Exports
+│   ├── StartModal/
+│   │   └── StartModal.jsx      # Game intro modal
+│   ├── RoundSummaryModal/
+│   │   └── RoundSummaryModal.jsx
+│   └── GameCompleteModal/
+│       └── GameCompleteModal.jsx
+```
+
+### Base Modal Component API
+
+```jsx
+// Proposed Modal component interface
+<Modal
+  isOpen={boolean}
+  onClose={function}
+  title={string}                    // For aria-labelledby
+  closeOnEscape={boolean}           // Default: true
+  closeOnBackdropClick={boolean}    // Default: false for game modals
+  initialFocus={ref}                // Element to focus on open
+  returnFocus={boolean}             // Default: true
+  size="sm" | "md" | "lg"           // Predefined sizes
+  animation="slide" | "fade" | "scale"
+>
+  {children}
+</Modal>
+```
+
+### Accessibility Features (Built-in)
+
+```jsx
+// Base Modal with full accessibility
+function Modal({ isOpen, onClose, title, children, ...props }) {
+  const modalRef = useRef(null);
+  const previousActiveElement = useRef(null);
+
+  // Focus trap
+  useFocusTrap(modalRef, isOpen);
+  
+  // Escape key handler
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && props.closeOnEscape !== false) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      previousActiveElement.current = document.activeElement;
+    }
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose, props.closeOnEscape]);
+
+  // Return focus on close
+  useEffect(() => {
+    if (!isOpen && previousActiveElement.current) {
+      previousActiveElement.current.focus();
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="modal-overlay" onClick={props.closeOnBackdropClick ? onClose : undefined}>
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${title}-title`}
+        className={`modal modal--${props.size || 'md'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id={`${title}-title`} className="modal__title">
+          {title}
+        </h2>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+```
+
+---
+
+## 2. Modern 2025 Visual & Interaction Standards
+
+### Design Principles
+
+| Principle | Current | Recommended |
+|-----------|---------|-------------|
+| **Glass morphism** | Solid white backgrounds | `backdrop-filter: blur(12px)` with semi-transparent bg |
+| **Border radius** | Mixed (10-20px) | Standardize: 16px for modals, 8px for buttons |
+| **Shadows** | 6 different patterns | Standardize to 3 levels (sm, md, lg) |
+| **Motion** | Inconsistent timing | Use system: 150ms micro, 300ms standard, 500ms emphasis |
+| **Colors** | Hard-coded | Use CSS custom properties exclusively |
+
+### Updated Design Tokens
+
+```css
+:root {
+  /* Spacing scale (8px base) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows (3-tier system) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.2);
+
+  /* Animation durations */
+  --duration-micro: 150ms;
+  --duration-standard: 300ms;
+  --duration-emphasis: 500ms;
+
+  /* Animation easings */
+  --ease-out: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0.0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0.0, 0.2, 1);
+
+  /* Modal-specific */
+  --modal-backdrop: rgba(0, 0, 0, 0.6);
+  --modal-bg: rgba(255, 255, 255, 0.95);
+  --modal-blur: 12px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-micro: 0ms;
+    --duration-standard: 0ms;
+    --duration-emphasis: 0ms;
+  }
+}
+```
+
+### Consolidated Animation Keyframes
+
+```css
+/* Standard modal entrance/exit */
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modal-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+
+@keyframes overlay-enter {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(var(--modal-blur)); }
+}
+
+@keyframes overlay-exit {
+  from { opacity: 1; backdrop-filter: blur(var(--modal-blur)); }
+  to { opacity: 0; backdrop-filter: blur(0); }
+}
+
+/* Apply animations */
+.modal-overlay {
+  animation: overlay-enter var(--duration-standard) var(--ease-out);
+}
+
+.modal-overlay.closing {
+  animation: overlay-exit var(--duration-micro) var(--ease-in);
+}
+
+.modal {
+  animation: modal-enter var(--duration-standard) var(--ease-out);
+}
+
+.modal.closing {
+  animation: modal-exit var(--duration-micro) var(--ease-in);
+}
+```
+
+---
+
+## 3. Content & Copy Guidelines
+
+### Modal Copy Standards
+
+| Element | Guidelines | Example |
+|---------|------------|---------|
+| **Title** | Max 4 words, action-oriented | "Round Complete" not "You have completed round 3" |
+| **Body** | Max 2 sentences, scannable | "Brazil was playing Rádio Cidade. You scored +4,500 points." |
+| **Primary CTA** | 2-3 words, verb-first | "Next Round", "Play Again" |
+| **Secondary CTA** | Optional, lower emphasis | "View Details" |
+
+### Tone of Voice
+
+- **Celebratory** for success (correct guess, game complete)
+- **Encouraging** for progression (next round)
+- **Neutral** for onboarding (start modal)
+- **Never** condescending or overly verbose
+
+### Accessibility Copy
+
+```jsx
+// Always include aria-labels for icon-only buttons
+<button aria-label="Close modal" className="modal__close">
+  <CloseIcon />
+</button>
+
+// Use aria-live for dynamic score updates
+<div aria-live="polite" aria-atomic="true">
+  Score: {score} points
+</div>
+```
+
+---
+
+## 4. Migration Roadmap
+
+### Quick Wins (Week 1) — P1/P2 Fixes
+
+| Task | Effort | Impact | Files |
+|------|--------|--------|-------|
+| Add `role="dialog"` and `aria-modal="true"` | 15 min | Critical | App.jsx |
+| Add `aria-labelledby` to all modals | 15 min | Critical | App.jsx |
+| Add Escape key handlers | 30 min | Critical | App.jsx |
+| Add reduced motion CSS media query | 15 min | High | App.css |
+| Standardize animation durations | 30 min | Medium | App.css |
+
+**Estimated total: 2 hours**
+
+### Sprint 1 (Week 2-3) — Component Extraction
+
+| Task | Effort | Impact |
+|------|--------|--------|
+| Create base Modal component | 4 hrs | High |
+| Create useModal hook | 2 hrs | High |
+| Create useFocusTrap hook | 2 hrs | Critical |
+| Extract StartModal | 2 hrs | Medium |
+| Extract RoundSummaryModal | 2 hrs | Medium |
+| Extract GameCompleteModal | 2 hrs | Medium |
+| Consolidate CSS into Modal.css | 4 hrs | Medium |
+
+**Estimated total: 18 hours**
+
+### Sprint 2 (Week 4-5) — Polish & Testing
+
+| Task | Effort | Impact |
+|------|--------|--------|
+| Add unit tests for Modal | 4 hrs | High |
+| Add Storybook stories | 4 hrs | Medium |
+| Cross-browser testing | 2 hrs | High |
+| Mobile/touch testing | 2 hrs | High |
+| Screen reader testing (NVDA, VoiceOver) | 3 hrs | Critical |
+
+**Estimated total: 15 hours**
+
+---
+
+## 5. Code Examples
+
+### Example 1: Quick Fix — Adding Dialog Semantics
+
+**Current Code (App.jsx ~line 1549):**
+```jsx
+{showRoundModal && (
+  <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`}>
+    <div className={`round-summary-modal ${modalClosing ? 'closing' : ''}`}>
+      {/* content */}
+    </div>
+  </div>
+)}
+```
+
+**Fixed Code:**
+```jsx
+{showRoundModal && (
+  <div 
+    className={`modal-overlay ${modalClosing ? 'closing' : ''}`}
+    role="presentation"
+  >
+    <div 
+      className={`round-summary-modal ${modalClosing ? 'closing' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="round-summary-title"
+    >
+      <h2 id="round-summary-title" className="sr-only">
+        Round {currentRound} Complete
+      </h2>
+      {/* content */}
+    </div>
+  </div>
+)}
+```
+
+### Example 2: Quick Fix — Escape Key Handler
+
+**Add to App.jsx (inside App function):**
+```jsx
+// Escape key handler for all modals
+useEffect(() => {
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      if (showRoundModal) {
+        handleNextRound();
+      } else if (gameOver) {
+        playAgain();
+      }
+      // Note: Start modal should NOT close on escape (game hasn't started)
+    }
+  };
+
+  document.addEventListener('keydown', handleEscape);
+  return () => document.removeEventListener('keydown', handleEscape);
+}, [showRoundModal, gameOver, handleNextRound, playAgain]);
+```
+
+### Example 3: Quick Fix — Reduced Motion
+
+**Add to App.css:**
+```css
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .round-summary-modal,
+  .game-complete-modal,
+  .start-modal-card,
+  .continue-button,
+  .audio-player,
+  .overlay {
+    animation: none !important;
+    transition: opacity 0.1s linear !important;
+  }
+}
+```
+
+### Example 4: Focus Trap Hook
+
+**Create src/hooks/useFocusTrap.js:**
+```jsx
+import { useEffect } from 'react';
+
+export function useFocusTrap(ref, isActive) {
+  useEffect(() => {
+    if (!isActive || !ref.current) return;
+
+    const focusableElements = ref.current.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    // Focus first element on mount
+    firstElement?.focus();
+
+    const handleTabKey = (e) => {
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement?.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleTabKey);
+    return () => document.removeEventListener('keydown', handleTabKey);
+  }, [ref, isActive]);
+}
+```
+
+### Example 5: Screen Reader Only Class
+
+**Add to App.css:**
+```css
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+```
+
+---
+
+## ✅ Phase 3 Complete — Full Audit Summary
+
+### Deliverables
+
+| Phase | Status | Key Outputs |
+|-------|--------|-------------|
+| Phase 1: Discovery | ✅ Complete | 7 components documented, 12 animations mapped, 25+ state variables |
+| Phase 2: Analysis | ✅ Complete | 5 violations prioritized, ~400 lines duplication, user flow diagram |
+| Phase 3: Improvement Plan | ✅ Complete | Architecture proposal, design tokens, migration roadmap, code examples |
+
+### Implementation Priority
+
+1. **Immediate (Week 1):** Apply quick fixes for WCAG compliance
+2. **Short-term (Week 2-3):** Extract modal components
+3. **Medium-term (Week 4-5):** Polish, test, document
+
+### Estimated Impact
+
+| Metric | Before | After |
+|--------|--------|-------|
+| WCAG 2.2 AA Compliance | ~40% | 95%+ |
+| CSS Lines (modal-related) | ~1200 | ~400 |
+| State Variables for Modals | 11 | 4-5 |
+| Animation Keyframes | 12 | 4 |
+| Component Reusability | 0% | 100% |
+
+---
+
+**📋 Ready for Implementation**
+
+This audit provides a complete roadmap for modernizing the GeoRadio modal system. The quick wins can be applied immediately for accessibility compliance, while the component extraction can be done incrementally without disrupting the existing game functionality.
+
+**Recommended Next Steps:**
+1. Create a GitHub issue for each migration task
+2. Start with P1 quick fixes (2 hours total)
+3. Schedule Sprint 1 for component extraction
+4. Set up accessibility testing with screen readers
+
+---
+
+*Audit completed by UX/UI Design Mastermind — December 2024*
