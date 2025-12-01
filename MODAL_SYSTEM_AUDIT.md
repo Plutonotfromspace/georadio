@@ -307,11 +307,217 @@ src/
 
 ## ✅ Phase 1 Complete
 
-**Next Steps (Phase 2 — Analysis):**
-1. Group modals by purpose
-2. Map complete user flows
-3. Identify top 5 recurring violations
-4. Document duplication and inconsistency patterns
-5. Prioritize issues by impact
+---
 
-**Awaiting approval to proceed to Phase 2.**
+# 📊 Phase 2 — Analysis
+
+## 🏷️ Modal Grouping by Purpose
+
+### Category A: Informational / Transitional Modals
+These modals display information and require acknowledgment to proceed.
+
+| Modal | Purpose | User Action Required |
+|-------|---------|---------------------|
+| Start Modal | Onboarding/instructions | Click "Play" to begin |
+| Round Summary Modal | Show round results | Click "Next Round" or "See Results" |
+| Game Complete Modal | Final score recap | Click "Play Again" |
+
+**Pattern:** All are "blocking" modals that pause the main experience until dismissed.
+
+### Category B: Contextual Action Elements
+Fixed-position UI that appears based on game state, not blocking.
+
+| Element | Purpose | Trigger |
+|---------|---------|---------|
+| Confirm Button | Mobile country selection | Tap on globe |
+| Continue Button | Transition after correct guess | Correct answer |
+| Audio Player | Radio controls | Always during gameplay |
+| Scoreboard | Score/round HUD | Always visible |
+
+**Pattern:** Non-blocking, contextual controls that enhance gameplay.
+
+---
+
+## 🗺️ Complete User Flow Map
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         GEORADIO USER JOURNEY                        │
+└─────────────────────────────────────────────────────────────────────┘
+
+[PAGE LOAD]
+     │
+     ▼
+┌─────────────┐
+│ START MODAL │ ◄────────────────────────────────────────────┐
+│  (Blocking) │                                               │
+└──────┬──────┘                                               │
+       │ Click "Play"                                         │
+       ▼                                                      │
+┌─────────────────────────────────────────────┐               │
+│              GAMEPLAY LOOP                   │               │
+│  ┌─────────────────────────────────────┐    │               │
+│  │ • Audio Player visible (fixed)       │    │               │
+│  │ • Scoreboard visible (fixed)         │    │               │
+│  │ • Globe interactive                  │    │               │
+│  └─────────────────────────────────────┘    │               │
+│                    │                         │               │
+│         [User guesses country]               │               │
+│                    │                         │               │
+│     ┌──────────────┴──────────────┐         │               │
+│     │                              │         │               │
+│  [WRONG]                       [CORRECT]     │               │
+│     │                              │         │               │
+│     ▼                              ▼         │               │
+│  Country                    ┌─────────────┐  │               │
+│  highlights                 │ • Audio stops│  │               │
+│  with color                 │ • Confetti   │  │               │
+│  (hot/cold)                 │ • Scoreboard │  │               │
+│     │                       │   animates   │  │               │
+│     │                       └──────┬──────┘  │               │
+│     │                              │         │               │
+│     │                              ▼         │               │
+│     │                       ┌─────────────┐  │               │
+│     │                       │  CONTINUE   │  │               │
+│     │                       │   BUTTON    │  │               │
+│     │                       │ (flip-in)   │  │               │
+│     │                       └──────┬──────┘  │               │
+│     │                              │ Click   │               │
+│     │                              ▼         │               │
+│     │               ┌───────────────────────┐│               │
+│     │               │  ROUND SUMMARY MODAL  ││               │
+│     │               │     (Blocking)        ││               │
+│     │               │  • Flag + Country     ││               │
+│     │               │  • Score earned       ││               │
+│     │               └───────────┬───────────┘│               │
+│     │                           │            │               │
+│     │         ┌─────────────────┴────────────┤               │
+│     │         │                              │               │
+│     │    [Round < 5]                    [Round = 5]          │
+│     │         │                              │               │
+│     │         ▼                              ▼               │
+│     │   Click "Next                   Click "See            │
+│     │    Round"                        Results"             │
+│     │         │                              │               │
+│     └─────────┴──────────┐                   │               │
+│                          │                   │               │
+└──────────────────────────┘                   │               │
+                                               ▼               │
+                               ┌───────────────────────┐       │
+                               │ GAME COMPLETE MODAL   │       │
+                               │     (Blocking)        │       │
+                               │  • Final score        │       │
+                               │  • All 5 rounds recap │       │
+                               └───────────┬───────────┘       │
+                                           │                   │
+                                           │ Click "Play Again"│
+                                           │                   │
+                                           └───────────────────┘
+```
+
+---
+
+## 🔴 Top 5 Recurring Violations
+
+### Violation #1: No Keyboard Accessibility (WCAG 2.1.1)
+**Severity:** 🔴 Critical  
+**Affected:** All 3 modals  
+**Issue:** Users cannot dismiss modals with Escape key, cannot navigate with Tab, no focus trap  
+**Impact:** Keyboard-only users and screen reader users cannot use the application  
+**Fix Effort:** Medium (requires useEffect hook + event listeners)
+
+### Violation #2: Missing Dialog Semantics (WCAG 4.1.2)
+**Severity:** 🔴 Critical  
+**Affected:** All 3 modals  
+**Issue:** No `role="dialog"`, `aria-modal="true"`, or `aria-labelledby` attributes  
+**Impact:** Screen readers don't announce modals as dialogs; users lose context  
+**Fix Effort:** Low (add attributes to JSX)
+
+### Violation #3: No Focus Management (WCAG 2.4.3)
+**Severity:** 🟠 High  
+**Affected:** All 3 modals  
+**Issue:** Focus doesn't move to modal on open, doesn't return on close  
+**Impact:** Users lose their place in the document; disorienting experience  
+**Fix Effort:** Medium (requires refs + useEffect)
+
+### Violation #4: No Reduced Motion Support (WCAG 2.3.3)
+**Severity:** 🟠 High  
+**Affected:** All animations (12 keyframe definitions)  
+**Issue:** Animations don't respect `prefers-reduced-motion: reduce`  
+**Impact:** Users with vestibular disorders may experience discomfort  
+**Fix Effort:** Low (CSS media query wrapper)
+
+### Violation #5: Inconsistent Animation Timing (Nielsen H4)
+**Severity:** 🟡 Medium  
+**Affected:** All modals and overlays  
+**Issue:** Timings vary: 0.25s, 0.3s, 0.5s, 2.5s with no clear rationale  
+**Impact:** Inconsistent feel, unpredictable behavior  
+**Fix Effort:** Low (standardize to 2-3 timing values)
+
+---
+
+## 🔄 Duplication & Inconsistency Patterns
+
+### CSS Duplication Analysis
+
+| Pattern | Occurrences | Lines | Notes |
+|---------|-------------|-------|-------|
+| Flag container styles | 4× | ~120 lines | `.flag-container`, `.country-flag-wrapper`, `.round-summary-flag`, `.guess-mini-flag` |
+| Button gradient styles | 5× | ~200 lines | Each button has unique gradient definition |
+| Modal overlay backdrop | 3× | ~90 lines | Same blur + dark overlay repeated |
+| Border-radius: 16px | 12× | scattered | Inconsistent (some 10px, 12px, 16px, 20px) |
+| Box-shadow definitions | 15× | scattered | At least 6 unique shadow patterns |
+
+### Naming Inconsistencies
+
+| Concept | Variations Found |
+|---------|------------------|
+| Modal container | `start-modal-card`, `round-summary-modal`, `game-complete-modal`, `modal-card`, `summary-card` |
+| Flag image | `country-flag-img`, `detected-flag`, `country-flag`, `round-summary-flag`, `guess-mini-flag` |
+| Continue/Next button | `round-continue-btn`, `play-again-btn`, `continue-modal-button`, `action-button` |
+| Score display | `final-score-hero`, `round-score-inline`, `score-value`, `final-score-number` |
+
+### Animation Inconsistencies
+
+| Category | Current Values | Recommendation |
+|----------|---------------|----------------|
+| Modal entrance | 0.3s ease-out | Standardize all |
+| Modal exit | 0.25s ease-in | Standardize all |
+| Button/element flips | 0.5s ease-in-out | OK (distinct) |
+| Decorative (shine) | 2.5s cubic-bezier | OK (background) |
+
+---
+
+## 📈 Priority Matrix
+
+| Issue | Severity | Effort | Priority Score | Recommendation |
+|-------|----------|--------|----------------|----------------|
+| Missing dialog semantics | Critical | Low | **P1** | Fix immediately |
+| No keyboard accessibility | Critical | Medium | **P1** | Fix immediately |
+| No focus management | High | Medium | **P2** | Fix in next sprint |
+| No reduced motion | High | Low | **P2** | Quick win |
+| Animation inconsistency | Medium | Low | **P3** | Refactor with above |
+| CSS duplication | Medium | High | **P4** | Address during redesign |
+| Component extraction | Low | High | **P5** | Future architecture |
+
+---
+
+## 🎯 Phase 2 Complete
+
+**Summary of Analysis:**
+- **3 blocking modals** follow the same pattern but lack accessibility
+- **4 contextual elements** are well-positioned but use inconsistent animations
+- **5 critical violations** against WCAG 2.2 AA and Nielsen's heuristics
+- **CSS has significant duplication** (~400+ lines could be consolidated)
+- **Naming is inconsistent** across similar components
+
+---
+
+**Next Steps (Phase 3 — Improvement Plan):**
+1. Recommended unified modal architecture
+2. Modern 2025 visual & interaction standards
+3. Content & copy guidelines
+4. Migration roadmap with quick wins
+5. Code examples for the most common patterns
+
+**Awaiting approval to proceed to Phase 3.**
