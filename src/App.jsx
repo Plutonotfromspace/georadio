@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import Globe from 'react-globe.gl';
 import { feature } from 'topojson-client';
 import * as THREE from 'three';
@@ -693,7 +694,11 @@ function App() {
           ...g,
           color: interpolateColor(originalColors[i], targetColor, easeOutProgress)
         }));
-        setGuesses(animatedGuesses);
+        // Use flushSync to force React to immediately apply the state update
+        // This ensures the Globe component re-renders with the new colors each frame
+        flushSync(() => {
+          setGuesses(animatedGuesses);
+        });
         
         if (progress < 1) {
           requestAnimationFrame(animateColors);
@@ -809,7 +814,10 @@ function App() {
         ...g,
         color: interpolateColor(originalColors[i], targetColor, easeOutProgress)
       }));
-      setGuesses(animatedGuesses);
+      // Use flushSync to force React to immediately apply the state update
+      flushSync(() => {
+        setGuesses(animatedGuesses);
+      });
       
       if (progress < 1) {
         requestAnimationFrame(animateColorsPlayAgain);
