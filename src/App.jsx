@@ -180,6 +180,8 @@ function App() {
   const [modalClosing, setModalClosing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [audioError, setAudioError] = useState(false); // Track audio errors for progressive disclosure
+  const [scoreboardEntranceComplete, setScoreboardEntranceComplete] = useState(false); // Track if entrance animation finished
+  const [audioPlayerEntranceComplete, setAudioPlayerEntranceComplete] = useState(false); // Track if audio player entrance animation finished
   // NEW: Add state for triggering scoreboard animation
   const [scoreboardAnimationStage, setScoreboardAnimationStage] = useState('');
   // NEW: State to track when the scoreboard is in the middle
@@ -1582,7 +1584,15 @@ function App() {
     <div className="globe-container">
       {/* Score/Round overlay - only visible after game starts */}
       {gameStarted && (
-        <div className={`overlay flip-in-top ${scoreboardAnimationStage}`}>
+        <div 
+          className={`overlay ${!scoreboardEntranceComplete ? 'flip-in-top' : ''} ${scoreboardAnimationStage}`}
+          onAnimationEnd={(e) => {
+            // Mark entrance animation complete so it doesn't interfere with later animations
+            if (e.animationName === 'flipInToTop' && !scoreboardEntranceComplete) {
+              setScoreboardEntranceComplete(true);
+            }
+          }}
+        >
           <div className="stats-container">
             <div className="stat-item">
               <span className="stat-label">SCORE</span>
@@ -1610,7 +1620,14 @@ function App() {
 
       {/* Custom Audio Player */}
       {radioStation && (
-        <div className="audio-player flip-in-bottom">
+        <div 
+          className={`audio-player ${!audioPlayerEntranceComplete ? 'flip-in-bottom' : ''}`}
+          onAnimationEnd={(e) => {
+            if (e.animationName === 'flipInBottom' && !audioPlayerEntranceComplete) {
+              setAudioPlayerEntranceComplete(true);
+            }
+          }}
+        >
           <button onClick={toggleAudio} className="audio-btn">
             {audioPlaying ? 'Pause' : 'Play'}
           </button>
