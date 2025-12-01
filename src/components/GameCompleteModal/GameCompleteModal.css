@@ -1,0 +1,123 @@
+/* ============================================
+   GAME COMPLETE MODAL STYLES
+   ============================================ */
+
+.game-complete-modal {
+  text-align: center;
+}
+
+/* Final Score Hero */
+.game-complete-modal__hero {
+  margin-bottom: var(--modal-space-lg, 20px);
+  padding-bottom: var(--modal-space-lg, 20px);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.game-complete-modal__score {
+  font-size: 48px;
+  font-weight: 800;
+  color: #2563eb;
+  line-height: 1;
+  font-family: 'CustomHeader', 'Arial', sans-serif;
+}
+
+.game-complete-modal__label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Rounds Summary */
+.game-complete-modal__summary {
+  margin-bottom: var(--modal-space-lg, 20px);
+}
+
+.game-complete-modal__rounds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--modal-space-sm, 8px);
+}
+
+.game-complete-modal__round {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: var(--modal-radius-md, 8px);
+}
+
+.game-complete-modal__round-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.game-complete-modal__round-flag {
+  width: 32px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.game-complete-modal__round-country {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-complete-modal__round-score {
+  font-size: 14px;
+  font-weight: 600;
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+/* Play Again Button */
+.game-complete-modal__button {
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--modal-radius-lg, 12px);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  font-family: 'Regular', sans-serif;
+}
+
+.game-complete-modal__button:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.game-complete-modal__button:active {
+  transform: translateY(0);
+}
+
+.game-complete-modal__button:focus-visible {
+  outline: 3px solid var(--primary-color, #00d0ff);
+  outline-offset: 2px;
+}
+
+/* Mobile Responsive */
+@media screen and (max-width: 480px) {
+  .game-complete-modal__score {
+    font-size: 40px;
+  }
+  
+  .game-complete-modal__round-country {
+    font-size: 13px;
+  }
+}
