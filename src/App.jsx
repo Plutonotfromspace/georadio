@@ -543,7 +543,8 @@ function App() {
       name: guessedName, 
       distance, 
       color: getColor(distance), 
-      countryCode: getCountryCode(feature)
+      countryCode: getCountryCode(feature),
+      altitude: 0.08 // Start with elevated altitude for pop effect
     };
     
     if (distance < 10) { // changed threshold from 50 to 10
@@ -635,8 +636,45 @@ function App() {
     setScore(updatedScore);
     setFeedback(newFeedback);
     
-    // Instant snappy color change - no animation, just immediate fill
+    // Add guess with pop animation - starts elevated, animates down with elastic bounce
+    const guessId = newGuess.id;
     setGuesses(prevGuesses => [...prevGuesses, newGuess]);
+    
+    // Animate the altitude down with a snappy elastic bounce effect
+    const startTime = performance.now();
+    const duration = 400; // 400ms for snappy animation
+    const startAlt = 0.08;
+    const endAlt = 0.015;
+    
+    const animateAltitude = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Elastic ease-out for snappy bounce effect
+      // This creates an overshoot and settle effect
+      const elasticEase = (t) => {
+        const c4 = (2 * Math.PI) / 3;
+        return t === 0 ? 0 : t === 1 ? 1 
+          : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+      };
+      
+      const easedProgress = elasticEase(progress);
+      const currentAlt = startAlt + (endAlt - startAlt) * easedProgress;
+      
+      flushSync(() => {
+        setGuesses(prevGuesses => 
+          prevGuesses.map(g => 
+            g.id === guessId ? { ...g, altitude: currentAlt } : g
+          )
+        );
+      });
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateAltitude);
+      }
+    };
+    
+    requestAnimationFrame(animateAltitude);
 
     // Clear selection after guess
     setSelectedCountry(null);
@@ -1446,6 +1484,11 @@ function App() {
         }}
         polygonStrokeWidth={0.5}  // Increased stroke width
         polygonAltitude={d => {
+          const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
+          const guess = guesses.find((g) => g.id === polygonId);
+          if (guess && guess.altitude !== undefined) {
+            return guess.altitude;
+          }
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return 0.02;  // extrude correct country
           }
