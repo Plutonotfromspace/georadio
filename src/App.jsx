@@ -1,5 +1,4 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { flushSync } from 'react-dom';
 import Globe from 'react-globe.gl';
 import { feature } from 'topojson-client';
 import * as THREE from 'three';
@@ -283,6 +282,48 @@ function App() {
     const [lon, lat] = geoCentroid(feature);
     return { lat, lon };
   };
+
+  /**
+   * Animate guessed country colors to a target color using discrete keyframe steps.
+   * Uses 5 steps over 300ms instead of per-frame updates to avoid Globe re-render choppiness.
+   * @param {Array} guessesSnapshot - Snapshot of current guesses
+   * @param {string} targetColor - Final color to animate to (e.g., '#4CAF50')
+   * @param {Function} onComplete - Callback when animation completes
+   */
+  const animateColorsToTarget = useCallback((guessesSnapshot, targetColor, onComplete) => {
+    if (!guessesSnapshot || guessesSnapshot.length === 0) {
+      onComplete?.();
+      return;
+    }
+    
+    const originalColors = guessesSnapshot.map(g => g.color || '#4CAF50');
+    const totalDuration = 300; // Total animation duration in ms
+    const steps = 5; // Number of discrete color steps
+    const stepDuration = totalDuration / steps;
+    
+    // Create keyframes at 20%, 40%, 60%, 80%, 100% progress
+    for (let i = 1; i <= steps; i++) {
+      const progress = i / steps;
+      const delay = i * stepDuration;
+      
+      setTimeout(() => {
+        // Ease-out: 1 - (1 - progress)^3
+        const easedProgress = 1 - Math.pow(1 - progress, 3);
+        
+        const animatedGuesses = guessesSnapshot.map((g, idx) => ({
+          ...g,
+          color: interpolateColor(originalColors[idx], targetColor, easedProgress)
+        }));
+        
+        setGuesses(animatedGuesses);
+        
+        // Call onComplete after the final step
+        if (i === steps) {
+          setTimeout(() => onComplete?.(), 50);
+        }
+      }, delay);
+    }
+  }, [interpolateColor]);
 
   /* Calculate Distance Between Two Points */
   const toRadians = (deg) => deg * (Math.PI / 180);
@@ -636,70 +677,58 @@ function App() {
     setScore(updatedScore);
     setFeedback(newFeedback);
     
-    // Add guess and animate with spring physics for snappy "pop" effect
+    // === BOUNCY SPRING ALTITUDE ANIMATION ===
+    // Uses library's built-in polygonsTransitionDuration (250ms) for smooth tweening
+    // Each setTimeout sets the NEXT target altitude - library interpolates smoothly between values
+    
+    // Altitude keyframes for damped spring oscillation (2 bounces before settling)
+    const groundAltitude = 0.001;        // Starting flat
+    const peakAltitude = 0.040;          // Overshoot ceiling (2.67× rest) - dramatic "shoot up"
+    const undershootAltitude = 0.010;    // Below rest (67% of rest) - "floor bounce"
+    const miniOvershootAltitude = 0.018; // Small bounce above rest (damping)
+    const restAltitude = 0.015;          // Final resting position
+    
     const guessId = newGuess.id;
-    const restAltitude = 0.015; // Final resting position
+    const targetColor = newGuess.color;
     
-    // Spring physics parameters - tuned for snappy, bouncy feel
-    const stiffness = 180;  // Higher = faster oscillation
-    const damping = 12;     // Lower = more bouncy
-    const mass = 1;
+    // Step 1: Add polygon at ground level with final color (instant color, animated altitude)
+    setGuesses(prevGuesses => [...prevGuesses, { ...newGuess, altitude: groundAltitude, color: targetColor }]);
     
-    // Initial conditions - start with upward velocity for "pop" effect
-    let position = 0.01;    // Start at ground
-    let velocity = 0.8;     // Initial upward "kick" velocity
-    const target = restAltitude;
+    // Step 2: Shoot up to peak (tween starts at 20ms, arrives ~270ms)
+    setTimeout(() => {
+      setGuesses(prevGuesses => 
+        prevGuesses.map(g => 
+          g.id === guessId ? { ...g, altitude: peakAltitude } : g
+        )
+      );
+    }, 20);
     
-    // Add with initial position
-    flushSync(() => {
-      setGuesses(prevGuesses => [...prevGuesses, { ...newGuess, altitude: position }]);
-    });
+    // Step 3: Bounce down past rest to undershoot (tween starts at 250ms, arrives ~500ms)
+    setTimeout(() => {
+      setGuesses(prevGuesses => 
+        prevGuesses.map(g => 
+          g.id === guessId ? { ...g, altitude: undershootAltitude } : g
+        )
+      );
+    }, 250);
     
-    let lastTime = performance.now();
-    const animationDuration = 600; // Max duration in ms
-    const startTime = lastTime;
+    // Step 4: Bounce back up to mini-overshoot (tween starts at 480ms, arrives ~730ms)
+    setTimeout(() => {
+      setGuesses(prevGuesses => 
+        prevGuesses.map(g => 
+          g.id === guessId ? { ...g, altitude: miniOvershootAltitude } : g
+        )
+      );
+    }, 480);
     
-    const animateSpring = (currentTime) => {
-      const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05); // Cap delta to prevent jumps
-      lastTime = currentTime;
-      
-      // Spring physics: F = -k(x - target) - c*v
-      const displacement = position - target;
-      const springForce = -stiffness * displacement;
-      const dampingForce = -damping * velocity;
-      const acceleration = (springForce + dampingForce) / mass;
-      
-      velocity += acceleration * deltaTime;
-      position += velocity * deltaTime;
-      
-      // Update the guess altitude
-      flushSync(() => {
-        setGuesses(prevGuesses => 
-          prevGuesses.map(g => 
-            g.id === guessId ? { ...g, altitude: Math.max(0.005, position) } : g
-          )
-        );
-      });
-      
-      // Continue animation if still moving significantly or within duration
-      const isMoving = Math.abs(velocity) > 0.001 || Math.abs(displacement) > 0.0005;
-      const withinDuration = currentTime - startTime < animationDuration;
-      
-      if (isMoving && withinDuration) {
-        requestAnimationFrame(animateSpring);
-      } else {
-        // Snap to final position
-        flushSync(() => {
-          setGuesses(prevGuesses => 
-            prevGuesses.map(g => 
-              g.id === guessId ? { ...g, altitude: restAltitude } : g
-            )
-          );
-        });
-      }
-    };
-    
-    requestAnimationFrame(animateSpring);
+    // Step 5: Settle to final rest position (tween starts at 700ms, arrives ~950ms)
+    setTimeout(() => {
+      setGuesses(prevGuesses => 
+        prevGuesses.map(g => 
+          g.id === guessId ? { ...g, altitude: restAltitude } : g
+        )
+      );
+    }, 700);
 
     // Clear selection after guess
     setSelectedCountry(null);
@@ -739,78 +768,42 @@ function App() {
       // Trigger closing animation
       setModalClosing(true);
       
-      // Animate heatmap colors to green using requestAnimationFrame
-      const targetColor = '#4CAF50';
-      const animationDuration = 300; // 300ms animation
-      const startTime = performance.now();
-      // Capture a snapshot of guesses at the start of animation to avoid stale closures
+      // Animate heatmap colors to green using discrete keyframe steps
+      // This avoids per-frame state updates that cause choppy Globe re-renders
       const guessesSnapshot = [...guesses];
-      const originalColors = guessesSnapshot.map(g => g.color || '#4CAF50');
       
-      function animateColors(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / animationDuration, 1);
+      const proceedToNextRound = () => {
+        setCurrentRound(currentRound + 1);
+        setShowRoundModal(false);
+        setModalClosing(false);
+        setAttempts(0);
+        setGuesses([]); // Now safe to clear - colors already match default
+        setPreloadedFlagUrl(null); // Reset preloaded flag for next round
         
-        // Ease-out function for smoother animation
-        const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+        startNewRound();
         
-        // Update each guess with interpolated color using the snapshot
-        const animatedGuesses = guessesSnapshot.map((g, i) => ({
-          ...g,
-          color: interpolateColor(originalColors[i], targetColor, easeOutProgress)
-        }));
-        // Use flushSync to force React to immediately apply the state update
-        // This ensures the Globe component re-renders with the new colors each frame
-        flushSync(() => {
-          setGuesses(animatedGuesses);
-        });
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateColors);
-        } else {
-          // Animation complete - wait a bit more then clear
-          setTimeout(() => {
-            setCurrentRound(currentRound + 1);
-            setShowRoundModal(false);
-            setModalClosing(false);
-            setAttempts(0);
-            setGuesses([]); // Now safe to clear - colors already match default
-            setPreloadedFlagUrl(null); // Reset preloaded flag for next round
-            
-            startNewRound();
-            
-            // Start playing audio after a short delay to ensure proper setup
-            setTimeout(() => {
-              if (audioRef.current && radioStation) {
-                audioRef.current.play()
-                  .then(() => {
-                    setAudioPlaying(true);
-                    setFeedback(""); // Changed from "Audio playing. Take your guess!" to empty string
-                  })
-                  .catch(e => {
-                    if (!(e.message && e.message.includes("aborted"))) {
-                      console.error("Audio playback error:", e);
-                    }
-                  });
-              }
-            }, 100);
-          }, 100); // Small buffer after animation completes
-        }
-      }
+        // Start playing audio after a short delay to ensure proper setup
+        setTimeout(() => {
+          if (audioRef.current && radioStation) {
+            audioRef.current.play()
+              .then(() => {
+                setAudioPlaying(true);
+                setFeedback(""); // Changed from "Audio playing. Take your guess!" to empty string
+              })
+              .catch(e => {
+                if (!(e.message && e.message.includes("aborted"))) {
+                  console.error("Audio playback error:", e);
+                }
+              });
+          }
+        }, 100);
+      };
       
       if (guesses.length > 0) {
-        requestAnimationFrame(animateColors);
+        animateColorsToTarget(guessesSnapshot, '#4CAF50', proceedToNextRound);
       } else {
         // No guesses to animate, just proceed
-        setTimeout(() => {
-          setCurrentRound(currentRound + 1);
-          setShowRoundModal(false);
-          setModalClosing(false);
-          setAttempts(0);
-          setGuesses([]);
-          setPreloadedFlagUrl(null);
-          startNewRound();
-        }, 250);
+        setTimeout(proceedToNextRound, 250);
       }
       
       // Flip in audio player - only when continuing to next round
@@ -859,82 +852,41 @@ function App() {
     // Trigger closing animation
     setModalClosing(true);
     
-    // Animate heatmap colors to green using requestAnimationFrame (for game over modal)
-    const targetColor = '#4CAF50';
-    const animationDuration = 300; // 300ms animation
-    const startTime = performance.now();
-    // Capture a snapshot of guesses at the start of animation to avoid stale closures
+    // Animate heatmap colors to green using discrete keyframe steps
+    // This avoids per-frame state updates that cause choppy Globe re-renders
     const guessesSnapshot = [...guesses];
-    const originalColors = guessesSnapshot.map(g => g.color || '#4CAF50');
     
-    function animateColorsPlayAgain(currentTime) {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / animationDuration, 1);
+    const resetGame = () => {
+      logEvent('game', 'replay', 'Game replayed');
+      setCurrentRound(1);
+      setRoundResults([]);
+      setGameOver(false);
+      setModalClosing(false);
+      setFeedback("");
+      setAttempts(0);
+      setScore(0);
+      setAnimatedScore(0);
+      setGuesses([]);
+      setPreloadedFlagUrl(null); // Reset preloaded flag
+      setUsedCountries([]); // Clear used countries for a fresh start
       
-      // Ease-out function for smoother animation
-      const easeOutProgress = 1 - Math.pow(1 - progress, 3);
-      
-      // Update each guess with interpolated color using the snapshot
-      const animatedGuesses = guessesSnapshot.map((g, i) => ({
-        ...g,
-        color: interpolateColor(originalColors[i], targetColor, easeOutProgress)
-      }));
-      // Use flushSync to force React to immediately apply the state update
-      flushSync(() => {
-        setGuesses(animatedGuesses);
-      });
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateColorsPlayAgain);
-      } else {
-        // Animation complete - wait a bit more then reset
+      startNewRound();
+      // Reset audio player animations
+      const audioPlayer = document.querySelector('.audio-player');
+      if (audioPlayer) {
+        audioPlayer.classList.remove('flip-out');
+        audioPlayer.classList.add('flip-in-reset');
         setTimeout(() => {
-          logEvent('game', 'replay', 'Game replayed');
-          setCurrentRound(1);
-          setRoundResults([]);
-          setGameOver(false);
-          setModalClosing(false);
-          setFeedback("");
-          setAttempts(0);
-          setScore(0);
-          setAnimatedScore(0);
-          setGuesses([]);
-          setPreloadedFlagUrl(null); // Reset preloaded flag
-          setUsedCountries([]); // Clear used countries for a fresh start
-          
-          startNewRound();
-          // Reset audio player animations
-          const audioPlayer = document.querySelector('.audio-player');
-          if (audioPlayer) {
-            audioPlayer.classList.remove('flip-out');
-            audioPlayer.classList.add('flip-in-reset');
-            setTimeout(() => {
-              audioPlayer.classList.remove('flip-in-reset');
-            }, 500);
-          }
-        }, 100); // Small buffer after animation completes
+          audioPlayer.classList.remove('flip-in-reset');
+        }, 500);
       }
-    }
+    };
     
     if (guesses.length > 0) {
-      requestAnimationFrame(animateColorsPlayAgain);
+      animateColorsToTarget(guessesSnapshot, '#4CAF50', resetGame);
     } else {
       // No guesses to animate, just proceed
-      setTimeout(() => {
-        logEvent('game', 'replay', 'Game replayed');
-        setCurrentRound(1);
-        setRoundResults([]);
-        setGameOver(false);
-        setModalClosing(false);
-        setFeedback("");
-        setAttempts(0);
-        setScore(0);
-        setAnimatedScore(0);
-        setGuesses([]);
-        setPreloadedFlagUrl(null);
-        setUsedCountries([]);
-        startNewRound();
-      }, 250);
+      setTimeout(resetGame, 250);
     }
   };
 
@@ -1485,12 +1437,16 @@ function App() {
         polygonsData={countriesData}
         polygonCapColor={(d) => {
           const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
-          // ...existing guess color logic...
           const guess = guesses.find((g) => g.id === polygonId);
-          if (guess) return guess.color;
+          
+          if (guess) {
+            return guess.color;
+          }
           
           // Handle mobile selection only if we have a selected country
-          if (isMobile && selectedCountry?.polygonId === polygonId) return '#ffeb3b';
+          if (isMobile && selectedCountry?.polygonId === polygonId) {
+            return '#ffeb3b';
+          }
           
           // Default color for all other cases
           return '#4CAF50';
@@ -1532,7 +1488,7 @@ function App() {
           </span>
         `}
         onPolygonClick={onPolygonClick}
-        polygonsTransitionDuration={300}
+        polygonsTransitionDuration={250}
       />
 
       {/* Only show confirmation button on mobile */}
