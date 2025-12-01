@@ -638,59 +638,68 @@ function App() {
     
     // Add guess and animate with spring physics for snappy "pop" effect
     const guessId = newGuess.id;
-    const startAltitude = 0.01; // Start from ground level
-    const peakAltitude = 0.10;  // Overshoot high
     const restAltitude = 0.015; // Final resting position
     
-    // Add at ground level first
+    // Spring physics parameters - tuned for snappy, bouncy feel
+    const stiffness = 180;  // Higher = faster oscillation
+    const damping = 12;     // Lower = more bouncy
+    const mass = 1;
+    
+    // Initial conditions - start with upward velocity for "pop" effect
+    let position = 0.01;    // Start at ground
+    let velocity = 0.8;     // Initial upward "kick" velocity
+    const target = restAltitude;
+    
+    // Add with initial position
     flushSync(() => {
-      setGuesses(prevGuesses => [...prevGuesses, { ...newGuess, altitude: startAltitude }]);
+      setGuesses(prevGuesses => [...prevGuesses, { ...newGuess, altitude: position }]);
     });
     
-    // Use keyframe approach - set discrete points and let Globe interpolate
-    // Frame 1: Jump to peak (Globe transitions here over ~50ms)
-    setTimeout(() => {
-      flushSync(() => {
-        setGuesses(prevGuesses => 
-          prevGuesses.map(g => 
-            g.id === guessId ? { ...g, altitude: peakAltitude } : g
-          )
-        );
-      });
-    }, 30);
+    let lastTime = performance.now();
+    const animationDuration = 600; // Max duration in ms
+    const startTime = lastTime;
     
-    // Frame 2: Drop to undershoot
-    setTimeout(() => {
+    const animateSpring = (currentTime) => {
+      const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05); // Cap delta to prevent jumps
+      lastTime = currentTime;
+      
+      // Spring physics: F = -k(x - target) - c*v
+      const displacement = position - target;
+      const springForce = -stiffness * displacement;
+      const dampingForce = -damping * velocity;
+      const acceleration = (springForce + dampingForce) / mass;
+      
+      velocity += acceleration * deltaTime;
+      position += velocity * deltaTime;
+      
+      // Update the guess altitude
       flushSync(() => {
         setGuesses(prevGuesses => 
           prevGuesses.map(g => 
-            g.id === guessId ? { ...g, altitude: restAltitude * 0.5 } : g
+            g.id === guessId ? { ...g, altitude: Math.max(0.005, position) } : g
           )
         );
       });
-    }, 150);
+      
+      // Continue animation if still moving significantly or within duration
+      const isMoving = Math.abs(velocity) > 0.001 || Math.abs(displacement) > 0.0005;
+      const withinDuration = currentTime - startTime < animationDuration;
+      
+      if (isMoving && withinDuration) {
+        requestAnimationFrame(animateSpring);
+      } else {
+        // Snap to final position
+        flushSync(() => {
+          setGuesses(prevGuesses => 
+            prevGuesses.map(g => 
+              g.id === guessId ? { ...g, altitude: restAltitude } : g
+            )
+          );
+        });
+      }
+    };
     
-    // Frame 3: Small bounce up
-    setTimeout(() => {
-      flushSync(() => {
-        setGuesses(prevGuesses => 
-          prevGuesses.map(g => 
-            g.id === guessId ? { ...g, altitude: restAltitude * 1.2 } : g
-          )
-        );
-      });
-    }, 250);
-    
-    // Frame 4: Settle at rest
-    setTimeout(() => {
-      flushSync(() => {
-        setGuesses(prevGuesses => 
-          prevGuesses.map(g => 
-            g.id === guessId ? { ...g, altitude: restAltitude } : g
-          )
-        );
-      });
-    }, 350);
+    requestAnimationFrame(animateSpring);
 
     // Clear selection after guess
     setSelectedCountry(null);
