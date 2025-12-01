@@ -506,6 +506,410 @@ After playing:
 
 ---
 
+## Score Overlay — Complete Deep Dive
+
+The Score Overlay is the primary game status indicator that appears after the user starts playing.
+
+### Initial Appearance (T+400ms after game start)
+
+**Trigger**: `gameStarted` state becomes `true`
+
+**Initial Animation**: **NONE** — The overlay appears immediately without any entrance animation.
+
+```jsx
+{gameStarted && (
+  <div className={`overlay ${scoreboardAnimationStage}`}>
+    ...
+  </div>
+)}
+```
+
+**Current Issue**: No entrance animation. Consider adding `fade-in` or `slide-down` for smoother appearance.
+
+### Visual Layout
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                          │
+│   ┌──────────┐    │    ┌──────────┐                     │
+│   │  SCORE   │    │    │  ROUND   │                     │
+│   │    0     │    │    │   1/5    │                     │
+│   └──────────┘    │    └──────────┘                     │
+│                                                          │
+│       stat-item    divider   stat-item                  │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+              ↑
+        stats-container
+```
+
+### Text Content Inventory
+
+| Element | Text | Font | Size | Weight | Color |
+|---------|------|------|------|--------|-------|
+| Score Label | `"SCORE"` | 'Regular', sans-serif | 12px | 600 | rgba(0,0,0,0.7) |
+| Score Value | `{animatedScore}` (starts at `0`) | 'Regular', sans-serif | 24px | 700 | #000 |
+| Round Label | `"ROUND"` | 'Regular', sans-serif | 12px | 600 | rgba(0,0,0,0.7) |
+| Round Value | `{currentRound}` (starts at `1`) | 'Regular', sans-serif | 24px | 700 | #000 |
+| Round Max | `"/5"` | 'Regular', sans-serif | 18px | 400 | rgba(0,0,0,0.5) |
+
+### CSS Properties (src/App.css lines 25-38, 256-298)
+
+```css
+.overlay {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.7);
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  max-width: 80vw;
+  font-family: 'Regular', sans-serif;
+}
+
+.stats-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 5px 0;
+  padding: 8px 16px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+```
+
+### Animation System (Correct Guess)
+
+When the user guesses correctly, the scoreboard performs a complex 5-stage animation:
+
+```
+Stage 1: Flip out at top (0-500ms)
+    ↓
+Stage 2: Move to center + flip in (500-1000ms)
+    ↓
+Stage 3: Hold in center for 3 seconds (1000-4000ms)
+    ↓
+Stage 4: Flip out from center (4000-4500ms)
+    ↓
+Stage 5: Move to top + flip in (4500-5000ms)
+```
+
+**Animation CSS Classes**:
+
+| Class | Animation | Duration | Easing |
+|-------|-----------|----------|--------|
+| `flip-out-center` | `flipOutToCenter` | 500ms | ease-in-out |
+| `flip-in-center` | `flipInFromCenter` | 500ms | ease-in-out |
+| `flip-out-top` | `flipOutFromCenter` | 500ms | ease-in-out |
+| `flip-in-top` | `flipInToTop` | 500ms | ease-in-out |
+| `centered` | Moves to `top: 50%` | instant | none |
+
+**Keyframe Definitions**:
+
+```css
+@keyframes flipOutToCenter {
+  0% { transform: translateX(-50%) rotateX(0) scale(1); }
+  100% { transform: translateX(-50%) rotateX(90deg) scale(1); }
+}
+
+@keyframes flipInFromCenter {
+  0% { transform: translate(-50%, -50%) rotateX(-90deg) scale(var(--scoreboard-scale)); }
+  100% { transform: translate(-50%, -50%) rotateX(0) scale(var(--scoreboard-scale)); }
+}
+
+@keyframes flipOutFromCenter {
+  0% { transform: translate(-50%, -50%) rotateX(0) scale(var(--scoreboard-scale)); }
+  100% { transform: translate(-50%, -50%) rotateX(90deg) scale(var(--scoreboard-scale)); }
+}
+
+@keyframes flipInToTop {
+  0% { transform: translateX(-50%) rotateX(-90deg) scale(1); }
+  100% { transform: translateX(-50%) rotateX(0) scale(1); }
+}
+```
+
+**Scale Variable**:
+```css
+:root {
+  --scoreboard-scale: 2.5;  /* Desktop: 2.5x larger when centered */
+}
+
+@media screen and (max-width: 768px) {
+  :root {
+    --scoreboard-scale: 1.5;  /* Mobile: 1.5x larger when centered */
+  }
+}
+```
+
+### Score Animation (animatedScore)
+
+When points are earned, the score animates from old value to new value:
+
+```javascript
+// Animate score from current to target (in scoreboardInMiddle effect)
+const scoreElement = document.querySelector('.stat-value');
+if (scoreElement) {
+  const startValue = animatedScore;
+  const endValue = score;
+  const duration = 1000; // 1 second animation
+  // Uses requestAnimationFrame for smooth counting
+}
+```
+
+**Animation**: Counter increments from old score to new score over 1 second.
+
+### States
+
+| State | Visual | Animation |
+|-------|--------|-----------|
+| Initial | Top of screen, shows "0" and "1/5" | None (appears instantly) |
+| During guess | No change | None |
+| Correct guess | Flips out, centers, scales up, flips in | 5-stage flip sequence |
+| Score updating | Number counts up | requestAnimationFrame counter |
+| Return to top | Flips out, moves up, flips in | Flip sequence |
+
+### 8px Grid Compliance
+
+| Property | Value | Grid Units |
+|----------|-------|------------|
+| Overlay padding | 8px 16px | 1 × 2 units |
+| Stats container margin | 5px 0 | ⚠️ Not on 8px grid (should be 4px or 8px) |
+| Stats container padding | 8px 16px | 1 × 2 units |
+| Border radius | 8px / 6px | 1 unit / ⚠️ Not on grid |
+| Stat gap | 4px | 0.5 units |
+| Divider height | 24px | 3 units |
+
+---
+
+## Audio Player — Complete Deep Dive
+
+The Audio Player is the primary interaction point for the radio stream.
+
+### Initial Appearance (T+600ms after game start)
+
+**Trigger**: `radioStation` state is set (not null)
+
+**Initial Animation**: **NONE** — The player appears immediately without any entrance animation.
+
+```jsx
+{radioStation && (
+  <div className="audio-player">
+    ...
+  </div>
+)}
+```
+
+**Current Issue**: No entrance animation. The player pops in abruptly.
+
+### Visual Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│  ┌──────┐  ┌───────────────────────────────┐  ┌────────┐  ⟳  ┌───────────┐  │
+│  │ Play │  │ Click Play if audio does not  │  │ ═══○══ │     │ Station   │  │
+│  │      │  │ start.                        │  │        │     │ broken?   │  │
+│  └──────┘  └───────────────────────────────┘  └────────┘     └───────────┘  │
+│                                                                              │
+│  audio-btn      audio-instructions           volume-slider   loading  radio-error
+│                                              (hidden when               │
+│                                               not playing)               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Text Content Inventory
+
+| Element | State | Text | Font | Size | Color |
+|---------|-------|------|------|------|-------|
+| Play Button | Not playing | `"Play"` | 'Regular', sans-serif | 14px | #fff |
+| Play Button | Playing | `"Pause"` | 'Regular', sans-serif | 14px | #fff |
+| Instructions | Not playing | `"Click Play if audio does not start."` | system | 12px | #fff |
+| Instructions | Playing | `"Adjust volume:"` | system | 12px | #fff |
+| Error Link | Always visible | `"Station broken? Click here to refresh."` | system | 12px | #ffeb3b |
+
+### CSS Properties (src/App.css lines 203-253)
+
+```css
+.audio-player {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) rotateX(0);
+  transform-origin: center bottom;
+  transition: transform 0.5s ease-in-out;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  gap: 8px;
+  pointer-events: all;
+}
+
+.audio-btn {
+  font-size: 14px;
+  color: #fff;
+  background: transparent;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-family: 'Regular', sans-serif;
+}
+
+.audio-btn:hover {
+  background-color: #fff;
+  color: #000;
+}
+
+.audio-instructions {
+  font-size: 12px;
+  color: #fff;
+}
+
+.volume-slider {
+  width: 100px;
+}
+
+.radio-error {
+  font-size: 12px;
+  color: #ffeb3b;
+  text-decoration: underline;
+  cursor: pointer;
+  margin-left: 8px;
+}
+```
+
+### Animation System
+
+**Flip Out (on correct guess)**:
+```css
+.flip-out {
+  animation: flipOut 0.5s ease-in-out forwards;
+}
+
+@keyframes flipOut {
+  0% { transform: translateX(-50%) rotateX(0); opacity: 1; }
+  100% { transform: translateX(-50%) rotateX(90deg); opacity: 0; }
+}
+```
+
+**Flip In Reset (returning after correct guess)**:
+```css
+.audio-player.flip-in-reset {
+  animation: flipInReset 0.5s ease-in-out forwards;
+}
+
+@keyframes flipInReset {
+  0% { transform: translateX(-50%) rotateX(90deg); opacity: 0; }
+  100% { transform: translateX(-50%) rotateX(0); opacity: 1; }
+}
+```
+
+### Loading Spinner
+
+```css
+.loading-spinner {
+  width: 20px !important;
+  height: 20px !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  border-top-color: #fff !important;
+  border-radius: 50% !important;
+  margin: 0 8px !important;
+  animation: spin 1s linear infinite !important;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+```
+
+### States
+
+| State | Button Text | Instructions Text | Spinner | Actions |
+|-------|-------------|-------------------|---------|---------|
+| **Initial** | "Play" | "Click Play if audio does not start." | Hidden | Click Play |
+| **Loading** | "Play" | Same as initial | Visible, spinning | Wait |
+| **Playing** | "Pause" | "Adjust volume:" | Hidden | Pause, adjust volume |
+| **Paused** | "Play" | "Adjust volume:" | Hidden | Play, adjust volume |
+| **Error** | "Play" | Same as initial | Hidden | Click error link to refresh |
+
+### State Transitions
+
+```
+Initial → Loading (user clicks Play)
+    ↓
+Loading → Playing (audio.play() succeeds)
+    ↓
+Playing ↔ Paused (user toggles)
+    ↓
+Any State → Error (network/CORS failure)
+    ↓
+Error → Initial (user clicks refresh link)
+```
+
+### Interaction Timeline
+
+```
+T+0ms     User clicks Play button
+    ↓
+T+0ms     setIsLoading(true) — spinner appears
+    ↓
+T+0ms     audioRef.current.play() called
+    ↓
+T+???     Audio starts buffering (network dependent)
+    ↓
+T+???     Promise resolves → setAudioPlaying(true), setIsLoading(false)
+    ↓
+          Button changes to "Pause"
+          Instructions change to "Adjust volume:"
+          Spinner disappears
+```
+
+### 8px Grid Compliance
+
+| Property | Value | Grid Units |
+|----------|-------|------------|
+| Bottom position | 40px | 5 units ✅ |
+| Padding | 12px 16px | 1.5 × 2 units ⚠️ (12px not on grid) |
+| Gap | 8px | 1 unit ✅ |
+| Border radius | 8px | 1 unit ✅ |
+| Button padding | 4px 8px | 0.5 × 1 units |
+| Button border radius | 4px | 0.5 units |
+| Spinner size | 20px | 2.5 units ⚠️ |
+| Spinner margin | 0 8px | 0 × 1 units ✅ |
+| Error margin-left | 8px | 1 unit ✅ |
+
+### Touch Target Analysis
+
+| Element | Computed Size | Minimum (44px) | Status |
+|---------|---------------|----------------|--------|
+| Play/Pause button | ~32px (14px font + 8px padding + 2px border) | 44px | ⚠️ FAIL |
+| Volume slider | Browser native (~20px track height) | 44px | ⚠️ FAIL |
+| Error link | ~16px (12px font + line-height) | 44px | ⚠️ FAIL |
+
+**Recommendation**: Increase button padding to at least `12px 16px` and add `min-height: 44px` for touch compliance.
+
+### Mobile Responsiveness (max-width: 768px)
+
+```css
+@media (max-width: 768px) {
+  .audio-player {
+    /* Current: no specific mobile overrides */
+    /* Consider: full-width, larger touch targets */
+  }
+}
+```
+
+---
+
 ## Phase 5: First Guess & Coaching (10-30s)
 
 ### What Happens
