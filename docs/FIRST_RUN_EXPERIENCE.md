@@ -185,60 +185,295 @@ Three ways to start the game:
 
 ---
 
-## Phase 4: Game Start (5-10s)
+## Phase 4: Game Start — Detailed Breakdown (5-10s)
 
-### What Happens
-User clicks to start. The first-run screen fades out and the game begins.
+This phase covers everything that happens from the moment the user clicks until the game is fully playable. This is the most complex phase with multiple parallel processes.
 
-### Transition Sequence
+### 4.1 User Click Event (T+0ms)
 
+**Trigger**: User clicks CTA button, clicks anywhere on screen, or presses Enter
+
+**Immediate Actions (synchronous)**:
+```javascript
+// App.jsx lines 415-426
+const handleStart = () => {
+  firstRun.classList.add('hidden');      // 1. Add CSS class for fade
+  setFirstRunComplete(true);              // 2. Update React state
+  
+  setTimeout(() => {
+    firstRun.style.display = 'none';      // 3. Remove from DOM flow
+    if (onGameStartRef.current) {
+      onGameStartRef.current();           // 4. Call game start function
+    }
+  }, 400);                                // Wait for CSS transition
+};
 ```
-User Click
-    ↓
-firstRun.classList.add('hidden')     // Triggers fade-out
-    ↓
-setFirstRunComplete(true)            // React state update
-    ↓
-setTimeout(400ms)                    // Wait for CSS transition
-    ↓
-firstRun.style.display = 'none'      // Remove from DOM flow
-    ↓
-onGameStartRef.current()             // Start the game
-```
 
-### Fade-Out CSS
+### 4.2 First-Run Screen Fade-Out (T+0ms to T+400ms)
+
+**CSS Transition**:
 ```css
 .first-run.hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
+  opacity: 0;                    /* Fade to invisible */
+  visibility: hidden;            /* Remove from accessibility tree */
+  pointer-events: none;          /* Prevent clicks during fade */
   transition: opacity 0.4s ease-out, visibility 0.4s;
 }
 ```
 
-### Game Initialization (onGameStart)
+**Visual State During Fade**:
+- Animated globe fades out (400ms)
+- "GeoRadio" title fades out
+- "Ready to play" text fades out
+- CTA button fades out
+- Background gradient fades to reveal 3D globe behind
+
+### 4.3 Game Initialization (T+400ms)
+
+**`onGameStart()` function executes** (App.jsx lines 1204-1213):
+
 ```javascript
 const onGameStart = useCallback(() => {
+  // 1. Analytics event
   logEvent('game', 'start', 'New game started');
-  setGameStarted(true);
-  setCurrentRound(1);
-  setScore(0);
-  setAnimatedScore(0);
-  setUsedCountries([]);
-  setUsedLanguages(new Set());
-  startNewRound();
+  
+  // 2. State updates (all synchronous)
+  setGameStarted(true);           // Triggers UI to show score overlay
+  setCurrentRound(1);             // Initialize round counter
+  setScore(0);                    // Reset score
+  setAnimatedScore(0);            // Reset animated score display
+  setUsedCountries([]);           // Clear used countries list
+  setUsedLanguages(new Set());    // Clear used languages set
+  
+  // 3. Start first round
+  startNewRound();                // Triggers station selection
 }, [startNewRound]);
 ```
 
-### UI Elements That Appear
+**State Changes**:
+| State Variable | Before | After |
+|----------------|--------|-------|
+| `gameStarted` | `false` | `true` |
+| `currentRound` | `1` | `1` |
+| `score` | `0` | `0` |
+| `animatedScore` | `0` | `0` |
+| `usedCountries` | `[]` | `[]` |
+| `usedLanguages` | `Set()` | `Set()` |
 
-| Element | Timing | Animation |
-|---------|--------|-----------|
-| 3D Globe | Immediate | Renders with countries |
-| Score Overlay | After `gameStarted=true` | Fade in |
-| Audio Player | After station selected | Flip-in animation |
+### 4.4 Round Initialization — `startNewRound()` (T+400ms to T+600ms)
 
-### Score Overlay (Only visible after game starts)
+**Station Selection Algorithm** (App.jsx lines 532-676):
+
+```
+Step 1: Group stations by language
+         ↓
+Step 2: Filter languages with valid stations
+         ↓
+Step 3: Pick random language (not recently used)
+         ↓
+Step 4: Get countries with stations in that language
+         ↓
+Step 5: Pick random country
+         ↓
+Step 6: Find country in map geometry data
+         ↓
+Step 7: Pick random station from that country
+         ↓
+Step 8: Set target country and radio station
+```
+
+**Detailed Steps**:
+
+1. **Group stations by language**:
+   ```javascript
+   const stationsByLanguage = { /* 170 stations grouped */ };
+   ```
+
+2. **Filter valid languages** (must have at least 1 station):
+   ```javascript
+   const validLanguages = Object.entries(stationsByLanguage)
+     .filter(([, stations]) => stations.length >= 1)
+     .map(([lang]) => lang);
+   ```
+
+3. **Pick random language** (excluding recently used):
+   ```javascript
+   let availableLanguages = validLanguages.filter(lang => !usedLanguages.has(lang));
+   const randomLanguage = availableLanguages[Math.floor(Math.random() * availableLanguages.length)];
+   ```
+
+4. **Get available countries**:
+   ```javascript
+   const availableCountries = [...new Set(stationsInLanguage.map(s => s.sourceCountry))];
+   ```
+
+5. **Pick random country**:
+   ```javascript
+   const randomCountry = availableCountries[Math.floor(Math.random() * availableCountries.length)];
+   ```
+
+6. **Find country in map data**:
+   ```javascript
+   const target = countriesData.find(
+     feature => feature.properties?.name.toLowerCase() === randomCountry.toLowerCase()
+   );
+   ```
+
+7. **Pick random station**:
+   ```javascript
+   const stationsForCountry = stationsInLanguage.filter(s => s.sourceCountry === randomCountry);
+   const station = stationsForCountry[Math.floor(Math.random() * stationsForCountry.length)];
+   ```
+
+8. **Set state**:
+   ```javascript
+   setRadioStation({ ...station, url_resolved: stationUrl });
+   setTargetCountry(target);
+   setAttempts(0);
+   setLastGuessDistance(null);
+   setWasGettingWarmer(false);
+   setCoachingTip(prev => ({ ...prev, visible: false }));
+   ```
+
+### 4.5 Audio Setup (T+600ms to T+1000ms)
+
+**`setupAudioSource()` function** (App.jsx lines 213-236):
+
+```javascript
+const setupAudioSource = useCallback((stationUrl) => {
+  const audioElement = audioRef.current;
+  
+  // 1. Set CORS mode
+  audioElement.crossOrigin = "anonymous";
+  
+  // 2. Cleanup existing HLS instance if any
+  if (audioElement.hlsInstance) {
+    audioElement.hlsInstance.destroy();
+    audioElement.hlsInstance = null;
+  }
+  
+  // 3. Setup new source (HLS or direct)
+  if (Hls.isSupported() && stationUrl.endsWith('.m3u8')) {
+    const hls = new Hls();
+    hls.loadSource(stationUrl);
+    hls.attachMedia(audioElement);
+    audioElement.hlsInstance = hls;
+  } else {
+    audioElement.src = stationUrl;
+  }
+  
+  // 4. Start loading
+  audioElement.load();
+}, []);
+```
+
+**Audio States**:
+| State | Meaning |
+|-------|---------|
+| `isLoading: true` | Audio is buffering |
+| `audioPlaying: false` | Audio is paused (default) |
+| Audio element loading | Network request in progress |
+
+### 4.6 UI Elements Appear (T+400ms to T+1000ms)
+
+**Elements that become visible when `gameStarted = true`**:
+
+1. **Score Overlay** (conditional render):
+   ```jsx
+   {gameStarted && (
+     <div className={`overlay ${scoreboardAnimationStage}`}>
+       <div className="stats-container">
+         <div className="stat-item">
+           <span className="stat-label">SCORE</span>
+           <span className="stat-value">{animatedScore}</span>
+         </div>
+         <div className="stat-divider"></div>
+         <div className="stat-item">
+           <span className="stat-label">ROUND</span>
+           <span className="stat-value">{currentRound}<span className="stat-max">/5</span></span>
+         </div>
+       </div>
+     </div>
+   )}
+   ```
+
+2. **Audio Player** (appears when `radioStation` is set):
+   ```jsx
+   {radioStation && (
+     <div className="audio-player">
+       <button onClick={toggleAudio} className="audio-btn">
+         {audioPlaying ? 'Pause' : 'Play'}
+       </button>
+       <span className="audio-instructions">
+         {audioPlaying ? 'Adjust volume:' : 'Click Play if audio does not start.'}
+       </span>
+       <input type="range" min="0" max="100" value={volume} onChange={onVolumeChange} />
+       {isLoading && <div className="loading-spinner"></div>}
+       <audio ref={audioRef} />
+     </div>
+   )}
+   ```
+
+3. **3D Globe** (already rendered, now interactive):
+   - Countries become clickable
+   - Hover effects enabled
+   - Rotation/zoom enabled
+
+### 4.7 Audio Playback Attempt (T+1000ms+)
+
+**Automatic play attempt** (triggered by audio `canplaythrough` event or user interaction):
+
+```javascript
+audioRef.current.play()
+  .then(() => {
+    setIsLoading(false);
+    setAudioPlaying(true);
+  })
+  .catch((e) => {
+    // Handle autoplay blocked or network error
+    console.error("Audio playback error:", e);
+    callStationBroken();  // Try another station
+  });
+```
+
+**Possible Outcomes**:
+| Outcome | What Happens |
+|---------|--------------|
+| Success | Audio plays, `audioPlaying = true`, user hears radio |
+| Autoplay blocked | User must click Play button manually |
+| Network error | Station refreshes automatically, tries new station |
+| CORS error | Station refreshes automatically |
+
+### 4.8 Final State (T+1000ms to T+2000ms)
+
+**Game is now fully playable**:
+
+| Component | State | User Action Available |
+|-----------|-------|----------------------|
+| Globe | Interactive | Click countries to guess |
+| Audio Player | Playing or ready | Play/Pause, volume control |
+| Score Overlay | Showing "0" and "1/5" | View progress |
+| Countries | Default color (land) | Click to make guess |
+
+### Visual Timeline Summary
+
+```
+T+0ms      T+100ms    T+200ms    T+400ms    T+600ms    T+1000ms   T+2000ms
+|__________|__________|__________|__________|__________|__________|
+    ↓           ↓           ↓           ↓           ↓           ↓
+  Click     Fade       Fade       Fade      Round     Audio      Game
+  Event     25%        50%        Done      Init      Setup      Ready
+                                    ↓
+                              onGameStart()
+                                    ↓
+                              startNewRound()
+                                    ↓
+                              setRadioStation()
+                                    ↓
+                              setupAudioSource()
+```
+
+### Score Overlay Visual
 ```
 ┌─────────────────────────────────────┐
 │  SCORE          │    ROUND          │
@@ -246,14 +481,28 @@ const onGameStart = useCallback(() => {
 └─────────────────────────────────────┘
 ```
 
-### Audio Player UI
+### Audio Player Visual
 ```
 ┌─────────────────────────────────────────────────────┐
-│  [Play] │ Adjust volume: ═══════════○═══  │ 🔄    │
+│  [Play] │ Click Play if audio does not start. │ 🔄 │
 └─────────────────────────────────────────────────────┘
-         │                                      │
-     Play/Pause                          Station refresh
+         │                                        │
+     Play/Pause                            Station refresh
+     
+After playing:
+┌─────────────────────────────────────────────────────┐
+│ [Pause] │ Adjust volume: ═══════════○═══════  │ 🔄 │
+└─────────────────────────────────────────────────────┘
 ```
+
+### Error Handling During Phase 4
+
+| Error | Detection | Recovery |
+|-------|-----------|----------|
+| Station URL invalid | `onerror` event | `callStationBroken()` → new station |
+| CORS blocked | Error code 2/3/4 | `callStationBroken()` → new station |
+| No countries found | `!target` check | `startNewRound()` → try different language |
+| HLS not supported | `Hls.isSupported()` | Fall back to direct audio source |
 
 ---
 
