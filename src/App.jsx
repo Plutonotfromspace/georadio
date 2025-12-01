@@ -636,45 +636,19 @@ function App() {
     setScore(updatedScore);
     setFeedback(newFeedback);
     
-    // Add guess with pop animation - starts elevated, animates down with elastic bounce
+    // Add guess with elevated altitude - Globe's built-in transition will animate it
     const guessId = newGuess.id;
     setGuesses(prevGuesses => [...prevGuesses, newGuess]);
     
-    // Animate the altitude down with a snappy elastic bounce effect
-    const startTime = performance.now();
-    const duration = 400; // 400ms for snappy animation
-    const startAlt = 0.08;
-    const endAlt = 0.015;
-    
-    const animateAltitude = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // Elastic ease-out for snappy bounce effect
-      // This creates an overshoot and settle effect
-      const elasticEase = (t) => {
-        const c4 = (2 * Math.PI) / 3;
-        return t === 0 ? 0 : t === 1 ? 1 
-          : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
-      };
-      
-      const easedProgress = elasticEase(progress);
-      const currentAlt = startAlt + (endAlt - startAlt) * easedProgress;
-      
-      flushSync(() => {
-        setGuesses(prevGuesses => 
-          prevGuesses.map(g => 
-            g.id === guessId ? { ...g, altitude: currentAlt } : g
-          )
-        );
-      });
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateAltitude);
-      }
-    };
-    
-    requestAnimationFrame(animateAltitude);
+    // After a frame, set the altitude to resting position
+    // Globe's polygonsTransitionDuration={300} will smoothly animate the drop
+    requestAnimationFrame(() => {
+      setGuesses(prevGuesses => 
+        prevGuesses.map(g => 
+          g.id === guessId ? { ...g, altitude: 0.015 } : g
+        )
+      );
+    });
 
     // Clear selection after guess
     setSelectedCountry(null);
