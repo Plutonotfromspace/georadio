@@ -635,44 +635,8 @@ function App() {
     setScore(updatedScore);
     setFeedback(newFeedback);
     
-    // Snappy color pop animation - quick and impactful
-    const targetColor = newGuess.color;
-    const animationDuration = 150; // Fast 150ms animation for snappiness
-    const startTime = performance.now();
-    
-    // Add the guess with transparent color first
-    const animatingGuess = { ...newGuess, color: 'rgba(76, 175, 80, 0)' }; // Start transparent
-    setGuesses(prevGuesses => [...prevGuesses, animatingGuess]);
-    
-    // Animate with a quick elastic/overshoot effect for snappy feel
-    const animateGuessColor = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / animationDuration, 1);
-      
-      // Elastic ease-out for snappy "pop" effect
-      const elasticProgress = progress === 1 
-        ? 1 
-        : Math.pow(2, -10 * progress) * Math.sin((progress * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1;
-      
-      // Clamp progress between 0 and 1 (elastic can overshoot)
-      const clampedProgress = Math.max(0, Math.min(1, elasticProgress));
-      
-      const interpolatedColor = interpolateColor('#4CAF50', targetColor, clampedProgress);
-      
-      flushSync(() => {
-        setGuesses(prevGuesses => 
-          prevGuesses.map(g => 
-            g.id === newGuess.id ? { ...g, color: interpolatedColor } : g
-          )
-        );
-      });
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateGuessColor);
-      }
-    };
-    
-    requestAnimationFrame(animateGuessColor);
+    // Instant snappy color change - no animation, just immediate fill
+    setGuesses(prevGuesses => [...prevGuesses, newGuess]);
 
     // Clear selection after guess
     setSelectedCountry(null);
