@@ -179,6 +179,7 @@ function App() {
   // Modal closing animation states
   const [modalClosing, setModalClosing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [audioError, setAudioError] = useState(false); // Track audio errors for progressive disclosure
   // NEW: Add state for triggering scoreboard animation
   const [scoreboardAnimationStage, setScoreboardAnimationStage] = useState('');
   // NEW: State to track when the scoreboard is in the middle
@@ -1112,12 +1113,14 @@ function App() {
 
   // Helper to mimic "Station broken?" button
   const callStationBroken = useCallback(() => {
+    setAudioError(false); // Clear error when trying new station
     startNewRound();
   }, [startNewRound]);
 
   // Wrap handleAudioError in useCallback
   const handleAudioError = useCallback((error) => {
     setIsLoading(true); // Keep loading state during error
+    setAudioError(true); // Show error link (progressive disclosure)
     if (error?.code === 1) {
       
       // ...any additional logic...
@@ -1579,7 +1582,7 @@ function App() {
     <div className="globe-container">
       {/* Score/Round overlay - only visible after game starts */}
       {gameStarted && (
-        <div className={`overlay ${scoreboardAnimationStage}`}>
+        <div className={`overlay flip-in-top ${scoreboardAnimationStage}`}>
           <div className="stats-container">
             <div className="stat-item">
               <span className="stat-label">SCORE</span>
@@ -1607,12 +1610,12 @@ function App() {
 
       {/* Custom Audio Player */}
       {radioStation && (
-        <div className="audio-player">
+        <div className="audio-player flip-in-bottom">
           <button onClick={toggleAudio} className="audio-btn">
             {audioPlaying ? 'Pause' : 'Play'}
           </button>
           <span className="audio-instructions">
-            {audioPlaying ? 'Adjust volume:' : 'Click Play if audio does not start.'}
+            {audioPlaying ? 'Adjust volume:' : 'Press play to start'}
           </span>
           <input 
             type="range" 
@@ -1630,13 +1633,15 @@ function App() {
             style={{ display: 'block' }}  // NEW: Make it visible for debugging (or remove to show custom player)
             onError={(e) => handleAudioError(e.target.error)}
           />
-          {/* Always-visible clickable refresh message */}
-          <div 
-            className="radio-error" 
-            onClick={startNewRound}
-          >
-            Station broken? Click here to refresh.
-          </div>
+          {/* Error link - only show when there's an actual error (progressive disclosure) */}
+          {audioError && (
+            <div 
+              className="radio-error" 
+              onClick={startNewRound}
+            >
+              Try another station
+            </div>
+          )}
         </div>
       )}
 
