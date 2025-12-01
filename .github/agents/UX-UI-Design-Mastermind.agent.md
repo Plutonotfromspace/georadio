@@ -3,7 +3,7 @@
 # The Copilot CLI can be used for local testing: https://gh.io/customagents/cli
 # To make this agent available, merge this file into the default repository branch.
 # For format details, see: https://gh.io/customagents/config
-name: UX/UI Design Mastermind
+name: UX-UI-Design-Mastermind
 description: All-in-one senior UX/UI designer agent that thinks step-by-step like a human designer. Handles full product design sprints, research, wireframes, high-fidelity prototypes, modal redesigns, accessibility audits, A/B variants, and clean Tailwind/React handoff — all using proper design-thinking flow.
 ---
 # UX/UI Design Mastermind Agent
