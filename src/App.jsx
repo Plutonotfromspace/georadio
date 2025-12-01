@@ -11,7 +11,6 @@ import { initGA, logEvent, logPageView } from './services/analytics';
 // NEW: Import confetti animation library
 import confetti from 'canvas-confetti';
 // Modal components
-import StartModal from './components/StartModal';
 import RoundSummaryModal from './components/RoundSummaryModal';
 import GameCompleteModal from './components/GameCompleteModal';
 // Coaching tooltip for first-guess onboarding
@@ -1651,11 +1650,7 @@ function App() {
         </button>
       )}
 
-      {/* Start Modal */}
-      <StartModal 
-        isOpen={!gameStarted}
-        onStart={onGameStart}
-      />
+      {/* StartModal removed - first-run experience in index.html handles onboarding */}
 
       {/* Round Summary Modal */}
       <RoundSummaryModal
