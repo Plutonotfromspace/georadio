@@ -3,7 +3,7 @@ import Globe from 'react-globe.gl';
 import { feature } from 'topojson-client';
 import * as THREE from 'three';
 import './index.css';
-import './app.css';
+import './App.css';
 import Hls from 'hls.js';
 import { geoCentroid } from 'd3-geo';
 import { countries } from 'countries-list';
@@ -173,17 +173,56 @@ function App() {
   // Add new state for correct guess
   const [correctGuess, setCorrectGuess] = useState(false);
   const [continueFading, setContinueFading] = useState(false);
+  // Modal closing animation states
+  const [modalClosing, setModalClosing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   // NEW: Add state for triggering scoreboard animation
   const [scoreboardAnimationStage, setScoreboardAnimationStage] = useState('');
   // NEW: State to track when the scoreboard is in the middle
   const [scoreboardInMiddle, setScoreboardInMiddle] = useState(false);
+  // NEW: State for preloaded flag image
+  const [preloadedFlagUrl, setPreloadedFlagUrl] = useState(null);
 
   // Initialize GA when app loads
   useEffect(() => {
     initGA();
     logPageView();
   }, []);
+
+  /* Helper function to parse hex color to RGB */
+  function hexToRgb(hex) {
+    // Handle null/undefined
+    if (!hex) return null;
+    // Ensure hex is a string
+    const hexStr = String(hex);
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hexStr);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
+
+  /* Helper function to convert RGB to hex */
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(x => {
+      const hex = Math.round(Math.max(0, Math.min(255, x))).toString(16);
+      return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+  }
+
+  /* Helper function to interpolate between two colors */
+  function interpolateColor(color1, color2, factor) {
+    const c1 = hexToRgb(color1);
+    const c2 = hexToRgb(color2);
+    // If either color is invalid, return the target color (color2) or a default
+    if (!c1 || !c2) return color2 || '#4CAF50';
+    return rgbToHex(
+      c1.r + (c2.r - c1.r) * factor,
+      c1.g + (c2.g - c1.g) * factor,
+      c1.b + (c2.b - c1.b) * factor
+    );
+  }
 
   /* Distance to Color Scale */
   function getColor(distance) {
@@ -243,6 +282,48 @@ function App() {
     const [lon, lat] = geoCentroid(feature);
     return { lat, lon };
   };
+
+  /**
+   * Animate guessed country colors to a target color using discrete keyframe steps.
+   * Uses 5 steps over 300ms instead of per-frame updates to avoid Globe re-render choppiness.
+   * @param {Array} guessesSnapshot - Snapshot of current guesses
+   * @param {string} targetColor - Final color to animate to (e.g., '#4CAF50')
+   * @param {Function} onComplete - Callback when animation completes
+   */
+  const animateColorsToTarget = useCallback((guessesSnapshot, targetColor, onComplete) => {
+    if (!guessesSnapshot || guessesSnapshot.length === 0) {
+      onComplete?.();
+      return;
+    }
+    
+    const originalColors = guessesSnapshot.map(g => g.color || '#4CAF50');
+    const totalDuration = 300; // Total animation duration in ms
+    const steps = 5; // Number of discrete color steps
+    const stepDuration = totalDuration / steps;
+    
+    // Create keyframes at 20%, 40%, 60%, 80%, 100% progress
+    for (let i = 1; i <= steps; i++) {
+      const progress = i / steps;
+      const delay = i * stepDuration;
+      
+      setTimeout(() => {
+        // Ease-out: 1 - (1 - progress)^3
+        const easedProgress = 1 - Math.pow(1 - progress, 3);
+        
+        const animatedGuesses = guessesSnapshot.map((g, idx) => ({
+          ...g,
+          color: interpolateColor(originalColors[idx], targetColor, easedProgress)
+        }));
+        
+        setGuesses(animatedGuesses);
+        
+        // Call onComplete after the final step
+        if (i === steps) {
+          setTimeout(() => onComplete?.(), 50);
+        }
+      }, delay);
+    }
+  }, [interpolateColor]);
 
   /* Calculate Distance Between Two Points */
   const toRadians = (deg) => deg * (Math.PI / 180);
@@ -503,7 +584,8 @@ function App() {
       name: guessedName, 
       distance, 
       color: getColor(distance), 
-      countryCode: getCountryCode(feature)
+      countryCode: getCountryCode(feature),
+      altitude: 0.08 // Start with elevated altitude for pop effect
     };
     
     if (distance < 10) { // changed threshold from 50 to 10
@@ -572,6 +654,14 @@ function App() {
       }
       // When guess is correct, set correctGuess to true
       setCorrectGuess(true);
+      
+      // Preload the flag image for the modal
+      const flagCode = getCountryCode(targetCountry);
+      const flagUrl = `https://flagcdn.com/w640/${flagCode}.png`;
+      const flagImg = new Image();
+      flagImg.src = flagUrl;
+      flagImg.onload = () => setPreloadedFlagUrl(flagUrl);
+      
       if (globeEl.current) {
         // Offset to the left: subtract from the target country's longitude
         const cameraOffset = {
@@ -586,7 +676,59 @@ function App() {
     setAttempts(newAttempts);
     setScore(updatedScore);
     setFeedback(newFeedback);
-    setGuesses(prevGuesses => [...prevGuesses, newGuess]);
+    
+    // === BOUNCY SPRING ALTITUDE ANIMATION ===
+    // Uses library's built-in polygonsTransitionDuration (250ms) for smooth tweening
+    // Each setTimeout sets the NEXT target altitude - library interpolates smoothly between values
+    
+    // Altitude keyframes for damped spring oscillation (2 bounces before settling)
+    const groundAltitude = 0.001;        // Starting flat
+    const peakAltitude = 0.040;          // Overshoot ceiling (2.67× rest) - dramatic "shoot up"
+    const undershootAltitude = 0.010;    // Below rest (67% of rest) - "floor bounce"
+    const miniOvershootAltitude = 0.018; // Small bounce above rest (damping)
+    const restAltitude = 0.015;          // Final resting position
+    
+    const guessId = newGuess.id;
+    const targetColor = newGuess.color;
+    
+    // Step 1: Add polygon at ground level with final color (instant color, animated altitude)
+    setGuesses(prevGuesses => [...prevGuesses, { ...newGuess, altitude: groundAltitude, color: targetColor }]);
+    
+    // Step 2: Shoot up to peak (tween starts at 20ms, arrives ~270ms)
+    setTimeout(() => {
+      setGuesses(prevGuesses => 
+        prevGuesses.map(g => 
+          g.id === guessId ? { ...g, altitude: peakAltitude } : g
+        )
+      );
+    }, 20);
+    
+    // Step 3: Bounce down past rest to undershoot (tween starts at 250ms, arrives ~500ms)
+    setTimeout(() => {
+      setGuesses(prevGuesses => 
+        prevGuesses.map(g => 
+          g.id === guessId ? { ...g, altitude: undershootAltitude } : g
+        )
+      );
+    }, 250);
+    
+    // Step 4: Bounce back up to mini-overshoot (tween starts at 480ms, arrives ~730ms)
+    setTimeout(() => {
+      setGuesses(prevGuesses => 
+        prevGuesses.map(g => 
+          g.id === guessId ? { ...g, altitude: miniOvershootAltitude } : g
+        )
+      );
+    }, 480);
+    
+    // Step 5: Settle to final rest position (tween starts at 700ms, arrives ~950ms)
+    setTimeout(() => {
+      setGuesses(prevGuesses => 
+        prevGuesses.map(g => 
+          g.id === guessId ? { ...g, altitude: restAltitude } : g
+        )
+      );
+    }, 700);
 
     // Clear selection after guess
     setSelectedCountry(null);
@@ -623,27 +765,47 @@ function App() {
         setAudioPlaying(false);
       }
       
-      setCurrentRound(currentRound + 1);
-      setShowRoundModal(false);
-      setAttempts(0);
-      setGuesses([]);
-      startNewRound();
+      // Trigger closing animation
+      setModalClosing(true);
       
-      // Start playing audio after a short delay to ensure proper setup
-      setTimeout(() => {
-        if (audioRef.current && radioStation) {
-          audioRef.current.play()
-            .then(() => {
-              setAudioPlaying(true);
-              setFeedback(""); // Changed from "Audio playing. Take your guess!" to empty string
-            })
-            .catch(e => {
-              if (!(e.message && e.message.includes("aborted"))) {
-                console.error("Audio playback error:", e);
-              }
-            });
-        }
-      }, 100);
+      // Animate heatmap colors to green using discrete keyframe steps
+      // This avoids per-frame state updates that cause choppy Globe re-renders
+      const guessesSnapshot = [...guesses];
+      
+      const proceedToNextRound = () => {
+        setCurrentRound(currentRound + 1);
+        setShowRoundModal(false);
+        setModalClosing(false);
+        setAttempts(0);
+        setGuesses([]); // Now safe to clear - colors already match default
+        setPreloadedFlagUrl(null); // Reset preloaded flag for next round
+        
+        startNewRound();
+        
+        // Start playing audio after a short delay to ensure proper setup
+        setTimeout(() => {
+          if (audioRef.current && radioStation) {
+            audioRef.current.play()
+              .then(() => {
+                setAudioPlaying(true);
+                setFeedback(""); // Changed from "Audio playing. Take your guess!" to empty string
+              })
+              .catch(e => {
+                if (!(e.message && e.message.includes("aborted"))) {
+                  console.error("Audio playback error:", e);
+                }
+              });
+          }
+        }, 100);
+      };
+      
+      if (guesses.length > 0) {
+        animateColorsToTarget(guessesSnapshot, '#4CAF50', proceedToNextRound);
+      } else {
+        // No guesses to animate, just proceed
+        setTimeout(proceedToNextRound, 250);
+      }
+      
       // Flip in audio player - only when continuing to next round
       audioPlayer.classList.add('flip-in-reset');
       setTimeout(() => {
@@ -651,8 +813,16 @@ function App() {
       }, 500);
     } else {
       logEvent('game', 'game_over', `Final score: ${score}`);
-      setShowRoundModal(false);
-      setGameOver(true);
+      
+      // Trigger closing animation
+      setModalClosing(true);
+      
+      // Wait for animation to complete before switching to game over
+      setTimeout(() => {
+        setShowRoundModal(false);
+        setModalClosing(false);
+        setGameOver(true);
+      }, 250);
     }
   };
 
@@ -679,26 +849,44 @@ function App() {
       );
     }
 
-    // ...existing playAgain code...
-    logEvent('game', 'replay', 'Game replayed');
-    setCurrentRound(1);
-    setRoundResults([]);
-    setGameOver(false);
-    setFeedback("");
-    setAttempts(0);
-    setScore(0);
-    setAnimatedScore(0);
-    setGuesses([]);
-    setUsedCountries([]); // Clear used countries for a fresh start
-    startNewRound();
-    // Reset audio player animations
-    const audioPlayer = document.querySelector('.audio-player');
-    if (audioPlayer) {
-      audioPlayer.classList.remove('flip-out');
-      audioPlayer.classList.add('flip-in-reset');
-      setTimeout(() => {
-        audioPlayer.classList.remove('flip-in-reset');
-      }, 500);
+    // Trigger closing animation
+    setModalClosing(true);
+    
+    // Animate heatmap colors to green using discrete keyframe steps
+    // This avoids per-frame state updates that cause choppy Globe re-renders
+    const guessesSnapshot = [...guesses];
+    
+    const resetGame = () => {
+      logEvent('game', 'replay', 'Game replayed');
+      setCurrentRound(1);
+      setRoundResults([]);
+      setGameOver(false);
+      setModalClosing(false);
+      setFeedback("");
+      setAttempts(0);
+      setScore(0);
+      setAnimatedScore(0);
+      setGuesses([]);
+      setPreloadedFlagUrl(null); // Reset preloaded flag
+      setUsedCountries([]); // Clear used countries for a fresh start
+      
+      startNewRound();
+      // Reset audio player animations
+      const audioPlayer = document.querySelector('.audio-player');
+      if (audioPlayer) {
+        audioPlayer.classList.remove('flip-out');
+        audioPlayer.classList.add('flip-in-reset');
+        setTimeout(() => {
+          audioPlayer.classList.remove('flip-in-reset');
+        }, 500);
+      }
+    };
+    
+    if (guesses.length > 0) {
+      animateColorsToTarget(guessesSnapshot, '#4CAF50', resetGame);
+    } else {
+      // No guesses to animate, just proceed
+      setTimeout(resetGame, 250);
     }
   };
 
@@ -947,6 +1135,21 @@ function App() {
 
   const handleAudioLoadEnd = useCallback(() => {
     setIsLoading(false);
+  }, []);
+
+  // Handler for flag image load errors - sets fallback UN flag
+  const handleFlagError = useCallback((e) => {
+    const src = e.target.src;
+    // Determine the correct fallback based on the current URL pattern
+    if (src.includes('/w640/')) {
+      e.target.src = 'https://flagcdn.com/w640/un.png';
+    } else if (src.includes('/w80/')) {
+      e.target.src = 'https://flagcdn.com/w80/un.png';
+    } else if (src.includes('/w40/')) {
+      e.target.src = 'https://flagcdn.com/w40/un.png';
+    } else {
+      e.target.src = 'https://flagcdn.com/w80/un.png';
+    }
   }, []);
 
   // Update audio element setup
@@ -1234,12 +1437,16 @@ function App() {
         polygonsData={countriesData}
         polygonCapColor={(d) => {
           const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
-          // ...existing guess color logic...
           const guess = guesses.find((g) => g.id === polygonId);
-          if (guess) return guess.color;
+          
+          if (guess) {
+            return guess.color;
+          }
           
           // Handle mobile selection only if we have a selected country
-          if (isMobile && selectedCountry?.polygonId === polygonId) return '#ffeb3b';
+          if (isMobile && selectedCountry?.polygonId === polygonId) {
+            return '#ffeb3b';
+          }
           
           // Default color for all other cases
           return '#4CAF50';
@@ -1258,6 +1465,11 @@ function App() {
         }}
         polygonStrokeWidth={0.5}  // Increased stroke width
         polygonAltitude={d => {
+          const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
+          const guess = guesses.find((g) => g.id === polygonId);
+          if (guess && guess.altitude !== undefined) {
+            return guess.altitude;
+          }
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return 0.02;  // extrude correct country
           }
@@ -1276,7 +1488,7 @@ function App() {
           </span>
         `}
         onPolygonClick={onPolygonClick}
-        polygonsTransitionDuration={300}
+        polygonsTransitionDuration={250}
       />
 
       {/* Only show confirmation button on mobile */}
@@ -1299,208 +1511,115 @@ function App() {
         </button>
       )}
 
-      {/* Start modal card overlay */}
+      {/* Start modal card overlay - Minimalist */}
         {!gameStarted && (
-          <div className="start-modal">
-            <div className="modal-card">
-          <h2>Welcome to GeoRadio</h2>
-          
-          <section className="modal-section">
-            <h3>How to Play</h3>
-            <p>Listen to live radio stations and guess their country of origin by clicking countries on the globe. 
-            <strong> Keep guessing</strong> until you find the right one! After each guess, the country will be colored:</p>
-            <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: '#b83700', borderRadius: '4px' }}></div>
-            <span>Dark red = Very close!</span>
+          <div className="modal-overlay">
+            <div className="start-modal-card">
+              {/* Header */}
+              <div className="start-header">
+                <span className="start-icon">🌍</span>
+                <h1 className="start-title">GeoRadio</h1>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: '#fe7835', borderRadius: '4px' }}></div>
-            <span>Orange = Getting warmer</span>
+
+              {/* Simple Instructions */}
+              <p className="start-text">
+                Listen to a radio station and guess which country it&apos;s from.
+              </p>
+              
+              {/* Color Legend - Essential for understanding feedback */}
+              <div className="color-legend">
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#b83700' }}></div>
+                  <span>Very close!</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#fe7835' }}></div>
+                  <span>Getting warmer</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#fef2dc', border: '1px solid #e2e8f0' }}></div>
+                  <span>Cold</span>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: '#fef2dc', borderRadius: '4px' }}></div>
-            <span>White = Very cold</span>
+
+              {/* CTA Button */}
+              <button className="start-game-btn" onClick={onGameStart}>
+                Play
+              </button>
+
+              {/* Credits - Minimal footer */}
+              <div className="start-credits">
+                <span>Inspired by <a href="https://globle-game.com/" target="_blank" rel="noopener noreferrer">Globle</a></span>
               </div>
-            </div>
-            <p style={{ marginTop: '10px' }}>You have 5 rounds to score as many points as possible. Each round starts at 5000 points and decreases with every wrong guess. Look for hints in the radio content like language, music style, or announcements!</p>
-          </section>
-
-          <section className="modal-section">
-            <h3>Disclaimer</h3>
-            <p>Audio streams are pulled from a public radio API. Content may occasionally be inappropriate or unavailable.</p>
-          </section>
-
-          <div className="credits-container">
-            <div className="modal-section credits-section">
-              <span>Inspired by <a href="https://globle-game.com/" target="_blank" rel="noopener noreferrer" className="credit-link">Globle</a></span>
-            </div>
-            <div className="credits-divider"></div>
-            <div className="modal-section credits-section">
-              <span>Created by <a href="discord://discord.com/users/plutonotfromspace" className="credit-link">PlutoNotFromSpace</a></span>
-            </div>
-          </div>
-
-          <button onClick={onGameStart}>Start Game</button>
             </div>
           </div>
         )}
 
-        {/* Round Summary Modal - Clean Modern Design */}
+        {/* Round Summary Modal - Simplified */}
       {showRoundModal && (
-        <div className="modal-overlay">
-          <div className="summary-modal">
-            <div className="modal-header">
-              <div className="round-indicator">Round {currentRound}</div>
-            </div>
-
-            {/* Country showcase with animated flag reveal and 3D hover effect */}
-            <div className="country-showcase">
-              <div className="flag-container">
+        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`}>
+          <div className={`round-summary-modal ${modalClosing ? 'closing' : ''}`}>
+            {/* Country Reveal - Primary Focus */}
+            <div className="country-reveal">
+              <div className="country-flag-wrapper">
                 <img 
-                  src={`https://flagcdn.com/w640/${getCountryCode(targetCountry)}.png`}
+                  src={preloadedFlagUrl || `https://flagcdn.com/w640/${getCountryCode(targetCountry)}.png`}
                   alt={roundResults[currentRound - 1]?.target}
-                  onError={(e) => e.target.src = 'https://flagcdn.com/w640/un.png'}
-                  className="flag-reveal"
+                  onError={handleFlagError}
+                  className="country-flag-img"
                 />
-                <div className="flag-shine"></div>
               </div>
-              {/* Removed the country name h3 element that was here */}
-            </div>
-            
-            <div className="station-info-card">
-              <h4>Radio Station</h4>
-              <p className="station-name">{radioStation.name || 'Unknown Station'}</p>
-              <a 
-                href={radioStation.homepage || radioStation.url}
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="visit-button"
-              >
-                Visit Station
-              </a>
-            </div>
-            
-            <div className="round-stats-container">
-              <div className="stat-card">
-                {/* Update this line to directly show the score */}
-                <span className="stat-value">{roundResults[currentRound - 1]?.score || 0}</span>
-                <div className="stat-bar-container">
-                  <div className="stat-bar" style={{ width: `${Math.min(roundResults[currentRound - 1]?.score / 50, 100)}%` }}></div>
-                </div>
-                <span className="stat-label">Points</span>
-              </div>
-              
-              <div className="stat-divider"></div>
-              
-              <div className="stat-card">
-                <span className="stat-value">{roundResults[currentRound - 1]?.attempts || 0}</span>
-                <div className="stat-bar-container attempts-container">
-                  <div className="stat-bar attempts-bar" style={{ width: `${Math.min(roundResults[currentRound - 1]?.attempts * 10, 100)}%` }}></div>
-                </div>
-                <span className="stat-label">Attempts</span>
+              <h2 className="country-name-title">{roundResults[currentRound - 1]?.target || 'Unknown'}</h2>
+              <div className="round-score-inline">
+                +{roundResults[currentRound - 1]?.score || 0} points
               </div>
             </div>
             
-            <div className="journey-section">
-              <div className="journey-header" onClick={() => {
-                const content = document.querySelector('.journey-list');
-                content.classList.toggle('expanded');
-                document.querySelector('.journey-header').classList.toggle('active');
-                
-                if (window.gameSounds?.click) {
-                  const sound = window.gameSounds.click.cloneNode();
-                  sound.volume = 0.1;
-                  sound.play().catch(() => {});
-                }
-              }}>
-                <h4>Your Journey</h4>
-                <span className="toggle-icon">▼</span>
-              </div>
-              
-              <div className="journey-list">
-                {guesses.map((guess, index) => (
-                  <div key={index} className={`guess-item ${index === guesses.length - 1 ? 'correct-guess' : ''}`}>
-                    <span className="guess-number">{index + 1}</span>
-                    <div className="guess-details">
-                      <img 
-                        src={`https://flagcdn.com/w80/${guess.countryCode}.png`} 
-                        alt=""
-                        onError={(e) => e.target.src = 'https://flagcdn.com/w80/un.png'}
-                        className="guess-flag"
-                      />
-                      <div className="guess-info">
-                        <p className="guess-name">{guess.name}</p>
-                        {index > 0 && (
-                          <span className={guess.distance < guesses[index-1].distance ? "closer" : "farther"}>
-                            {guess.distance < guesses[index-1].distance ? 'Closer' : 'Farther'}
-                          </span>
-                        )}
-                        <span className="guess-distance">
-                          {guess.distance < 100 ? 
-                            `${Math.round(guess.distance)} km` : 
-                            `${Math.round(guess.distance / 100) / 10} thousand km`}
-                        </span>
-                      </div>
-                    </div>
-                    {index === guesses.length - 1 && <span className="correct-mark">✓</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-            
+            {/* Primary Action */}
             <button 
-              className="continue-modal-button"
+              className="round-continue-btn"
               onClick={handleNextRound}
             >
-              {currentRound < 5 ? `Continue to Round ${currentRound + 1}` : 'See Final Results'}
+              {currentRound < 5 ? 'Next Round' : 'See Results'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Completely redesigned Game Over Modal */}
+      {/* Game Over Modal - Simplified */}
       {gameOver && (
-        <div className="modal-overlay">
-          <div className="game-over-modal">
-            <div className="game-over-header">
-              <div className="medal-icon">🏆</div>
-              <h2>Game Over</h2>
+        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`}>
+          <div className={`game-complete-modal ${modalClosing ? 'closing' : ''}`}>
+            {/* Final Score - Hero Element */}
+            <div className="final-score-hero">
+              <div className="final-score-number">{score}</div>
+              <div className="final-score-label">points</div>
             </div>
             
-            <div className="final-score-display">
-              <div className="score-value">{score}</div>
-              <div className="score-label">FINAL SCORE</div>
-            </div>
-            
-            <div className="rounds-grid">
-              {roundResults.map(result => (
-                <div key={result.round} className="round-card">
-                  <div className="round-header">
-                    <div className="round-number">{result.round}</div>
-                    <div className="round-points">{result.score} pts</div>
-                  </div>
-                  
-                  <div className="round-content">
-                    <div className="flag-container">
+            {/* Rounds Summary - Visual List */}
+            <div className="rounds-summary">
+              <div className="rounds-list">
+                {roundResults.map(result => (
+                  <div key={result.round} className="round-summary-item">
+                    <div className="round-summary-left">
                       <img 
-                        src={`https://flagcdn.com/w160/${getCountryCode(countriesData.find(c => 
+                        src={`https://flagcdn.com/w80/${getCountryCode(countriesData.find(c => 
                           c.properties?.name === result.target))}.png`}
                         alt={result.target}
-                        onError={(e) => e.target.src = 'https://flagcdn.com/w160/un.png'}
+                        onError={handleFlagError}
+                        className="round-summary-flag"
                       />
+                      <span className="round-summary-country">{result.target}</span>
                     </div>
-                    <div className="round-country-name">{result.target}</div>
-                    <div className="round-guesses">
-                      <span className="guesses-count">{result.attempts}</span> guesses
-                    </div>
+                    <div className="round-summary-score">+{result.score}</div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
             
+            {/* Primary Action */}
             <button 
-              className="play-again-button"
+              className="play-again-btn"
               onClick={playAgain}
             >
               Play Again
