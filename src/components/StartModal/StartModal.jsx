@@ -21,7 +21,7 @@ function StartModal({ isOpen, onStart }) {
       closeOnEscape={false}
       closeOnBackdropClick={false}
       size="sm"
-      className="start-modal"
+      className="start-modal-component"
     >
       {/* Header */}
       <div className="start-modal__header">

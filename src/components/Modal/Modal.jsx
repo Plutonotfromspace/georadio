@@ -86,7 +86,7 @@ function Modal({
 
   const modalContent = (
     <div
-      className={`modal-overlay ${isClosing ? 'modal-overlay--closing' : ''}`}
+      className={`base-modal-overlay ${isClosing ? 'base-modal-overlay--closing' : ''}`}
       role="presentation"
       onClick={handleBackdropClick}
     >
@@ -95,14 +95,14 @@ function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
-        className={`modal modal--${size} ${isClosing ? 'modal--closing' : ''} ${className}`}
+        className={`base-modal base-modal--${size} ${isClosing ? 'base-modal--closing' : ''} ${className}`}
         onClick={(e) => e.stopPropagation()}
         {...props}
       >
         {/* Screen reader title - always present for accessibility */}
         <h2 
           id={labelId} 
-          className={showTitle ? 'modal__title' : 'sr-only'}
+          className={showTitle ? 'base-modal__title' : 'sr-only'}
         >
           {title}
         </h2>

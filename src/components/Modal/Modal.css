@@ -50,10 +50,10 @@
 }
 
 /* ============================================
-   MODAL OVERLAY (Backdrop)
+   MODAL OVERLAY (Backdrop) - Using unique class name to avoid conflicts
    ============================================ */
 
-.modal-overlay {
+.base-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -69,14 +69,14 @@
   padding: var(--modal-space-md);
   
   /* Animation */
-  animation: modal-overlay-enter var(--modal-duration-standard) var(--modal-ease-out);
+  animation: base-modal-overlay-enter var(--modal-duration-standard) var(--modal-ease-out);
 }
 
-.modal-overlay--closing {
-  animation: modal-overlay-exit var(--modal-duration-micro) var(--modal-ease-in) forwards;
+.base-modal-overlay--closing {
+  animation: base-modal-overlay-exit var(--modal-duration-micro) var(--modal-ease-in) forwards;
 }
 
-@keyframes modal-overlay-enter {
+@keyframes base-modal-overlay-enter {
   from {
     opacity: 0;
     backdrop-filter: blur(0);
@@ -89,7 +89,7 @@
   }
 }
 
-@keyframes modal-overlay-exit {
+@keyframes base-modal-overlay-exit {
   from {
     opacity: 1;
   }
@@ -99,10 +99,10 @@
 }
 
 /* ============================================
-   MODAL CONTAINER
+   MODAL CONTAINER - Using unique class name
    ============================================ */
 
-.modal {
+.base-modal {
   background: var(--modal-bg);
   border-radius: var(--modal-radius-lg);
   box-shadow: var(--modal-shadow-lg);
@@ -110,16 +110,19 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   position: relative;
+  /* Ensure modal only takes content height, not full available height */
+  height: auto;
+  text-align: center;
   
   /* Animation */
-  animation: modal-enter var(--modal-duration-standard) var(--modal-ease-out);
+  animation: base-modal-enter var(--modal-duration-standard) var(--modal-ease-out);
 }
 
-.modal--closing {
-  animation: modal-exit var(--modal-duration-micro) var(--modal-ease-in) forwards;
+.base-modal--closing {
+  animation: base-modal-exit var(--modal-duration-micro) var(--modal-ease-in) forwards;
 }
 
-@keyframes modal-enter {
+@keyframes base-modal-enter {
   from {
     opacity: 0;
     transform: translateY(var(--modal-space-md)) scale(0.98);
@@ -130,7 +133,7 @@
   }
 }
 
-@keyframes modal-exit {
+@keyframes base-modal-exit {
   from {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -145,20 +148,20 @@
    MODAL SIZES
    ============================================ */
 
-.modal--sm {
-  width: 100%;
-  max-width: 320px;
-  padding: var(--modal-space-lg);
+.base-modal--sm {
+  width: 90%;
+  max-width: 340px;
+  padding: 32px 24px;
 }
 
-.modal--md {
-  width: 100%;
+.base-modal--md {
+  width: 90%;
   max-width: 400px;
   padding: var(--modal-space-xl);
 }
 
-.modal--lg {
-  width: 100%;
+.base-modal--lg {
+  width: 90%;
   max-width: 560px;
   padding: var(--modal-space-xl);
 }
@@ -167,7 +170,7 @@
    MODAL TITLE
    ============================================ */
 
-.modal__title {
+.base-modal__title {
   font-family: 'CustomHeader', 'Audiowide', sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
@@ -197,14 +200,14 @@
    ============================================ */
 
 @media screen and (max-width: 480px) {
-  .modal--sm,
-  .modal--md,
-  .modal--lg {
+  .base-modal--sm,
+  .base-modal--md,
+  .base-modal--lg {
     max-width: 95%;
     padding: var(--modal-space-lg);
   }
   
-  .modal__title {
+  .base-modal__title {
     font-size: 1.25rem;
   }
 }
@@ -213,10 +216,10 @@
    FOCUS STYLES
    ============================================ */
 
-.modal button:focus-visible,
-.modal a:focus-visible,
-.modal input:focus-visible,
-.modal [tabindex]:focus-visible {
+.base-modal button:focus-visible,
+.base-modal a:focus-visible,
+.base-modal input:focus-visible,
+.base-modal [tabindex]:focus-visible {
   outline: 3px solid var(--primary-color, #00d0ff);
   outline-offset: 2px;
 }
