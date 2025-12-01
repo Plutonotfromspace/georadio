@@ -10,26 +10,24 @@
     <!-- Canonical URL -->
     <link rel="canonical" href="https://georadio.io" />
     
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://georadio.io" />
-    <meta property="og:title" content="GeoRadio - Guess Countries by Radio Stations" />
-    <meta property="og:description" content="Listen to radio stations from around the world and guess which country they're from. Test your geography knowledge with this interactive globe game!" />
-    <meta property="og:site_name" content="GeoRadio" />
-    
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary" />
-    <meta property="twitter:url" content="https://georadio.io" />
-    <meta property="twitter:title" content="GeoRadio - Guess Countries by Radio Stations" />
-    <meta property="twitter:description" content="Listen to radio stations from around the world and guess which country they're from!" />
-    
-    <!-- Additional SEO meta tags -->
+    <!-- SEO meta tags -->
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#03A9F4" />
     <meta name="author" content="PlutoNotFromSpace" />
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VGWYCEN088"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-VGWYCEN088', {
+        anonymize_ip: true
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>
@@ -47,9 +45,11 @@
       "genre": "Educational Game",
       "offers": {
         "@type": "Offer",
-        "price": "0"
+        "price": "0",
+        "priceCurrency": "USD"
       },
       "operatingSystem": "Web Browser",
+      "browserRequirements": "Requires JavaScript and a modern web browser",
       "author": {
         "@type": "Person",
         "name": "PlutoNotFromSpace"
