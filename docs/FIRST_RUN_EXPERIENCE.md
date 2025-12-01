@@ -674,30 +674,178 @@ const [coachingTip, setCoachingTip] = useState({
 
 ## Design Principles Applied
 
-### Dieter Rams
+### Overview
+
+This section documents how design principles are applied to every UI element that appears in the first 30 seconds.
+
+### First-Run Screen
+
+#### Dieter Rams
 - **#4 (Makes product understandable)**: Globe metaphor is instantly recognizable
 - **#10 (As little design as possible)**: No modal, minimal text, colors teach themselves
 
-### Don Norman
+#### Don Norman
 - **Feedback**: Immediate visual response to every action
 - **Spatial Mapping**: Tooltips appear where user clicked
 - **Progressive Disclosure**: UI elements appear when needed
 
-### Jakob Nielsen
+#### Jakob Nielsen
 - **#1 (Visibility of system status)**: "Tuning in..." → "Ready to play"
 - **#2 (Match between system and real world)**: Radio/tuning metaphor
 - **#6 (Recognition rather than recall)**: Colors are self-explanatory
 
-### Mobile-First
-- Touch-friendly button sizing (44px+ touch targets)
-- Responsive globe size: `min(280px, 60vw)`
-- Works on any screen size
+---
+
+### Score Overlay (appears at T+400ms)
+
+The score overlay displays at the top of the screen showing SCORE and ROUND.
+
+```
+┌─────────────────────────────────────┐
+│  SCORE          │    ROUND          │
+│    0            │     1/5           │
+└─────────────────────────────────────┘
+```
+
+#### Design Principles Applied
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Rams #2 (Makes product useful)** | Shows only essential info: score and round progress |
+| **Rams #5 (Unobtrusive)** | Semi-transparent background (rgba 255,255,255,0.7), doesn't block globe |
+| **Rams #10 (As little design as possible)** | Two numbers, two labels, nothing else |
+| **Norman: Visibility** | Always visible at fixed position (top center) |
+| **Norman: Feedback** | Score animates when points are earned |
+| **Nielsen #1 (System status)** | Round counter shows progress (1/5, 2/5, etc.) |
+| **Nielsen #4 (Consistency)** | Same position and style throughout game |
+| **8px Grid System** | Padding: 8px 16px, border-radius: 8px, gap: 4px |
+
+#### Typography
+- **Labels**: 12px, uppercase, 0.05em letter-spacing, 70% opacity
+- **Values**: 24px, bold weight 700
+- **Round max**: 18px, 50% opacity
+
+#### Spacing (8px grid compliance)
+- Container padding: 8px vertical, 16px horizontal
+- Stat gap: 4px (half-unit)
+- Divider height: 24px (3 units)
+
+---
+
+### Audio Player (appears at T+600ms)
+
+The audio player displays at the bottom of the screen with playback controls.
+
+```
+Before playing:
+┌─────────────────────────────────────────────────────┐
+│  [Play] │ Click Play if audio does not start. │ 🔄 │
+└─────────────────────────────────────────────────────┘
+
+After playing:
+┌─────────────────────────────────────────────────────┐
+│ [Pause] │ Adjust volume: ═══════════○═══════  │ 🔄 │
+└─────────────────────────────────────────────────────┘
+```
+
+#### Design Principles Applied
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Rams #2 (Useful)** | Only essential controls: Play/Pause, volume, refresh |
+| **Rams #5 (Unobtrusive)** | Dark semi-transparent background (rgba 0,0,0,0.8), sits at bottom |
+| **Rams #10 (Minimal)** | Three elements only, no decorative additions |
+| **Norman: Affordances** | Button looks clickable, slider looks draggable |
+| **Norman: Feedback** | Button text changes (Play → Pause), loading spinner when buffering |
+| **Norman: Mapping** | Volume slider: left = quieter, right = louder (natural mapping) |
+| **Nielsen #1 (System status)** | Loading spinner shows buffering state |
+| **Nielsen #5 (Error prevention)** | "Station broken? Click here to refresh" appears proactively |
+| **Nielsen #9 (Error recovery)** | Easy station refresh with yellow underlined text |
+| **8px Grid System** | Padding: 12px 16px, gap: 8px, border-radius: 8px |
+
+#### States
+
+| State | Visual Indicator | User Action |
+|-------|------------------|-------------|
+| Loading | Spinner visible | Wait |
+| Ready | Play button enabled | Click Play |
+| Playing | Pause button, volume slider | Adjust volume or pause |
+| Error | Yellow "Station broken?" link | Click to refresh |
+
+#### Typography
+- **Button**: 14px, white on transparent, 1px white border
+- **Instructions**: 12px, white, changes based on state
+- **Error link**: 12px, yellow (#ffeb3b), underlined
+
+#### Spacing (8px grid compliance)
+- Container padding: 12px vertical, 16px horizontal
+- Element gap: 8px
+- Volume slider width: 100px
+- Border radius: 8px (container), 4px (button)
+
+---
+
+### Coaching Tooltip (appears on first guess)
+
+Floating tooltip that appears on the globe near clicked countries.
+
+#### Design Principles Applied
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Rams #4 (Understandable)** | Plain language: "Getting warmer!", "Getting colder!" |
+| **Rams #10 (Minimal)** | Single line of text, auto-dismisses after 4 seconds |
+| **Norman: Spatial Mapping** | Appears exactly where user clicked, follows globe rotation |
+| **Norman: Feedback** | Immediate response to guess, color matches temperature |
+| **Norman: Conceptual Model** | Hot/cold metaphor universally understood |
+| **Nielsen #1 (System status)** | Tells user if they're getting closer or farther |
+| **Nielsen #6 (Recognition)** | Color gradient (red→blue) matches real-world temperature |
+| **8px Grid System** | Padding: 12px 20px, border-radius: 24px |
+
+#### Color System
+
+| Type | Background | Meaning |
+|------|------------|---------|
+| Hot | `#dc2626 → #b91c1c` | Very close (<500km) |
+| Warm | `#f97316 → #ea580c` | Getting closer (<2000km) |
+| Cool | `#0ea5e9 → #0284c7` | Getting farther (2000-5000km) |
+| Cold | `#3b82f6 → #2563eb` | Far away (>5000km) |
+
+---
+
+### Mobile-First Considerations
+
+All components that appear in the first 30 seconds follow mobile-first principles:
+
+| Component | Mobile Adaptation |
+|-----------|-------------------|
+| **First-run screen** | Globe: `min(280px, 60vw)`, CTA: 14px padding |
+| **Score overlay** | Max-width: 80vw, responsive font sizes |
+| **Audio player** | Full-width on small screens, touch-friendly slider |
+| **Coaching tooltip** | Position clamped within viewport bounds |
+
+#### Touch Target Compliance (44px minimum)
+
+| Element | Size | Compliance |
+|---------|------|------------|
+| CTA Button | 48px height | ✅ |
+| Play/Pause button | ~32px (with padding) | ⚠️ Could improve |
+| Volume slider | Native input | ✅ Browser handles |
+| Station refresh | 24px+ tap area | ✅ |
+
+---
 
 ### Accessibility
-- `role="status"` on first-run container
-- `aria-live="polite"` for screen reader announcements
-- Reduced motion support via `prefers-reduced-motion`
-- Keyboard navigation (Enter to start)
+
+All first-30-second components include accessibility features:
+
+| Component | Feature |
+|-----------|---------|
+| **First-run** | `role="status"`, `aria-live="polite"`, keyboard navigation |
+| **Score overlay** | Semantic HTML, visible focus states |
+| **Audio player** | Button labels, slider accessible |
+| **Coaching tooltip** | `role="status"`, `aria-live="polite"` |
+| **All components** | `prefers-reduced-motion` support |
 
 ---
 
