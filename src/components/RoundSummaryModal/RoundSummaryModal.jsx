@@ -17,13 +17,14 @@ function RoundSummaryModal({
   onContinue, 
   countryName, 
   countryCode,
+  preloadedFlagUrl,
   score, 
   currentRound,
   totalRounds,
   onFlagError,
 }) {
   const isLastRound = currentRound >= totalRounds;
-  const flagUrl = `https://flagcdn.com/w640/${countryCode}.png`;
+  const flagUrl = preloadedFlagUrl || `https://flagcdn.com/w640/${countryCode}.png`;
 
   return (
     <Modal
@@ -75,6 +76,8 @@ RoundSummaryModal.propTypes = {
   countryName: PropTypes.string.isRequired,
   /** ISO country code for flag */
   countryCode: PropTypes.string.isRequired,
+  /** Optional preloaded flag URL for faster display */
+  preloadedFlagUrl: PropTypes.string,
   /** Points earned this round */
   score: PropTypes.number.isRequired,
   /** Current round number */
@@ -87,6 +90,7 @@ RoundSummaryModal.propTypes = {
 
 RoundSummaryModal.defaultProps = {
   isClosing: false,
+  preloadedFlagUrl: null,
   totalRounds: 5,
   onFlagError: (e) => {
     e.target.src = 'https://flagcdn.com/w640/un.png';

@@ -1095,6 +1095,7 @@ Props:
 - `onContinue` - Continue callback
 - `countryName` - Country name to display
 - `countryCode` - ISO code for flag
+- `preloadedFlagUrl` - Optional preloaded flag URL
 - `score` - Points earned
 - `currentRound` - Current round number
 - `totalRounds` - Total rounds (default: 5)
@@ -1109,8 +1110,7 @@ Props:
 - `isClosing` - Closing animation state
 - `onPlayAgain` - Play again callback
 - `totalScore` - Final score
-- `roundResults` - Array of round results
-- `getCountryCode` - Function to get country code
+- `roundResults` - Array of round results (includes countryCode per round)
 - `onFlagError` - Flag load error handler
 
 ---
@@ -1129,11 +1129,59 @@ Props:
 
 ## 🔄 Integration Status
 
-The new components are created and ready for integration. The next step is to:
-1. Import the new components into `App.jsx`
-2. Replace inline modal JSX with component usage
-3. Remove old modal CSS from `App.css`
-4. Test all modal flows
+**Status:** ✅ Complete
+
+The new components have been integrated into `App.jsx`:
+
+### Changes Made:
+1. ✅ Imported `StartModal`, `RoundSummaryModal`, `GameCompleteModal` components
+2. ✅ Replaced inline Start Modal JSX (~45 lines) with `<StartModal />`
+3. ✅ Replaced inline Round Summary Modal JSX (~35 lines) with `<RoundSummaryModal />`
+4. ✅ Replaced inline Game Complete Modal JSX (~50 lines) with `<GameCompleteModal />`
+5. ✅ Added `countryCode` to `roundResults` for flag display in Game Complete modal
+6. ✅ Passed `preloadedFlagUrl` to RoundSummaryModal for faster flag loading
+
+### Props Passed:
+
+**StartModal:**
+```jsx
+<StartModal 
+  isOpen={!gameStarted}
+  onStart={onGameStart}
+/>
+```
+
+**RoundSummaryModal:**
+```jsx
+<RoundSummaryModal
+  isOpen={showRoundModal}
+  isClosing={modalClosing}
+  onContinue={handleNextRound}
+  countryName={roundResults[currentRound - 1]?.target || 'Unknown'}
+  countryCode={roundResults[currentRound - 1]?.countryCode || getCountryCode(targetCountry)}
+  preloadedFlagUrl={preloadedFlagUrl}
+  score={roundResults[currentRound - 1]?.score || 0}
+  currentRound={currentRound}
+  totalRounds={5}
+  onFlagError={handleFlagError}
+/>
+```
+
+**GameCompleteModal:**
+```jsx
+<GameCompleteModal
+  isOpen={gameOver}
+  isClosing={modalClosing}
+  onPlayAgain={playAgain}
+  totalScore={score}
+  roundResults={roundResults}
+  onFlagError={handleFlagError}
+/>
+```
+
+### Lines Removed from App.jsx:
+- ~130 lines of inline modal JSX replaced with 3 component calls (~25 lines)
+- Net reduction: ~105 lines
 
 ---
 

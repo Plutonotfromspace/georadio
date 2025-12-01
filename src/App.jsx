@@ -10,6 +10,10 @@ import { countries } from 'countries-list';
 import { initGA, logEvent, logPageView } from './services/analytics';
 // NEW: Import confetti animation library
 import confetti from 'canvas-confetti';
+// Modal components
+import StartModal from './components/StartModal';
+import RoundSummaryModal from './components/RoundSummaryModal';
+import GameCompleteModal from './components/GameCompleteModal';
 
 /* Custom Hook: Tracks window's current width & height */
 function useWindowSize() {
@@ -669,6 +673,7 @@ function App() {
           attempts: newAttempts, 
           score: roundScore, 
           target: targetName,
+          countryCode: getCountryCode(targetCountry),
           stationName: radioStation.name || 'Unknown Station',
           stationUrl: radioStation.homepage || radioStation.url,
           guesses: [...guesses, newGuess]
@@ -1518,145 +1523,35 @@ function App() {
         </button>
       )}
 
-      {/* Start modal card overlay - Minimalist */}
-        {!gameStarted && (
-          <div className="modal-overlay" role="presentation">
-            <div 
-              className="start-modal-card"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="start-modal-title"
-            >
-              {/* Header */}
-              <div className="start-header">
-                <span className="start-icon" aria-hidden="true">🌍</span>
-                <h1 id="start-modal-title" className="start-title">GeoRadio</h1>
-              </div>
+      {/* Start Modal */}
+      <StartModal 
+        isOpen={!gameStarted}
+        onStart={onGameStart}
+      />
 
-              {/* Simple Instructions */}
-              <p className="start-text">
-                Listen to a radio station and guess which country it&apos;s from.
-              </p>
-              
-              {/* Color Legend - Essential for understanding feedback */}
-              <div className="color-legend">
-                <div className="legend-item">
-                  <div className="legend-color" style={{ backgroundColor: '#b83700' }}></div>
-                  <span>Very close!</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-color" style={{ backgroundColor: '#fe7835' }}></div>
-                  <span>Getting warmer</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-color" style={{ backgroundColor: '#fef2dc', border: '1px solid #e2e8f0' }}></div>
-                  <span>Cold</span>
-                </div>
-              </div>
+      {/* Round Summary Modal */}
+      <RoundSummaryModal
+        isOpen={showRoundModal}
+        isClosing={modalClosing}
+        onContinue={handleNextRound}
+        countryName={roundResults[currentRound - 1]?.target || 'Unknown'}
+        countryCode={roundResults[currentRound - 1]?.countryCode || getCountryCode(targetCountry)}
+        preloadedFlagUrl={preloadedFlagUrl}
+        score={roundResults[currentRound - 1]?.score || 0}
+        currentRound={currentRound}
+        totalRounds={5}
+        onFlagError={handleFlagError}
+      />
 
-              {/* CTA Button */}
-              <button className="start-game-btn" onClick={onGameStart}>
-                Play
-              </button>
-
-              {/* Credits - Minimal footer */}
-              <div className="start-credits">
-                <span>Inspired by <a href="https://globle-game.com/" target="_blank" rel="noopener noreferrer">Globle</a></span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Round Summary Modal - Simplified */}
-      {showRoundModal && (
-        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`} role="presentation">
-          <div 
-            className={`round-summary-modal ${modalClosing ? 'closing' : ''}`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="round-summary-title"
-          >
-            {/* Screen reader title */}
-            <h2 id="round-summary-title" className="sr-only">
-              Round {currentRound} Complete - {roundResults[currentRound - 1]?.target || 'Unknown'}
-            </h2>
-            {/* Country Reveal - Primary Focus */}
-            <div className="country-reveal">
-              <div className="country-flag-wrapper">
-                <img 
-                  src={preloadedFlagUrl || `https://flagcdn.com/w640/${getCountryCode(targetCountry)}.png`}
-                  alt={roundResults[currentRound - 1]?.target}
-                  onError={handleFlagError}
-                  className="country-flag-img"
-                />
-              </div>
-              <h2 className="country-name-title">{roundResults[currentRound - 1]?.target || 'Unknown'}</h2>
-              <div className="round-score-inline">
-                +{roundResults[currentRound - 1]?.score || 0} points
-              </div>
-            </div>
-            
-            {/* Primary Action */}
-            <button 
-              className="round-continue-btn"
-              onClick={handleNextRound}
-            >
-              {currentRound < 5 ? 'Next Round' : 'See Results'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Game Over Modal - Simplified */}
-      {gameOver && (
-        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`} role="presentation">
-          <div 
-            className={`game-complete-modal ${modalClosing ? 'closing' : ''}`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="game-complete-title"
-          >
-            {/* Screen reader title */}
-            <h2 id="game-complete-title" className="sr-only">
-              Game Complete - Final Score: {score} points
-            </h2>
-            {/* Final Score - Hero Element */}
-            <div className="final-score-hero">
-              <div className="final-score-number">{score}</div>
-              <div className="final-score-label">points</div>
-            </div>
-            
-            {/* Rounds Summary - Visual List */}
-            <div className="rounds-summary">
-              <div className="rounds-list">
-                {roundResults.map(result => (
-                  <div key={result.round} className="round-summary-item">
-                    <div className="round-summary-left">
-                      <img 
-                        src={`https://flagcdn.com/w80/${getCountryCode(countriesData.find(c => 
-                          c.properties?.name === result.target))}.png`}
-                        alt={result.target}
-                        onError={handleFlagError}
-                        className="round-summary-flag"
-                      />
-                      <span className="round-summary-country">{result.target}</span>
-                    </div>
-                    <div className="round-summary-score">+{result.score}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Primary Action */}
-            <button 
-              className="play-again-btn"
-              onClick={playAgain}
-            >
-              Play Again
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Game Complete Modal */}
+      <GameCompleteModal
+        isOpen={gameOver}
+        isClosing={modalClosing}
+        onPlayAgain={playAgain}
+        totalScore={score}
+        roundResults={roundResults}
+        onFlagError={handleFlagError}
+      />
     </div>
   );
 }

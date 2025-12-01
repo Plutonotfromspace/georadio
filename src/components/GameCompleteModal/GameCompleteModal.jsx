@@ -16,7 +16,6 @@ function GameCompleteModal({
   onPlayAgain, 
   totalScore, 
   roundResults,
-  getCountryCode,
   onFlagError,
 }) {
   return (
@@ -43,7 +42,7 @@ function GameCompleteModal({
             <div key={result.round} className="game-complete-modal__round">
               <div className="game-complete-modal__round-left">
                 <img 
-                  src={`https://flagcdn.com/w80/${getCountryCode(result.target)}.png`}
+                  src={`https://flagcdn.com/w80/${result.countryCode || 'un'}.png`}
                   alt={`Flag of ${result.target}`}
                   onError={onFlagError}
                   className="game-complete-modal__round-flag"
@@ -81,14 +80,13 @@ GameCompleteModal.propTypes = {
   onPlayAgain: PropTypes.func.isRequired,
   /** Total score across all rounds */
   totalScore: PropTypes.number.isRequired,
-  /** Array of round results */
+  /** Array of round results (with countryCode included) */
   roundResults: PropTypes.arrayOf(PropTypes.shape({
     round: PropTypes.number.isRequired,
     target: PropTypes.string.isRequired,
     score: PropTypes.number.isRequired,
+    countryCode: PropTypes.string,
   })).isRequired,
-  /** Function to get country code from country name */
-  getCountryCode: PropTypes.func.isRequired,
   /** Callback when flag image fails to load */
   onFlagError: PropTypes.func,
 };
