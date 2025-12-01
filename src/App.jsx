@@ -14,6 +14,8 @@ import confetti from 'canvas-confetti';
 import StartModal from './components/StartModal';
 import RoundSummaryModal from './components/RoundSummaryModal';
 import GameCompleteModal from './components/GameCompleteModal';
+// Coaching tooltip for first-guess onboarding
+import CoachingTooltip from './components/CoachingTooltip';
 
 /* Custom Hook: Tracks window's current width & height */
 function useWindowSize() {
@@ -159,8 +161,6 @@ function App() {
   const [score, setScore] = useState(0);
   // NEW: Animated score state for score animation effect.
   const [animatedScore, setAnimatedScore] = useState(0);
-  // NEW: Holds the id of the correctly guessed country to highlight it.
-  const [feedback, setFeedback] = useState('');
   const [radioStation, setRadioStation] = useState(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
@@ -186,6 +186,20 @@ function App() {
   const [scoreboardInMiddle, setScoreboardInMiddle] = useState(false);
   // NEW: State for preloaded flag image
   const [preloadedFlagUrl, setPreloadedFlagUrl] = useState(null);
+  // NEW: Track if first-run experience is complete (user clicked "Tap to tune in")
+  const [firstRunComplete, setFirstRunComplete] = useState(false);
+  // Ref to store onGameStart callback for first-run experience
+  const onGameStartRef = useRef(null);
+  // NEW: Track if this is the user's very first guess ever (for onboarding)
+  const [isFirstEverGuess, setIsFirstEverGuess] = useState(true);
+  // NEW: Coaching tooltip state for first guess - includes position on globe
+  const [coachingTip, setCoachingTip] = useState({ 
+    visible: false, 
+    text: '', 
+    type: '', // 'hot', 'warm', 'cool', 'cold'
+    x: 0, 
+    y: 0 
+  });
 
   /**
    * Helper function to set up audio source with HLS support
@@ -318,7 +332,7 @@ function App() {
       })
       .catch((err) => {
         console.error('Error loading country data:', err);
-        setFeedback("Error loading country data. Check your network connection.");
+        // Error is logged - first-run screen will show loading state
       });
   }, []);
 
@@ -336,6 +350,59 @@ function App() {
     }
     fetchStationsOnce();
   }, []);
+
+  // First-run experience: Show CTA when app is ready, handle start
+  useEffect(() => {
+    if (countriesData.length > 0 && Object.keys(allStations).length > 0 && !firstRunComplete) {
+      const firstRun = document.getElementById('first-run');
+      const status = document.getElementById('first-run-status');
+      const cta = document.getElementById('first-run-cta');
+      
+      if (firstRun && status && cta) {
+        // Update status and show CTA
+        status.textContent = 'Ready to play';
+        cta.style.display = 'flex';
+        firstRun.classList.add('ready');
+        
+        // Add visible class after a brief delay for animation
+        setTimeout(() => {
+          cta.classList.add('visible');
+        }, 100);
+        
+        // Handle CTA click - starts game directly, skipping the modal
+        const handleStart = () => {
+          firstRun.classList.add('hidden');
+          setFirstRunComplete(true);
+          
+          // Call onGameStart via ref after state update
+          setTimeout(() => {
+            firstRun.style.display = 'none';
+            if (onGameStartRef.current) {
+              onGameStartRef.current();
+            }
+          }, 400);
+        };
+        
+        cta.addEventListener('click', handleStart);
+        
+        // Also handle Enter key and click anywhere on ready state
+        const handleKeyOrClick = (e) => {
+          if (e.key === 'Enter' || (e.type === 'click' && e.target !== cta)) {
+            handleStart();
+          }
+        };
+        
+        firstRun.addEventListener('click', handleKeyOrClick);
+        document.addEventListener('keydown', handleKeyOrClick);
+        
+        return () => {
+          cta.removeEventListener('click', handleStart);
+          firstRun.removeEventListener('click', handleKeyOrClick);
+          document.removeEventListener('keydown', handleKeyOrClick);
+        };
+      }
+    }
+  }, [countriesData, allStations, firstRunComplete]);
 
   /* Compute Centroid of a Country */
   const computeCentroid = (feature) => {
@@ -468,7 +535,6 @@ function App() {
 
     if (availableLanguages.length === 0) {
       console.error('No valid languages available');
-      setFeedback("No valid stations available!");
       return;
     }
 
@@ -555,7 +621,7 @@ function App() {
 
     setAttempts(0);
     // setGuesses([]); // Remove this so guesses remain for display in the round summary
-    setFeedback(""); // Removed "Ready for next round" message
+     // Removed "Ready for next round" message
     
     // Audio setup using helper function
     console.log("DEBUG: Setting up audio source", stationUrl);
@@ -610,15 +676,65 @@ function App() {
     );
     const guessedName = feature.properties?.name || feature.id || 'Unknown';
     
-    let newFeedback = "";
-    if (guesses.length === 0) {
-      newFeedback = ""; // Removed first guess message
-    } else {
-      const lastGuess = guesses[guesses.length - 1];
-      newFeedback = distance < lastGuess.distance
-        ? `${guessedName} is warmer`
-        : `${guessedName} is cooler`;
+    // First guess ever: Show coaching tip on the globe to teach the hot/cold mechanic
+    // This creates a spatial connection between the click and the feedback
+    if (guesses.length === 0 && isFirstEverGuess) {
+      // Determine temperature based on distance for coaching
+      let coachType = 'cold';
+      let coachText = '';
+      
+      if (distance < 500) {
+        coachType = 'hot';
+        coachText = 'So close! 🔥';
+      } else if (distance < 2000) {
+        coachType = 'warm';
+        coachText = 'Getting warm!';
+      } else if (distance < 5000) {
+        coachType = 'cool';
+        coachText = 'Try another region';
+      } else {
+        coachType = 'cold';
+        coachText = 'Cold — far away ❄️';
+      }
+      
+      // Calculate screen position from globe coordinates
+      // Position tooltip slightly above and to the right of the click
+      const globeContainer = document.querySelector('.globe-container');
+      if (globeContainer && globeEl.current) {
+        const rect = globeContainer.getBoundingClientRect();
+        // Get screen coords from globe's toScreenPosition (if available) or use center as fallback
+        const screenCoords = globeEl.current.getScreenCoords(guessCentroid.lat, guessCentroid.lon);
+        
+        if (screenCoords) {
+          setCoachingTip({
+            visible: true,
+            text: coachText,
+            type: coachType,
+            x: Math.min(Math.max(screenCoords.x, 80), rect.width - 80), // Keep within bounds
+            y: Math.max(screenCoords.y - 60, 100) // Position above the country
+          });
+        } else {
+          // Fallback: center of screen
+          setCoachingTip({
+            visible: true,
+            text: coachText,
+            type: coachType,
+            x: rect.width / 2,
+            y: rect.height / 2 - 50
+          });
+        }
+      }
+      
+      setIsFirstEverGuess(false);
+      
+      // Auto-hide coaching tip after 4 seconds
+      setTimeout(() => {
+        setCoachingTip(prev => ({ ...prev, visible: false }));
+      }, 4000);
     }
+    
+    // No text feedback in scoreboard - colors are self-explanatory
+    // This follows Rams #10 "As little design as possible"
   
     let updatedScore = score;
     
@@ -654,6 +770,9 @@ function App() {
         sfx.play().catch(err => console.log('Audio play failed:', err));
       }, 10);
       
+      // Hide coaching tip if showing
+      setCoachingTip(prev => ({ ...prev, visible: false }));
+      
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
       // Remove the setTimeout and add animation class
       document.querySelector('.audio-player').classList.add('flip-out');
@@ -663,7 +782,6 @@ function App() {
       const targetName = targetCountry.properties?.name || targetCountry.id || 'Unknown';
       const baseScore = 5000;
       const roundScore = Math.max(baseScore - ((newAttempts - 1) * 573), 0);
-      newFeedback = ""; // Clear any existing feedback instead
       updatedScore += roundScore;
       // Store full round result including station details and guesses (including current guess)
       setRoundResults([
@@ -720,7 +838,7 @@ function App() {
     
     setAttempts(newAttempts);
     setScore(updatedScore);
-    setFeedback(newFeedback);
+    // No longer setting feedback text - colors are self-explanatory
     
     // === BOUNCY SPRING ALTITUDE ANIMATION ===
     // Uses library's built-in polygonsTransitionDuration (250ms) for smooth tweening
@@ -828,7 +946,7 @@ function App() {
             audioRef.current.play()
               .then(() => {
                 setAudioPlaying(true);
-                setFeedback(""); // Changed from "Audio playing. Take your guess!" to empty string
+                 // Changed from "Audio playing. Take your guess!" to empty string
               })
               .catch(e => {
                 if (!(e.message && e.message.includes("aborted"))) {
@@ -891,7 +1009,7 @@ function App() {
       setRoundResults([]);
       setGameOver(false);
       setModalClosing(false);
-      setFeedback("");
+      
       setAttempts(0);
       setScore(0);
       setAnimatedScore(0);
@@ -928,7 +1046,7 @@ function App() {
   const handleAudioError = useCallback((error) => {
     setIsLoading(true); // Keep loading state during error
     if (error?.code === 1) {
-      setFeedback('Audio aborted or blocked. Please try another station or allow audio.');
+      
       // ...any additional logic...
     }
     if (!error) return; // Guard against null errors
@@ -1010,7 +1128,7 @@ function App() {
   };
 
   // Update onGameStart to handle game initialization
-  const onGameStart = () => {
+  const onGameStart = useCallback(() => {
     logEvent('game', 'start', 'New game started');
     setGameStarted(true);
     setCurrentRound(1);
@@ -1019,13 +1137,12 @@ function App() {
     setUsedCountries([]);
     setUsedLanguages(new Set());
     startNewRound(); // Starts new round after user gesture
-    // Ensure radioStation is set before starting game logic
-    if (radioStation && audioRef.current) {
-      audioRef.current.src = radioStation.url_resolved || radioStation.url;
-      audioRef.current.load(); // trigger loading immediately
-      console.log(`onGameStart: Station "${radioStation.name}" is being loaded.`);
-    }
-  };
+  }, [startNewRound]);
+
+  // Keep ref updated for first-run experience
+  useEffect(() => {
+    onGameStartRef.current = onGameStart;
+  }, [onGameStart]);
 
   // Debug useEffect to test station-country mappings in development mode
   useEffect(() => {
@@ -1387,22 +1504,33 @@ function App() {
 
   return (
     <div className="globe-container">
-      {/* Updated overlay: apply animation to entire overlay */}
-      <div className={`overlay ${scoreboardAnimationStage}`}>
-        <div className="stats-container">
-          <div className="stat-item">
-            <span className="stat-label">SCORE</span>
-            {/* UPDATED: Use animatedScore for smooth score transition */}
-            <span className="stat-value">{animatedScore}</span>
+      {/* Score/Round overlay - only visible after game starts */}
+      {gameStarted && (
+        <div className={`overlay ${scoreboardAnimationStage}`}>
+          <div className="stats-container">
+            <div className="stat-item">
+              <span className="stat-label">SCORE</span>
+              {/* UPDATED: Use animatedScore for smooth score transition */}
+              <span className="stat-value">{animatedScore}</span>
+            </div>
+            <div className="stat-divider"></div>
+            <div className="stat-item">
+              <span className="stat-label">ROUND</span>
+              <span className="stat-value">{currentRound}<span className="stat-max">/5</span></span>
+            </div>
           </div>
-          <div className="stat-divider"></div>
-          <div className="stat-item">
-            <span className="stat-label">ROUND</span>
-            <span className="stat-value">{currentRound}<span className="stat-max">/5</span></span>
-          </div>
+          {/* Removed feedback text - colors are self-explanatory per Rams #10 */}
         </div>
-        <div>{feedback}</div>
-      </div>
+      )}
+
+      {/* Coaching tooltip - appears on first guess to teach hot/cold mechanic */}
+      <CoachingTooltip 
+        visible={coachingTip.visible}
+        text={coachingTip.text}
+        type={coachingTip.type || 'cold'}
+        x={coachingTip.x}
+        y={coachingTip.y}
+      />
 
       {/* Custom Audio Player */}
       {radioStation && (

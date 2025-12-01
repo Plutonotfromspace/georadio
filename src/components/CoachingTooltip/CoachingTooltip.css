@@ -1,0 +1,88 @@
+/* ============================================
+   COACHING TOOLTIP STYLES
+   Floating tooltip for first-guess onboarding
+   ============================================ */
+
+.coaching-tooltip {
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 100;
+  padding: 12px 20px;
+  border-radius: 24px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'Regular', sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: coachingEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.coaching-tooltip__text {
+  position: relative;
+  z-index: 1;
+}
+
+.coaching-tooltip__pointer {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+}
+
+/* Temperature-based color variants */
+.coaching-tooltip--hot {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+}
+.coaching-tooltip--hot .coaching-tooltip__pointer {
+  border-top: 10px solid #b91c1c;
+}
+
+.coaching-tooltip--warm {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+}
+.coaching-tooltip--warm .coaching-tooltip__pointer {
+  border-top: 10px solid #ea580c;
+}
+
+.coaching-tooltip--cool {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: white;
+}
+.coaching-tooltip--cool .coaching-tooltip__pointer {
+  border-top: 10px solid #0284c7;
+}
+
+.coaching-tooltip--cold {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+.coaching-tooltip--cold .coaching-tooltip__pointer {
+  border-top: 10px solid #2563eb;
+}
+
+@keyframes coachingEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .coaching-tooltip {
+    animation: none;
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
