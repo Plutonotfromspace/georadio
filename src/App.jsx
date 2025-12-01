@@ -189,15 +189,21 @@ function App() {
   const [firstRunComplete, setFirstRunComplete] = useState(false);
   // Ref to store onGameStart callback for first-run experience
   const onGameStartRef = useRef(null);
-  // NEW: Track if this is the user's very first guess ever (for onboarding)
-  const [isFirstEverGuess, setIsFirstEverGuess] = useState(true);
-  // NEW: Coaching tooltip state for first guess - includes position on globe
+  // NEW: Track coaching tooltip count (max 3 tooltips for onboarding)
+  const [coachingTooltipCount, setCoachingTooltipCount] = useState(0);
+  // NEW: Track the last guess distance for warmer/colder comparison
+  const [lastGuessDistance, setLastGuessDistance] = useState(null);
+  // NEW: Track if user was getting warmer (to show "getting colder" if they reverse)
+  const [wasGettingWarmer, setWasGettingWarmer] = useState(false);
+  // NEW: Coaching tooltip state - includes lat/lon for globe-locked position
   const [coachingTip, setCoachingTip] = useState({ 
     visible: false, 
     text: '', 
     type: '', // 'hot', 'warm', 'cool', 'cold'
     x: 0, 
-    y: 0 
+    y: 0,
+    lat: 0,  // Store lat/lon to update position on globe movement
+    lon: 0
   });
 
   /**
@@ -262,6 +268,43 @@ function App() {
     initGA();
     logPageView();
   }, []);
+
+  // Update coaching tooltip position when globe moves (rotation/zoom)
+  // This keeps the tooltip locked to the country's position on the globe
+  useEffect(() => {
+    if (!coachingTip.visible || !globeEl.current) return;
+    
+    let animationFrameId;
+    const updateTooltipPosition = () => {
+      const screenCoords = globeEl.current.getScreenCoords(coachingTip.lat, coachingTip.lon);
+      const globeContainer = document.querySelector('.globe-container');
+      
+      if (screenCoords && globeContainer) {
+        const rect = globeContainer.getBoundingClientRect();
+        // Check if the point is visible (not behind the globe)
+        if (screenCoords.x >= 0 && screenCoords.x <= rect.width && 
+            screenCoords.y >= 0 && screenCoords.y <= rect.height) {
+          setCoachingTip(prev => ({
+            ...prev,
+            x: Math.min(Math.max(screenCoords.x, 80), rect.width - 80),
+            y: Math.max(screenCoords.y - 60, 100)
+          }));
+        } else {
+          // Hide tooltip if country is not visible
+          setCoachingTip(prev => ({ ...prev, visible: false }));
+        }
+      }
+      animationFrameId = requestAnimationFrame(updateTooltipPosition);
+    };
+    
+    animationFrameId = requestAnimationFrame(updateTooltipPosition);
+    
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [coachingTip.visible, coachingTip.lat, coachingTip.lon]);
 
   /* Helper function to parse hex color to RGB */
   function hexToRgb(hex) {
@@ -622,6 +665,11 @@ function App() {
     // setGuesses([]); // Remove this so guesses remain for display in the round summary
      // Removed "Ready for next round" message
     
+    // Reset coaching state for new round (but keep tooltip count across rounds)
+    setLastGuessDistance(null);
+    setWasGettingWarmer(false);
+    setCoachingTip(prev => ({ ...prev, visible: false }));
+    
     // Audio setup using helper function
     console.log("DEBUG: Setting up audio source", stationUrl);
     setupAudioSource(stationUrl);
@@ -675,62 +723,88 @@ function App() {
     );
     const guessedName = feature.properties?.name || feature.id || 'Unknown';
     
-    // First guess ever: Show coaching tip on the globe to teach the hot/cold mechanic
-    // This creates a spatial connection between the click and the feedback
-    if (guesses.length === 0 && isFirstEverGuess) {
-      // Determine temperature based on distance for coaching
-      let coachType = 'cold';
-      let coachText = '';
-      
-      if (distance < 500) {
-        coachType = 'hot';
-        coachText = 'So close! 🔥';
-      } else if (distance < 2000) {
-        coachType = 'warm';
-        coachText = 'Getting warm!';
-      } else if (distance < 5000) {
-        coachType = 'cool';
-        coachText = 'Try another region';
-      } else {
-        coachType = 'cold';
-        coachText = 'Cold — far away ❄️';
-      }
-      
-      // Calculate screen position from globe coordinates
-      // Position tooltip slightly above and to the right of the click
+    // Coaching tooltip system: Shows up to 3 tooltips to teach the hot/cold mechanic
+    // - First tooltip: Initial distance-based feedback
+    // - Second tooltip: "Getting warmer!" or "Getting colder!" based on comparison
+    // - Third tooltip: Only if they start getting colder after getting warmer
+    const showCoachingTooltip = (text, type) => {
       const globeContainer = document.querySelector('.globe-container');
       if (globeContainer && globeEl.current) {
         const rect = globeContainer.getBoundingClientRect();
-        // Get screen coords from globe's toScreenPosition (if available) or use center as fallback
         const screenCoords = globeEl.current.getScreenCoords(guessCentroid.lat, guessCentroid.lon);
         
         if (screenCoords) {
           setCoachingTip({
             visible: true,
-            text: coachText,
-            type: coachType,
-            x: Math.min(Math.max(screenCoords.x, 80), rect.width - 80), // Keep within bounds
-            y: Math.max(screenCoords.y - 60, 100) // Position above the country
+            text,
+            type,
+            x: Math.min(Math.max(screenCoords.x, 80), rect.width - 80),
+            y: Math.max(screenCoords.y - 60, 100),
+            lat: guessCentroid.lat,
+            lon: guessCentroid.lon
           });
         } else {
-          // Fallback: center of screen
           setCoachingTip({
             visible: true,
-            text: coachText,
-            type: coachType,
+            text,
+            type,
             x: rect.width / 2,
-            y: rect.height / 2 - 50
+            y: rect.height / 2 - 50,
+            lat: guessCentroid.lat,
+            lon: guessCentroid.lon
           });
         }
+        
+        setCoachingTooltipCount(prev => prev + 1);
+        
+        // Auto-hide coaching tip after 4 seconds
+        setTimeout(() => {
+          setCoachingTip(prev => ({ ...prev, visible: false }));
+        }, 4000);
       }
-      
-      setIsFirstEverGuess(false);
-      
-      // Auto-hide coaching tip after 4 seconds
-      setTimeout(() => {
-        setCoachingTip(prev => ({ ...prev, visible: false }));
-      }, 4000);
+    };
+    
+    // Only show coaching tooltips if we haven't shown 3 yet
+    if (coachingTooltipCount < 3) {
+      if (lastGuessDistance === null) {
+        // First guess ever: Show initial distance-based feedback
+        let coachType = 'cold';
+        let coachText = '';
+        
+        if (distance < 500) {
+          coachType = 'hot';
+          coachText = 'So close! 🔥';
+        } else if (distance < 2000) {
+          coachType = 'warm';
+          coachText = 'Getting warm!';
+        } else if (distance < 5000) {
+          coachType = 'cool';
+          coachText = 'A bit far — keep trying!';
+        } else {
+          coachType = 'cold';
+          coachText = 'Cold — try another region ❄️';
+        }
+        
+        showCoachingTooltip(coachText, coachType);
+      } else {
+        // Compare with previous guess
+        const isWarmer = distance < lastGuessDistance;
+        
+        if (isWarmer && !wasGettingWarmer) {
+          // Started getting warmer - show feedback
+          showCoachingTooltip('Getting warmer! 🔥', 'warm');
+          setWasGettingWarmer(true);
+        } else if (!isWarmer && wasGettingWarmer) {
+          // Was getting warmer but now getting colder - show feedback
+          showCoachingTooltip('Getting colder! ❄️', 'cool');
+          setWasGettingWarmer(false);
+        }
+        // If continuing in same direction, no tooltip needed
+      }
     }
+    
+    // Update last guess distance for next comparison
+    setLastGuessDistance(distance);
     
     // No text feedback in scoreboard - colors are self-explanatory
     // This follows Rams #10 "As little design as possible"
