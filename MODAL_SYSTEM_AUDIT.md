@@ -1337,24 +1337,68 @@ Sprint 2 focuses on cleaning up old modal CSS from App.css and ensuring the new 
 
 ---
 
+### Task 3: Add Unit Tests for Modal Components
+**Status:** ✅ Complete
+
+Implemented comprehensive unit test suite using Vitest and React Testing Library.
+
+#### Test Infrastructure Setup
+- Added Vitest as test runner (matches Vite ecosystem)
+- Added @testing-library/react and @testing-library/jest-dom
+- Created test setup with portal mocking for Modal component testing
+- Added `npm test` and `npm run test:run` scripts
+
+#### Test Files Created (6 total)
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `src/components/Modal/Modal.test.jsx` | 14 | Rendering, ARIA, Escape key, Backdrop click, Animation |
+| `src/components/StartModal/StartModal.test.jsx` | 10 | Content, Play button, Legend, Dismissal |
+| `src/components/RoundSummaryModal/RoundSummaryModal.test.jsx` | 9 | Content, Continue button, Round state |
+| `src/components/GameCompleteModal/GameCompleteModal.test.jsx` | 10 | Scores, Summary, Play Again |
+| `src/hooks/useFocusTrap.test.js` | 13 | Focus cycling, Tab behavior, Focusable elements |
+| `src/hooks/useModal.test.js` | 15 | Open/close, Callbacks, Animation delay |
+
+#### Test Results
+```
+ ✓ src/components/Modal/Modal.test.jsx (14 tests)
+ ✓ src/components/StartModal/StartModal.test.jsx (10 tests)
+ ✓ src/components/RoundSummaryModal/RoundSummaryModal.test.jsx (9 tests)
+ ✓ src/components/GameCompleteModal/GameCompleteModal.test.jsx (10 tests)
+ ✓ src/hooks/useFocusTrap.test.js (13 tests)
+ ✓ src/hooks/useModal.test.js (15 tests)
+
+ Test Files  6 passed (6)
+      Tests  71 passed (71)
+```
+
+---
+
 ## 📊 Sprint 2 Progress
 
 | Task | Priority | Status | Notes |
 |------|----------|--------|-------|
 | Clean up old modal CSS from App.css | High | ✅ Complete | 540 lines removed |
 | Verify build and visual testing | High | ✅ Complete | All modals working |
-| Add unit tests for Modal components | High | ⏳ Pending | Next priority |
+| Add unit tests for Modal components | High | ✅ Complete | 71 tests passing |
 | Screen reader testing (NVDA, VoiceOver) | Medium | ⏳ Pending | |
 | Cross-browser testing | Medium | ⏳ Pending | Safari, Firefox, Edge |
 | Mobile testing on real devices | Medium | ⏳ Pending | iOS Safari, Android Chrome |
 
 ---
 
-## 📁 Files Modified
+## 📁 Files Modified/Created
+
+### Sprint 2 Changes
 
 | File | Change |
 |------|--------|
 | `src/App.css` | Removed 540 lines of old modal CSS, updated accessibility utilities |
+| `vite.config.js` | Added Vitest test configuration |
+| `package.json` | Added test dependencies and scripts |
+| `src/test/setup.js` | Created test setup with portal mocking |
+| `src/components/*/**.test.jsx` | Created 4 component test files |
+| `src/hooks/*.test.js` | Created 2 hook test files |
 
 ---
 
