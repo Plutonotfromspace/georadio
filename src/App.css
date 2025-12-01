@@ -5075,3 +5075,60 @@ html, body {
   }
 }
 
+/* ============================================
+   ACCESSIBILITY UTILITIES
+   ============================================ */
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Respect user's motion preferences - WCAG 2.3.3 */
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .round-summary-modal,
+  .game-complete-modal,
+  .start-modal-card,
+  .continue-button,
+  .audio-player,
+  .overlay,
+  .confirm-button,
+  .country-flag-wrapper,
+  .flag-container,
+  .guess-item,
+  .journey-item,
+  .country-flag-img,
+  .round-continue-btn,
+  .play-again-btn,
+  .start-game-btn,
+  .final-score-hero,
+  .country-reveal,
+  .round-summary-item {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus visible styles for keyboard navigation */
+.start-game-btn:focus-visible,
+.round-continue-btn:focus-visible,
+.play-again-btn:focus-visible,
+.continue-button:focus-visible,
+.confirm-button:focus-visible,
+.audio-btn:focus-visible {
+  outline: 3px solid var(--primary-color, #00d0ff);
+  outline-offset: 2px;
+}
+
+

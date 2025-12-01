@@ -1176,6 +1176,23 @@ function App() {
     };
   }, [audioRef]);
 
+  // ACCESSIBILITY: Escape key handler for modal dismissal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        if (showRoundModal) {
+          handleNextRound();
+        } else if (gameOver) {
+          playAgain();
+        }
+        // Note: Start modal should NOT close on escape (game hasn't started)
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showRoundModal, gameOver, handleNextRound, playAgain]);
+
   // NEW: Trigger scoreboard animation sequence on a correct guess
   useEffect(() => {
     if (correctGuess) {
@@ -1503,12 +1520,17 @@ function App() {
 
       {/* Start modal card overlay - Minimalist */}
         {!gameStarted && (
-          <div className="modal-overlay">
-            <div className="start-modal-card">
+          <div className="modal-overlay" role="presentation">
+            <div 
+              className="start-modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="start-modal-title"
+            >
               {/* Header */}
               <div className="start-header">
-                <span className="start-icon">🌍</span>
-                <h1 className="start-title">GeoRadio</h1>
+                <span className="start-icon" aria-hidden="true">🌍</span>
+                <h1 id="start-modal-title" className="start-title">GeoRadio</h1>
               </div>
 
               {/* Simple Instructions */}
@@ -1547,8 +1569,17 @@ function App() {
 
         {/* Round Summary Modal - Simplified */}
       {showRoundModal && (
-        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`}>
-          <div className={`round-summary-modal ${modalClosing ? 'closing' : ''}`}>
+        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`} role="presentation">
+          <div 
+            className={`round-summary-modal ${modalClosing ? 'closing' : ''}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="round-summary-title"
+          >
+            {/* Screen reader title */}
+            <h2 id="round-summary-title" className="sr-only">
+              Round {currentRound} Complete - {roundResults[currentRound - 1]?.target || 'Unknown'}
+            </h2>
             {/* Country Reveal - Primary Focus */}
             <div className="country-reveal">
               <div className="country-flag-wrapper">
@@ -1578,8 +1609,17 @@ function App() {
 
       {/* Game Over Modal - Simplified */}
       {gameOver && (
-        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`}>
-          <div className={`game-complete-modal ${modalClosing ? 'closing' : ''}`}>
+        <div className={`modal-overlay ${modalClosing ? 'closing' : ''}`} role="presentation">
+          <div 
+            className={`game-complete-modal ${modalClosing ? 'closing' : ''}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="game-complete-title"
+          >
+            {/* Screen reader title */}
+            <h2 id="game-complete-title" className="sr-only">
+              Game Complete - Final Score: {score} points
+            </h2>
             {/* Final Score - Hero Element */}
             <div className="final-score-hero">
               <div className="final-score-number">{score}</div>
