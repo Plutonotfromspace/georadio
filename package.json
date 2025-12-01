@@ -36,6 +36,7 @@
     "topojson-client": "^3.1.0"
   },
   "devDependencies": {
+    "@axe-core/react": "^4.11.0",
     "@eslint/js": "^9.17.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
@@ -48,9 +49,11 @@
     "eslint-plugin-react-refresh": "^0.4.16",
     "gh-pages": "^6.3.0",
     "globals": "^15.14.0",
+    "jest-axe": "^10.0.0",
     "jsdom": "^27.2.0",
     "typescript": "^5.7.3",
     "vite": "^6.0.5",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.14",
+    "vitest-axe": "^0.1.0"
   }
 }
