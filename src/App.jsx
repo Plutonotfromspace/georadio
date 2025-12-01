@@ -183,6 +183,63 @@ function App() {
   // NEW: State for preloaded flag image
   const [preloadedFlagUrl, setPreloadedFlagUrl] = useState(null);
 
+  /**
+   * Helper function to set up audio source with HLS support
+   * Centralizes audio setup logic to avoid duplication
+   */
+  const setupAudioSource = useCallback((stationUrl) => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
+    
+    audioElement.crossOrigin = "anonymous";
+    
+    // Cleanup existing HLS instance
+    if (audioElement.hlsInstance) {
+      audioElement.hlsInstance.destroy();
+      audioElement.hlsInstance = null;
+    }
+    
+    // Setup new source
+    if (Hls.isSupported() && stationUrl.endsWith('.m3u8')) {
+      const hls = new Hls();
+      hls.loadSource(stationUrl);
+      hls.attachMedia(audioElement);
+      audioElement.hlsInstance = hls;
+    } else {
+      audioElement.src = stationUrl;
+    }
+    
+    audioElement.load();
+  }, []);
+
+  /**
+   * Helper function to cleanup audio resources
+   * Centralizes audio cleanup logic to avoid duplication
+   */
+  const cleanupAudio = useCallback(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
+    
+    audioElement.pause();
+    if (audioElement.hlsInstance) {
+      audioElement.hlsInstance.destroy();
+      audioElement.hlsInstance = null;
+    }
+  }, []);
+
+  /**
+   * Helper function to reset globe to default view
+   * Centralizes globe reset logic to avoid duplication
+   */
+  const resetGlobeToDefault = useCallback(() => {
+    if (globeEl.current) {
+      globeEl.current.pointOfView(
+        { lat: 0, lng: 0, altitude: 2.5 },
+        2000
+      );
+    }
+  }, []);
+
   // Initialize GA when app loads
   useEffect(() => {
     initGA();
@@ -496,27 +553,10 @@ function App() {
     // setGuesses([]); // Remove this so guesses remain for display in the round summary
     setFeedback(""); // Removed "Ready for next round" message
     
-    // Audio setup
-    const audioElement = audioRef.current;
-    if (audioElement) {
-      // Set crossOrigin to allow cross-origin streaming
-      audioElement.crossOrigin = "anonymous";
-      if (audioElement.hlsInstance) {
-        audioElement.hlsInstance.destroy();
-        audioElement.hlsInstance = null;
-      }
-      console.log("DEBUG: Setting up audio source", stationUrl);
-      if (Hls.isSupported() && stationUrl.endsWith('.m3u8')) {
-        const hls = new Hls();
-        hls.loadSource(stationUrl);
-        hls.attachMedia(audioElement);
-        audioElement.hlsInstance = hls;
-      } else {
-        audioElement.src = stationUrl;
-      }
-      audioElement.load(); // force reload the audio source
-    }
-  }, [countriesData, allStations, usedLanguages]);
+    // Audio setup using helper function
+    console.log("DEBUG: Setting up audio source", stationUrl);
+    setupAudioSource(stationUrl);
+  }, [countriesData, allStations, usedLanguages, setupAudioSource]);
 
   // Remove or comment out the duplicated effect:
   /*
@@ -748,13 +788,8 @@ function App() {
       // Force a reflow to reset animations
       void audioPlayer.offsetWidth;
       
-      // Reset globe to default view
-      if (globeEl.current) {
-        globeEl.current.pointOfView(
-          { lat: 0, lng: 0, altitude: 2.5 }, // default zoomed out position
-          2000 // animation duration
-        );
-      }
+      // Reset globe to default view using helper function
+      resetGlobeToDefault();
       
       setCorrectGuess(false);
       // ...existing code...
@@ -826,28 +861,17 @@ function App() {
     }
   };
 
-  // Add cleanup effect
+  // Add cleanup effect using helper function
   useEffect(() => {
-    const audioElement = audioRef.current;
     return () => {
-      if (audioElement) {
-        audioElement.pause();
-        if (audioElement.hlsInstance) {
-          audioElement.hlsInstance.destroy();
-        }
-      }
+      cleanupAudio();
     };
-  }, []);
+  }, [cleanupAudio]);
 
   /* Handler to restart the entire game */
   const playAgain = () => {
-    // Reset globe to default position
-    if (globeEl.current) {
-      globeEl.current.pointOfView(
-        { lat: 0, lng: 0, altitude: 2.5 }, // default zoomed out position
-        2000 // animation duration
-      );
-    }
+    // Reset globe to default position using helper function
+    resetGlobeToDefault();
 
     // Trigger closing animation
     setModalClosing(true);
@@ -929,19 +953,17 @@ function App() {
   // Update the useEffect to include handleAudioError in dependencies
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (audioElement) {
-      audioElement.addEventListener('error', (e) => handleAudioError(e.target.error));
-    }
+    if (!audioElement) return;
+    
+    // Store the error handler reference for proper cleanup
+    const errorHandler = (e) => handleAudioError(e.target.error);
+    audioElement.addEventListener('error', errorHandler);
+    
     return () => {
-      if (audioElement) {
-        audioElement.removeEventListener('error', (e) => handleAudioError(e.target.error));
-        audioElement.pause();
-        if (audioElement.hlsInstance) {
-          audioElement.hlsInstance.destroy();
-        }
-      }
+      audioElement.removeEventListener('error', errorHandler);
+      cleanupAudio();
     };
-  }, [handleAudioError]); // Add handleAudioError to dependencies
+  }, [handleAudioError, cleanupAudio]);
 
   /* Globe Material */
   const globeMaterial = useMemo(
@@ -1060,26 +1082,7 @@ function App() {
     return audio;
   }, []);
 
-  // Add this useEffect after countriesData is loaded
-  useEffect(() => {
-    if (countriesData.length) {
-      // Build lookup of normalized country names to features
-      DEBUG.countries = countriesData.reduce((acc, feature) => {
-        const name = feature.properties?.name?.toLowerCase();
-        if (name) {
-          acc[name] = feature;
-        }
-        return acc;
-      }, {});
-
-      // Store reference to function that can change target
-      DEBUG.setTargetCountry = (feature) => {
-        setTargetCountry(feature);
-      };
-    }
-  }, [countriesData]);
-
-  // Update the countriesData useEffect to also store stations
+  // Setup DEBUG object with country and station data
   useEffect(() => {
     if (countriesData.length && allStations) {
       // Build country lookup
@@ -1103,30 +1106,19 @@ function App() {
         const stationUrl = station.url_resolved || station.url;
         setRadioStation({ ...station, url_resolved: stationUrl });
         
-        // Setup audio
+        // Setup and play audio
         const audioElement = audioRef.current;
         if (audioElement) {
+          // Pause current playback before switching to new station
+          // Note: setupAudioSource handles HLS cleanup internally
           audioElement.pause();
-          audioElement.crossOrigin = "anonymous";
-          if (audioElement.hlsInstance) {
-            audioElement.hlsInstance.destroy();
-            audioElement.hlsInstance = null;
-          }
-          if (Hls.isSupported() && stationUrl.endsWith('.m3u8')) {
-            const hls = new Hls();
-            hls.loadSource(stationUrl);
-            hls.attachMedia(audioElement);
-            audioElement.hlsInstance = hls;
-          } else {
-            audioElement.src = stationUrl;
-          }
-          audioElement.load();
+          setupAudioSource(stationUrl);
           audioElement.play().catch(console.error);
           setAudioPlaying(true);
         }
       };
     }
-  }, [countriesData, allStations]);
+  }, [countriesData, allStations, setupAudioSource]);
 
   // Add loading handler for audio element
   const handleAudioLoadStart = useCallback(() => {
@@ -1243,8 +1235,6 @@ function App() {
         // Execute score counter animation
         const scoreValue = document.querySelector('.metric-value');
         if (scoreValue) {
-          // Set the initial number value
-          let startValue = 0;
           // Get the target value from the dataset or the DOM content
           const endValue = parseInt(scoreValue.getAttribute('data-value') || roundResults[currentRound - 1]?.score, 10);
           // Duration of the count animation in milliseconds
