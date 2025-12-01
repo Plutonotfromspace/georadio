@@ -1558,7 +1558,8 @@ Created comprehensive cross-browser testing guide at `docs/CROSS_BROWSER_TESTING
 | Phase 3: Improvement Plan | ✅ Complete | Architecture proposal, design tokens, migration roadmap |
 | Phase 4: Quick Fixes | ✅ Complete | ARIA attributes, escape key, reduced motion |
 | Sprint 1: Component Extraction | ✅ Complete | 15 new files, 4 components, 2 hooks |
-| Sprint 2: Testing & Documentation | ✅ Complete | 90 tests, 2 testing guides |
+| Sprint 2: Testing & Documentation | ✅ Complete | 90 unit tests, 2 testing guides |
+| Sprint 2.5: Cross-Browser E2E Tests | ✅ Complete | 25+ E2E tests, Playwright setup |
 
 ### WCAG Compliance
 
@@ -1578,7 +1579,95 @@ Created comprehensive cross-browser testing guide at `docs/CROSS_BROWSER_TESTING
 | App.css lines | 5,134 | 4,594 | 540 lines (10.5%) |
 | Reusable components | 0 | 4 | ∞% |
 | Custom hooks | 0 | 2 | ∞% |
-| Automated tests | 0 | 90 | ∞% |
+| Unit tests | 0 | 90 | ∞% |
+| E2E tests | 0 | 25+ | ∞% |
+
+---
+
+## 🎭 Playwright Cross-Browser E2E Tests
+
+Added automated cross-browser testing with Playwright covering:
+
+### Test Files Created
+
+| File | Purpose |
+|------|---------|
+| `e2e/modal.spec.js` | Cross-browser modal tests |
+| `playwright.config.js` | Playwright configuration |
+
+### Browser Coverage
+
+| Browser | Desktop | Mobile |
+|---------|---------|--------|
+| Chromium | ✅ | ✅ (Pixel 5) |
+| Firefox | ✅ | - |
+| WebKit (Safari) | ✅ | ✅ (iPhone 12) |
+
+### Test Categories
+
+1. **StartModal Tests** (10 tests)
+   - Rendering and visibility
+   - ARIA attributes
+   - Game description display
+   - Color legend
+   - Play button functionality
+
+2. **Keyboard Accessibility** (3 tests)
+   - Tab navigation
+   - Enter key activation
+   - Space key activation
+
+3. **Visual Regression** (4 tests)
+   - Consistent styling
+   - Box shadow
+   - Hover states
+   - Text readability
+
+4. **Animation Tests** (2 tests)
+   - Modal appearance animation
+   - Reduced motion support
+
+5. **Responsive Design** (4 tests)
+   - Mobile viewport (375x667)
+   - Tablet viewport (768x1024)
+   - Desktop viewport (1920x1080)
+   - Touch interactions
+
+6. **Game Flow** (1 test)
+   - Start game and verify globe
+
+### Running E2E Tests
+
+```bash
+# Run all browsers
+npm run test:e2e
+
+# Run specific browser
+npm run test:e2e:chromium
+npm run test:e2e:firefox
+npm run test:e2e:webkit
+
+# Run mobile tests only
+npm run test:e2e:mobile
+
+# Run with UI mode (for debugging)
+npm run test:e2e:ui
+
+# View test report
+npm run test:e2e:report
+```
+
+### CI Integration
+
+The Playwright tests can be run in CI with:
+
+```yaml
+- name: Install Playwright Browsers
+  run: npx playwright install --with-deps
+
+- name: Run E2E Tests
+  run: npm run test:e2e
+```
 
 ---
 
@@ -1587,13 +1676,13 @@ Created comprehensive cross-browser testing guide at `docs/CROSS_BROWSER_TESTING
 ### Immediate Follow-up
 1. ✅ Manual cross-browser testing using the provided guide
 2. ✅ Run screen reader tests using the provided procedures
+3. ✅ Automated E2E tests with Playwright
 
 ### Future Enhancements
 1. **Extract remaining overlay components** (Confirm Button, Continue Button, Audio Player)
 2. **Create shared Button component** with consistent styling
 3. **Add Storybook** for component documentation
-4. **Implement E2E tests** with Playwright for cross-browser automation
-5. **Add visual regression testing** with Percy or Chromatic
+4. **Add visual regression testing** with Percy or Chromatic
 
 ---
 

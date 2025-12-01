@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { renderHook } from '@testing-library/react';
 import { useFocusTrap } from './useFocusTrap';
 
 describe('useFocusTrap Hook', () => {
@@ -34,7 +34,6 @@ describe('useFocusTrap Hook', () => {
       <button id="second">Second</button>
     `;
     
-    const initialFocus = document.body;
     document.body.focus();
     
     const ref = { current: container };

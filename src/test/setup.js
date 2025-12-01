@@ -1,4 +1,6 @@
+/* eslint-disable no-undef */
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 
 // Mock react-dom's createPortal at module level to render inline
 vi.mock('react-dom', async () => {
