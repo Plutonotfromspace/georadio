@@ -183,8 +183,6 @@ function App() {
   const [scoreboardInMiddle, setScoreboardInMiddle] = useState(false);
   // NEW: State for preloaded flag image
   const [preloadedFlagUrl, setPreloadedFlagUrl] = useState(null);
-  // NEW: State for ring ripple effect when clicking countries
-  const [ringsData, setRingsData] = useState([]);
 
   // Initialize GA when app loads
   useEffect(() => {
@@ -637,45 +635,29 @@ function App() {
     setScore(updatedScore);
     setFeedback(newFeedback);
     
-    // Get the centroid of the clicked country for the ring ripple effect
-    const clickedCentroid = computeCentroid(feature);
-    
-    // Add a ring ripple effect from the country center
-    const ringId = `ring-${Date.now()}`;
-    const ringColor = newGuess.color;
-    setRingsData([{
-      id: ringId,
-      lat: clickedCentroid.lat,
-      lng: clickedCentroid.lon,
-      color: ringColor,
-      maxR: 3, // Maximum radius in degrees
-      propagationSpeed: 2, // Speed of expansion
-      repeatPeriod: 0 // Don't repeat, single pulse
-    }]);
-    
-    // Remove ring after animation completes
-    setTimeout(() => {
-      setRingsData(prev => prev.filter(r => r.id !== ringId));
-    }, 1500);
-    
-    // Animate the color expanding from the center (fade in effect)
+    // Snappy color pop animation - quick and impactful
     const targetColor = newGuess.color;
-    const startColor = '#4CAF50'; // Start from default green
-    const animationDuration = 300; // 300ms animation
+    const animationDuration = 150; // Fast 150ms animation for snappiness
     const startTime = performance.now();
     
-    // Add the guess with starting color first
-    const animatingGuess = { ...newGuess, color: startColor };
+    // Add the guess with transparent color first
+    const animatingGuess = { ...newGuess, color: 'rgba(76, 175, 80, 0)' }; // Start transparent
     setGuesses(prevGuesses => [...prevGuesses, animatingGuess]);
     
-    // Animate the color transition
+    // Animate with a quick elastic/overshoot effect for snappy feel
     const animateGuessColor = (currentTime) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / animationDuration, 1);
-      // Use ease-out curve for natural feel
-      const easeOutProgress = 1 - Math.pow(1 - progress, 3);
       
-      const interpolatedColor = interpolateColor(startColor, targetColor, easeOutProgress);
+      // Elastic ease-out for snappy "pop" effect
+      const elasticProgress = progress === 1 
+        ? 1 
+        : Math.pow(2, -10 * progress) * Math.sin((progress * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1;
+      
+      // Clamp progress between 0 and 1 (elastic can overshoot)
+      const clampedProgress = Math.max(0, Math.min(1, elasticProgress));
+      
+      const interpolatedColor = interpolateColor('#4CAF50', targetColor, clampedProgress);
       
       flushSync(() => {
         setGuesses(prevGuesses => 
@@ -1519,16 +1501,6 @@ function App() {
         `}
         onPolygonClick={onPolygonClick}
         polygonsTransitionDuration={300}
-        
-        // Ring ripple effect for country clicks
-        ringsData={ringsData}
-        ringLat={d => d.lat}
-        ringLng={d => d.lng}
-        ringColor={d => d.color}
-        ringMaxRadius={d => d.maxR}
-        ringPropagationSpeed={d => d.propagationSpeed}
-        ringRepeatPeriod={d => d.repeatPeriod}
-        ringAltitude={0.015}
       />
 
       {/* Only show confirmation button on mobile */}
