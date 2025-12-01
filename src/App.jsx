@@ -1535,7 +1535,7 @@ function App() {
         isClosing={modalClosing}
         onContinue={handleNextRound}
         countryName={roundResults[currentRound - 1]?.target || 'Unknown'}
-        countryCode={roundResults[currentRound - 1]?.countryCode || getCountryCode(targetCountry)}
+        countryCode={roundResults[currentRound - 1]?.countryCode || (targetCountry ? getCountryCode(targetCountry) : 'un')}
         preloadedFlagUrl={preloadedFlagUrl}
         score={roundResults[currentRound - 1]?.score || 0}
         currentRound={currentRound}
