@@ -636,19 +636,61 @@ function App() {
     setScore(updatedScore);
     setFeedback(newFeedback);
     
-    // Add guess with elevated altitude - Globe's built-in transition will animate it
+    // Add guess and animate with spring physics for snappy "pop" effect
     const guessId = newGuess.id;
-    setGuesses(prevGuesses => [...prevGuesses, newGuess]);
+    const startAltitude = 0.01; // Start from ground level
+    const peakAltitude = 0.10;  // Overshoot high
+    const restAltitude = 0.015; // Final resting position
     
-    // After a frame, set the altitude to resting position
-    // Globe's polygonsTransitionDuration={300} will smoothly animate the drop
-    requestAnimationFrame(() => {
-      setGuesses(prevGuesses => 
-        prevGuesses.map(g => 
-          g.id === guessId ? { ...g, altitude: 0.015 } : g
-        )
-      );
+    // Add at ground level first
+    flushSync(() => {
+      setGuesses(prevGuesses => [...prevGuesses, { ...newGuess, altitude: startAltitude }]);
     });
+    
+    // Use keyframe approach - set discrete points and let Globe interpolate
+    // Frame 1: Jump to peak (Globe transitions here over ~50ms)
+    setTimeout(() => {
+      flushSync(() => {
+        setGuesses(prevGuesses => 
+          prevGuesses.map(g => 
+            g.id === guessId ? { ...g, altitude: peakAltitude } : g
+          )
+        );
+      });
+    }, 30);
+    
+    // Frame 2: Drop to undershoot
+    setTimeout(() => {
+      flushSync(() => {
+        setGuesses(prevGuesses => 
+          prevGuesses.map(g => 
+            g.id === guessId ? { ...g, altitude: restAltitude * 0.5 } : g
+          )
+        );
+      });
+    }, 150);
+    
+    // Frame 3: Small bounce up
+    setTimeout(() => {
+      flushSync(() => {
+        setGuesses(prevGuesses => 
+          prevGuesses.map(g => 
+            g.id === guessId ? { ...g, altitude: restAltitude * 1.2 } : g
+          )
+        );
+      });
+    }, 250);
+    
+    // Frame 4: Settle at rest
+    setTimeout(() => {
+      flushSync(() => {
+        setGuesses(prevGuesses => 
+          prevGuesses.map(g => 
+            g.id === guessId ? { ...g, altitude: restAltitude } : g
+          )
+        );
+      });
+    }, 350);
 
     // Clear selection after guess
     setSelectedCountry(null);
