@@ -183,6 +183,8 @@ function App() {
   const [scoreboardInMiddle, setScoreboardInMiddle] = useState(false);
   // NEW: State for preloaded flag image
   const [preloadedFlagUrl, setPreloadedFlagUrl] = useState(null);
+  // NEW: State for ring ripple effect when clicking countries
+  const [ringsData, setRingsData] = useState([]);
 
   // Initialize GA when app loads
   useEffect(() => {
@@ -634,6 +636,27 @@ function App() {
     setAttempts(newAttempts);
     setScore(updatedScore);
     setFeedback(newFeedback);
+    
+    // Get the centroid of the clicked country for the ring ripple effect
+    const clickedCentroid = computeCentroid(polygon);
+    
+    // Add a ring ripple effect from the country center
+    const ringId = `ring-${Date.now()}`;
+    const ringColor = newGuess.color;
+    setRingsData([{
+      id: ringId,
+      lat: clickedCentroid.lat,
+      lng: clickedCentroid.lon,
+      color: ringColor,
+      maxR: 3, // Maximum radius in degrees
+      propagationSpeed: 2, // Speed of expansion
+      repeatPeriod: 0 // Don't repeat, single pulse
+    }]);
+    
+    // Remove ring after animation completes
+    setTimeout(() => {
+      setRingsData(prev => prev.filter(r => r.id !== ringId));
+    }, 1500);
     
     // Animate the color expanding from the center (fade in effect)
     const targetColor = newGuess.color;
@@ -1496,6 +1519,16 @@ function App() {
         `}
         onPolygonClick={onPolygonClick}
         polygonsTransitionDuration={300}
+        
+        // Ring ripple effect for country clicks
+        ringsData={ringsData}
+        ringLat={d => d.lat}
+        ringLng={d => d.lng}
+        ringColor={d => d.color}
+        ringMaxRadius={d => d.maxR}
+        ringPropagationSpeed={d => d.propagationSpeed}
+        ringRepeatPeriod={d => d.repeatPeriod}
+        ringAltitude={0.015}
       />
 
       {/* Only show confirmation button on mobile */}
