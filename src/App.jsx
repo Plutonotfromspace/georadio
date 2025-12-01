@@ -638,7 +638,7 @@ function App() {
     setFeedback(newFeedback);
     
     // Get the centroid of the clicked country for the ring ripple effect
-    const clickedCentroid = computeCentroid(polygon);
+    const clickedCentroid = computeCentroid(feature);
     
     // Add a ring ripple effect from the country center
     const ringId = `ring-${Date.now()}`;
