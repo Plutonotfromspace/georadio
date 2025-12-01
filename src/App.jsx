@@ -634,7 +634,40 @@ function App() {
     setAttempts(newAttempts);
     setScore(updatedScore);
     setFeedback(newFeedback);
-    setGuesses(prevGuesses => [...prevGuesses, newGuess]);
+    
+    // Animate the color expanding from the center (fade in effect)
+    const targetColor = newGuess.color;
+    const startColor = '#4CAF50'; // Start from default green
+    const animationDuration = 300; // 300ms animation
+    const startTime = performance.now();
+    
+    // Add the guess with starting color first
+    const animatingGuess = { ...newGuess, color: startColor };
+    setGuesses(prevGuesses => [...prevGuesses, animatingGuess]);
+    
+    // Animate the color transition
+    const animateGuessColor = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      // Use ease-out curve for natural feel
+      const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+      
+      const interpolatedColor = interpolateColor(startColor, targetColor, easeOutProgress);
+      
+      flushSync(() => {
+        setGuesses(prevGuesses => 
+          prevGuesses.map(g => 
+            g.id === newGuess.id ? { ...g, color: interpolatedColor } : g
+          )
+        );
+      });
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateGuessColor);
+      }
+    };
+    
+    requestAnimationFrame(animateGuessColor);
 
     // Clear selection after guess
     setSelectedCountry(null);
