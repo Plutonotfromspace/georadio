@@ -219,15 +219,19 @@ function App() {
     isOnVisibleSide: true  // Whether the country is on the visible side of globe
   });
 
+  // Default proxy endpoint path for audio streaming CORS bypass
+  const DEFAULT_PROXY_PATH = '/api/proxy';
+
   /**
    * Helper function to get proxied URL for audio streams
-   * Uses VITE_PROXY_BASE_URL env var or falls back to /api/proxy
+   * Uses VITE_PROXY_BASE_URL env var or falls back to /api/proxy on current origin
    * @param {string} stationUrl - The original station URL
    * @returns {string} The proxied URL
    */
   const getProxiedUrl = useCallback((stationUrl) => {
+    // Use configured proxy URL, or default to the proxy endpoint on current origin
     const proxyBase = import.meta.env.VITE_PROXY_BASE_URL || 
-      (typeof window !== 'undefined' ? window.location.origin + '/api/proxy' : '/api/proxy');
+      `${window.location.origin}${DEFAULT_PROXY_PATH}`;
     const proxiedUrl = `${proxyBase}?url=${encodeURIComponent(stationUrl)}`;
     console.debug('Using proxied URL', proxiedUrl, '-> original', stationUrl);
     return proxiedUrl;

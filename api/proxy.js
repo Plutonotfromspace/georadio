@@ -16,6 +16,14 @@ const corsHeaders = {
   'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Accept-Ranges',
 };
 
+// HTTP status code constants for clarity
+const HTTP_STATUS = {
+  PARTIAL_CONTENT: 206,      // Successful range request
+  BAD_REQUEST: 400,          // Client error range start
+  SERVER_ERROR_MAX: 599,     // Server error range end
+  BAD_GATEWAY: 502,          // Default error for upstream failures
+};
+
 /**
  * Validates the URL parameter to only allow http/https schemes
  * @param {string} urlString - The URL to validate
@@ -104,14 +112,18 @@ export default async function handler(request) {
     });
 
     // If the remote server returns an error, forward it
-    if (!response.ok && response.status !== 206) {
+    // Note: 206 Partial Content is a successful response for range requests
+    if (!response.ok && response.status !== HTTP_STATUS.PARTIAL_CONTENT) {
       return new Response(
         JSON.stringify({ 
           error: `Remote server error: ${response.status} ${response.statusText}`,
           originalUrl: targetUrl,
         }), 
         {
-          status: response.status >= 400 && response.status < 600 ? response.status : 502,
+          // Forward the original status if it's a valid HTTP error, otherwise return Bad Gateway
+          status: response.status >= HTTP_STATUS.BAD_REQUEST && response.status <= HTTP_STATUS.SERVER_ERROR_MAX 
+            ? response.status 
+            : HTTP_STATUS.BAD_GATEWAY,
           headers: {
             ...corsHeaders,
             'Content-Type': 'application/json',
@@ -159,7 +171,7 @@ export default async function handler(request) {
         originalUrl: targetUrl,
       }), 
       {
-        status: 502,
+        status: HTTP_STATUS.BAD_GATEWAY,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
