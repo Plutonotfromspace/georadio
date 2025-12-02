@@ -220,8 +220,23 @@ function App() {
   });
 
   /**
+   * Helper function to get proxied URL for audio streams
+   * Uses VITE_PROXY_BASE_URL env var or falls back to /api/proxy
+   * @param {string} stationUrl - The original station URL
+   * @returns {string} The proxied URL
+   */
+  const getProxiedUrl = useCallback((stationUrl) => {
+    const proxyBase = import.meta.env.VITE_PROXY_BASE_URL || 
+      (typeof window !== 'undefined' ? window.location.origin + '/api/proxy' : '/api/proxy');
+    const proxiedUrl = `${proxyBase}?url=${encodeURIComponent(stationUrl)}`;
+    console.debug('Using proxied URL', proxiedUrl, '-> original', stationUrl);
+    return proxiedUrl;
+  }, []);
+
+  /**
    * Helper function to set up audio source with HLS support
    * Centralizes audio setup logic to avoid duplication
+   * Routes all audio through the CORS proxy
    */
   const setupAudioSource = useCallback((stationUrl) => {
     const audioElement = audioRef.current;
@@ -235,18 +250,21 @@ function App() {
       audioElement.hlsInstance = null;
     }
     
-    // Setup new source
+    // Get proxied URL for CORS-safe streaming
+    const proxiedUrl = getProxiedUrl(stationUrl);
+    
+    // Setup new source using proxied URL
     if (Hls.isSupported() && stationUrl.endsWith('.m3u8')) {
       const hls = new Hls();
-      hls.loadSource(stationUrl);
+      hls.loadSource(proxiedUrl);
       hls.attachMedia(audioElement);
       audioElement.hlsInstance = hls;
     } else {
-      audioElement.src = stationUrl;
+      audioElement.src = proxiedUrl;
     }
     
     audioElement.load();
-  }, []);
+  }, [getProxiedUrl]);
 
   /**
    * Helper function to cleanup audio resources
@@ -1694,11 +1712,14 @@ function App() {
   useEffect(() => {
     if (radioStation && audioRef.current) {
       // Use resolved URL if available, fallback to radioStation.url
-      audioRef.current.src = radioStation.url_resolved || radioStation.url;
+      const stationUrl = radioStation.url_resolved || radioStation.url;
+      // Get proxied URL for CORS-safe streaming
+      const proxiedUrl = getProxiedUrl(stationUrl);
+      audioRef.current.src = proxiedUrl;
       audioRef.current.load(); // Trigger buffering/loading
       console.log(`Loading station: ${radioStation.name}`);
     }
-  }, [radioStation]);
+  }, [radioStation, getProxiedUrl]);
 
   // Add this useEffect to handle animations after the round summary modal appears
   useEffect(() => {
