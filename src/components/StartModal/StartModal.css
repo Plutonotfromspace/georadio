@@ -1,0 +1,120 @@
+/* ============================================
+   START MODAL STYLES
+   ============================================ */
+
+.start-modal-component {
+  text-align: center;
+}
+
+/* Header */
+.start-modal__header {
+  margin-bottom: var(--modal-space-md, 16px);
+}
+
+.start-modal__icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: var(--modal-space-sm, 8px);
+}
+
+.start-modal__title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  font-family: 'CustomHeader', 'Arial', sans-serif;
+}
+
+/* Instructions text */
+.start-modal__text {
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0 0 var(--modal-space-md, 16px) 0;
+}
+
+/* Color Legend */
+.start-modal__legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--modal-space-lg, 20px);
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: var(--modal-radius-md, 10px);
+}
+
+.start-modal__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.start-modal__legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--modal-radius-sm, 4px);
+  flex-shrink: 0;
+}
+
+/* CTA Button */
+.start-modal__button {
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--modal-radius-lg, 12px);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  font-family: 'Regular', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.start-modal__button:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.start-modal__button:active {
+  transform: translateY(0);
+}
+
+.start-modal__button:focus-visible {
+  outline: 3px solid var(--primary-color, #00d0ff);
+  outline-offset: 2px;
+}
+
+/* Credits */
+.start-modal__credits {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: var(--modal-space-md, 16px);
+}
+
+.start-modal__credits a {
+  color: #64748b;
+  text-decoration: none;
+}
+
+.start-modal__credits a:hover {
+  text-decoration: underline;
+}
+
+/* Mobile Responsive */
+@media screen and (max-width: 480px) {
+  .start-modal__title {
+    font-size: 24px;
+  }
+  
+  .start-modal__icon {
+    font-size: 40px;
+  }
+}
