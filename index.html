@@ -12,24 +12,298 @@
     
     <!-- SEO meta tags -->
     <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#03A9F4" />
+    <meta name="theme-color" content="#0f172a" />
     <meta name="author" content="PlutoNotFromSpace" />
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     
-    <!-- Google Analytics (GA4) -->
+    <!-- Critical CSS: Instant first paint with purpose-driven loading -->
+    <style>
+      /* ============================================
+         FIRST-RUN EXPERIENCE - Critical Inline CSS
+         Design: 2025-level sophisticated, zero-modal onboarding
+         Principles: Dieter Rams #4 (understandable), Norman (feedback), Nielsen #1 (visibility)
+         ============================================ */
+      
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #0f172a;
+      }
+      
+      /* ============================================
+         LOADING EXPERIENCE - "Tuning In" Metaphor
+         Shows instantly, feels purposeful, not a barrier
+         ============================================ */
+      
+      .first-run {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        transition: opacity 0.4s ease-out, visibility 0.4s;
+      }
+      
+      .first-run.ready {
+        cursor: pointer;
+      }
+      
+      .first-run.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      
+      /* Animated Globe - Instantly recognizable, continuously engaging */
+      .first-run__globe {
+        width: min(280px, 60vw);
+        height: min(280px, 60vw);
+        border-radius: 50%;
+        position: relative;
+        animation: globeFloat 4s ease-in-out infinite;
+      }
+      
+      .first-run__globe-sphere {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: 
+          radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%),
+          linear-gradient(135deg, #22c55e 0%, #16a34a 30%, #15803d 60%, #166534 100%);
+        box-shadow: 
+          inset -20px -20px 60px rgba(0,0,0,0.4),
+          inset 10px 10px 40px rgba(255,255,255,0.1),
+          0 0 80px rgba(34, 197, 94, 0.3),
+          0 0 120px rgba(34, 197, 94, 0.15);
+        position: relative;
+        overflow: hidden;
+      }
+      
+      /* Continent-like shapes that rotate */
+      .first-run__globe-sphere::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: 
+          radial-gradient(ellipse 35% 25% at 25% 35%, rgba(21, 128, 61, 0.8) 0%, transparent 100%),
+          radial-gradient(ellipse 45% 30% at 65% 55%, rgba(21, 128, 61, 0.7) 0%, transparent 100%),
+          radial-gradient(ellipse 30% 20% at 45% 20%, rgba(21, 128, 61, 0.6) 0%, transparent 100%),
+          radial-gradient(ellipse 25% 35% at 80% 30%, rgba(21, 128, 61, 0.5) 0%, transparent 100%);
+        animation: continentsDrift 12s linear infinite;
+      }
+      
+      /* Subtle grid lines for globe effect */
+      .first-run__globe-sphere::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: 
+          repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(255,255,255,0.03) 18px, rgba(255,255,255,0.03) 19px),
+          repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(255,255,255,0.03) 18px, rgba(255,255,255,0.03) 19px);
+        opacity: 0.5;
+      }
+      
+      /* Audio waves emanating from globe */
+      .first-run__waves {
+        position: absolute;
+        inset: -40px;
+        border-radius: 50%;
+        border: 2px solid rgba(34, 197, 94, 0.3);
+        animation: waveExpand 2s ease-out infinite;
+      }
+      
+      .first-run__waves:nth-child(2) {
+        animation-delay: 0.5s;
+      }
+      
+      .first-run__waves:nth-child(3) {
+        animation-delay: 1s;
+      }
+      
+      /* Brand title - clean, confident */
+      .first-run__title {
+        margin-top: 32px;
+        font-size: clamp(28px, 6vw, 36px);
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: -0.5px;
+        opacity: 0;
+        animation: fadeSlideUp 0.6s ease-out 0.2s forwards;
+      }
+      
+      /* Loading state - purposeful, not generic */
+      .first-run__status {
+        margin-top: 16px;
+        font-size: 14px;
+        color: rgba(255,255,255,0.5);
+        letter-spacing: 0.5px;
+        min-height: 24px;
+        opacity: 0;
+        animation: fadeSlideUp 0.6s ease-out 0.4s forwards;
+      }
+      
+      /* Ready state - Call to action (transparent, just text hint) */
+      .first-run__cta {
+        margin-top: 32px;
+        padding: 16px 32px;
+        background: transparent;
+        border: none;
+        border-radius: 9999px;
+        color: rgba(255,255,255,0.7);
+        font-size: 16px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: all 0.3s ease-out;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .first-run__cta.visible {
+        opacity: 1;
+        transform: translateY(0);
+        animation: ctaFade 3s ease-in-out infinite;
+      }
+      
+      .first-run__cta:hover {
+        color: rgba(255,255,255,0.9);
+      }
+      
+      .first-run__cta:active {
+        transform: translateY(0) scale(0.98);
+      }
+      
+      /* Removed redundant hint - CTA is sufficient */
+      
+      /* Animations */
+      @keyframes globeFloat {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-8px) rotate(2deg); }
+      }
+      
+      @keyframes continentsDrift {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      @keyframes waveExpand {
+        0% { 
+          transform: scale(0.8);
+          opacity: 0.6;
+        }
+        100% { 
+          transform: scale(1.5);
+          opacity: 0;
+        }
+      }
+      
+      @keyframes fadeSlideUp {
+        from { 
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to { 
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      @keyframes ctaFade {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+      }
+      
+      /* Reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        .first-run__globe,
+        .first-run__globe-sphere::before,
+        .first-run__waves,
+        .first-run__cta.visible {
+          animation: none;
+        }
+        .first-run__title,
+        .first-run__status,
+        .first-run__hint {
+          animation: none;
+          opacity: 1;
+          transform: none;
+        }
+        .first-run.hidden {
+          transition: none;
+        }
+      }
+      
+      /* Mobile-first: ensure touch-friendly sizing */
+      @media (max-width: 480px) {
+        .first-run__cta {
+          padding: 14px 28px;
+          font-size: 15px;
+        }
+      }
+    </style>
+    
+    <!-- Google Analytics (GA4) - loaded async, non-blocking -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-VGWYCEN088"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-VGWYCEN088', {
-        anonymize_ip: true
-      });
+      gtag('config', 'G-VGWYCEN088', { anonymize_ip: true });
     </script>
+    
+    <!-- Preload critical assets for fast transition -->
+    <link rel="preload" href="/stations.json" as="fetch" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://flagcdn.com" crossorigin>
+    <link rel="dns-prefetch" href="https://de1.api.radio-browser.info">
   </head>
   <body>
+    <!-- First-Run Experience - Zero-modal onboarding -->
+    <div class="first-run" id="first-run" role="status" aria-live="polite">
+      <div class="first-run__globe" aria-hidden="true">
+        <div class="first-run__waves"></div>
+        <div class="first-run__waves"></div>
+        <div class="first-run__waves"></div>
+        <div class="first-run__globe-sphere"></div>
+      </div>
+      
+      <h1 class="first-run__title">GeoRadio</h1>
+      
+      <p class="first-run__status" id="first-run-status">Tuning in...</p>
+      
+      <button 
+        class="first-run__cta" 
+        id="first-run-cta" 
+        aria-label="Start playing GeoRadio"
+        style="display: none;"
+      >
+        <span>🎧</span>
+        <span>Tap anywhere to start</span>
+      </button>
+    </div>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     
