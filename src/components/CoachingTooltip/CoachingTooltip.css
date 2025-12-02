@@ -14,8 +14,21 @@
   font-family: 'Regular', sans-serif;
   white-space: nowrap;
   pointer-events: none;
-  animation: coachingEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  /* Use transitions for smooth show/hide */
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* Initial enter animation */
+.coaching-tooltip--visible {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* Hidden state (rotated behind globe) */
+.coaching-tooltip--hidden {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.95);
 }
 
 .coaching-tooltip__text {
@@ -32,9 +45,10 @@
   height: 0;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
+  border-top: 10px solid transparent; /* Base style, color set by variant or inline */
 }
 
-/* Temperature-based color variants */
+/* Temperature-based color variants (fallback when no heatmapColor provided) */
 .coaching-tooltip--hot {
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   color: white;
@@ -67,22 +81,9 @@
   border-top: 10px solid #2563eb;
 }
 
-@keyframes coachingEnter {
-  0% {
-    opacity: 0;
-    transform: translateX(-50%) translateY(10px) scale(0.9);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
-  }
-}
-
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .coaching-tooltip {
-    animation: none;
-    opacity: 1;
-    transform: translateX(-50%);
+    transition: none;
   }
 }

@@ -152,6 +152,12 @@ function App() {
   const { width, height } = useWindowSize();
   const globeEl = useRef();
   const audioRef = useRef(null);
+  // Web Audio API refs for waveform visualization
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const sourceRef = useRef(null);
+  const canvasRef = useRef(null);
+  const animationFrameRef = useRef(null);
 
   const [countriesData, setCountriesData] = useState([]);
   const [guesses, setGuesses] = useState([]);
@@ -163,7 +169,9 @@ function App() {
   const [radioStation, setRadioStation] = useState(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [userPausedAudio, setUserPausedAudio] = useState(false);  // Track intentional pause
   const [volume, setVolume] = useState(50); // new state for volume
+  const [analyserReady, setAnalyserReady] = useState(false); // Track if audio analyser is connected
   const [currentRound, setCurrentRound] = useState(1);
   const [roundResults, setRoundResults] = useState([]);
   const [showRoundModal, setShowRoundModal] = useState(false);
@@ -206,7 +214,9 @@ function App() {
     x: 0, 
     y: 0,
     lat: 0,  // Store lat/lon to update position on globe movement
-    lon: 0
+    lon: 0,
+    heatmapColor: null,  // Exact color from getColor() to match country polygon
+    isOnVisibleSide: true  // Whether the country is on the visible side of globe
   });
 
   /**
@@ -272,34 +282,108 @@ function App() {
     logPageView();
   }, []);
 
-  // Update coaching tooltip position when globe moves (rotation/zoom)
-  // This keeps the tooltip locked to the country's position on the globe
+  // Set up zoom constraints - prevent zooming out beyond default altitude
   useEffect(() => {
-    if (!coachingTip.visible || !globeEl.current) return;
-    
-    let animationFrameId;
-    const updateTooltipPosition = () => {
-      const screenCoords = globeEl.current.getScreenCoords(coachingTip.lat, coachingTip.lon);
-      const globeContainer = document.querySelector('.globe-container');
-      
-      if (screenCoords && globeContainer) {
-        const rect = globeContainer.getBoundingClientRect();
-        // Check if the point is visible (not behind the globe)
-        if (screenCoords.x >= 0 && screenCoords.x <= rect.width && 
-            screenCoords.y >= 0 && screenCoords.y <= rect.height) {
-          setCoachingTip(prev => ({
-            ...prev,
-            x: Math.min(Math.max(screenCoords.x, 80), rect.width - 80),
-            y: Math.max(screenCoords.y - 60, 100)
-          }));
-        } else {
-          // Hide tooltip if country is not visible
-          setCoachingTip(prev => ({ ...prev, visible: false }));
+    const setupControls = () => {
+      if (globeEl.current) {
+        const controls = globeEl.current.controls();
+        if (controls) {
+          // maxDistance limits how far you can zoom out
+          // Globe radius is ~100, altitude 2.5 means camera is at ~350 from center
+          // Set maxDistance to match the default altitude of 2.5
+          controls.maxDistance = 350;  // Prevents zooming out beyond default
+          controls.minDistance = 120;  // Allow zooming in close
+          return true;
         }
       }
+      return false;
+    };
+
+    // Try immediately, then retry with a delay if globe not ready
+    if (!setupControls()) {
+      const timer = setTimeout(setupControls, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Ref to track last tooltip position to avoid unnecessary re-renders
+  const lastTooltipPosRef = useRef({ x: 0, y: 0 });
+  
+  // Helper function to check if a point is on the visible hemisphere of the globe
+  const isPointOnVisibleHemisphere = (lat, lon) => {
+    if (!globeEl.current) return false;
+    
+    const pov = globeEl.current.pointOfView();
+    if (!pov) return false;
+    
+    // Convert degrees to radians
+    const toRad = deg => deg * Math.PI / 180;
+    
+    const lat1 = toRad(pov.lat);
+    const lon1 = toRad(pov.lng);
+    const lat2 = toRad(lat);
+    const lon2 = toRad(lon);
+    
+    // Calculate angular distance using spherical law of cosines
+    const angularDistance = Math.acos(
+      Math.sin(lat1) * Math.sin(lat2) + 
+      Math.cos(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1)
+    );
+    
+    // Point is visible if angular distance is less than 90 degrees (π/2 radians)
+    // Adding small buffer (85 degrees) to hide slightly before edge
+    return angularDistance < (85 * Math.PI / 180);
+  };
+  
+  // Update coaching tooltip position when globe moves (rotation/zoom)
+  // This keeps the tooltip locked to the country's position on the globe
+  // OPTIMIZED: Only update state when position changes significantly to avoid breaking bounce animation
+  useEffect(() => {
+    if (!coachingTip.visible) return;
+    if (!globeEl.current) return;
+    
+    let animationFrameId;
+    const POSITION_THRESHOLD = 2; // Only update if position changed by more than 2px
+    
+    const updateTooltipPosition = () => {
+      const globeContainer = document.querySelector('.globe-container');
+      if (!globeContainer) {
+        animationFrameId = requestAnimationFrame(updateTooltipPosition);
+        return;
+      }
+      
+      const rect = globeContainer.getBoundingClientRect();
+      
+      // Check if point is on the visible hemisphere of the globe
+      const isVisible = isPointOnVisibleHemisphere(coachingTip.lat, coachingTip.lon);
+      
+      const screenCoords = globeEl.current.getScreenCoords(coachingTip.lat, coachingTip.lon);
+      
+      if (screenCoords) {
+        const newX = Math.min(Math.max(screenCoords.x, 80), rect.width - 80);
+        const newY = Math.max(screenCoords.y - 60, 100);
+        
+        // Check if we need to update position or visibility
+        const deltaX = Math.abs(newX - lastTooltipPosRef.current.x);
+        const deltaY = Math.abs(newY - lastTooltipPosRef.current.y);
+        const visibilityChanged = isVisible !== coachingTip.isOnVisibleSide;
+        
+        if (deltaX > POSITION_THRESHOLD || deltaY > POSITION_THRESHOLD || visibilityChanged) {
+          lastTooltipPosRef.current = { x: newX, y: newY };
+          setCoachingTip(prev => ({
+            ...prev,
+            x: newX,
+            y: newY,
+            isOnVisibleSide: isVisible
+          }));
+        }
+      }
+      
       animationFrameId = requestAnimationFrame(updateTooltipPosition);
     };
     
+    // Initialize last position ref
+    lastTooltipPosRef.current = { x: coachingTip.x, y: coachingTip.y };
     animationFrameId = requestAnimationFrame(updateTooltipPosition);
     
     return () => {
@@ -307,7 +391,7 @@ function App() {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [coachingTip.visible, coachingTip.lat, coachingTip.lon]);
+  }, [coachingTip.visible, coachingTip.lat, coachingTip.lon, coachingTip.isOnVisibleSide]);
 
   /* Helper function to parse hex color to RGB */
   function hexToRgb(hex) {
@@ -360,6 +444,46 @@ function App() {
     if (distance > 600) return '#ea520f';
     if (distance > 300) return '#d44505';
     return '#b83700';
+  }
+
+  /* Get tooltip color - shifted one step on heatmap scale for better visibility
+   * isWarmer=true: one step MORE intense (redder) 
+   * isWarmer=false: one step LESS intense (lighter/cooler)
+   */
+  function getTooltipColor(distance, isWarmer = true) {
+    if (isWarmer) {
+      // One step more intense (warmer/redder)
+      if (distance > 12000) return '#fee8cc';  // was #fef2dc
+      if (distance > 9000) return '#fedebc';   // was #fee8cc
+      if (distance > 6500) return '#fec89e';   // was #fedebc
+      if (distance > 5000) return '#febf8f';   // was #fec89e
+      if (distance > 4000) return '#fea671';   // was #febf8f
+      if (distance > 3000) return '#fe9a62';   // was #fea671
+      if (distance > 2500) return '#fe8444';   // was #fe9a62
+      if (distance > 2000) return '#fe7835';   // was #fe8444
+      if (distance > 1500) return '#fe6e26';   // was #fe7835
+      if (distance > 1200) return '#fe5e1a';   // was #fe6e26
+      if (distance > 900) return '#ea520f';    // was #fe5e1a
+      if (distance > 600) return '#d44505';    // was #ea520f
+      if (distance > 300) return '#b83700';    // was #d44505
+      return '#9a2e00';                        // even darker red for very close
+    } else {
+      // One step less intense (cooler/lighter)
+      if (distance > 12000) return '#fff9f0';  // even lighter than #fef2dc
+      if (distance > 9000) return '#fef2dc';   // was #fee8cc
+      if (distance > 6500) return '#fee8cc';   // was #fedebc
+      if (distance > 5000) return '#fedebc';   // was #fec89e
+      if (distance > 4000) return '#fec89e';   // was #febf8f
+      if (distance > 3000) return '#febf8f';   // was #fea671
+      if (distance > 2500) return '#fea671';   // was #fe9a62
+      if (distance > 2000) return '#fe9a62';   // was #fe8444
+      if (distance > 1500) return '#fe8444';   // was #fe7835
+      if (distance > 1200) return '#fe7835';   // was #fe6e26
+      if (distance > 900) return '#fe6e26';    // was #fe5e1a
+      if (distance > 600) return '#fe5e1a';    // was #ea520f
+      if (distance > 300) return '#ea520f';    // was #d44505
+      return '#d44505';                        // was #b83700
+    }
   }
 
   /* Load Country Data */
@@ -688,7 +812,7 @@ function App() {
   */
 
   /* Handle Guess - updated with logging and modal check */
-  const onPolygonClick = (feature) => {
+  const onPolygonClick = (feature, event, coords) => {
     // NEW: Do nothing if a correct guess has been made
     if (correctGuess) return;
     
@@ -699,18 +823,25 @@ function App() {
     // If already guessed, ignore
     if (guesses.some((g) => g.id === polygonId)) return;
     
+    // Use the clicked geographic coordinates for tooltip positioning
+    // This avoids centroid issues with countries that have overseas territories (e.g., France)
+    const clickedGeoCoords = coords ? { lat: coords.lat, lng: coords.lng } : null;
+    
     if (isMobile) {
-      // Mobile: Set as selected country
-      setSelectedCountry({ ...feature, polygonId });
+      // Mobile: Set as selected country with click coords
+      setSelectedCountry({ ...feature, polygonId, clickedGeoCoords });
     } else {
-      // Desktop: Make guess immediately
-      handleConfirmGuess({ ...feature, polygonId });
+      // Desktop: Make guess immediately with click coords
+      handleConfirmGuess({ ...feature, polygonId, clickedGeoCoords });
     }
   };
 
   // Move guess logic to confirmation handler
   const handleConfirmGuess = (feature = selectedCountry) => {
     if (!feature) return;
+    
+    // Hide any existing coaching tooltip before processing new guess
+    setCoachingTip(prev => ({ ...prev, visible: false }));
     
     console.log('DEBUG - Guess:', {
       guessed: feature.properties?.name,
@@ -730,40 +861,61 @@ function App() {
     // - First tooltip: Initial distance-based feedback
     // - Second tooltip: "Getting warmer!" or "Getting colder!" based on comparison
     // - Third tooltip: Only if they start getting colder after getting warmer
-    const showCoachingTooltip = (text, type) => {
+    const showCoachingTooltip = (text, type, heatmapColor = null) => {
       const globeContainer = document.querySelector('.globe-container');
       if (globeContainer && globeEl.current) {
         const rect = globeContainer.getBoundingClientRect();
-        const screenCoords = globeEl.current.getScreenCoords(guessCentroid.lat, guessCentroid.lon);
         
-        if (screenCoords) {
-          setCoachingTip({
-            visible: true,
-            text,
-            type,
-            x: Math.min(Math.max(screenCoords.x, 80), rect.width - 80),
-            y: Math.max(screenCoords.y - 60, 100),
-            lat: guessCentroid.lat,
-            lon: guessCentroid.lon
-          });
+        // Use clicked geographic coordinates if available (avoids centroid issues with overseas territories)
+        // Convert geo coords to screen coords using globe's utility method
+        let tooltipX, tooltipY;
+        let tooltipLat, tooltipLon;
+        
+        if (feature.clickedGeoCoords) {
+          // Use the actual clicked location on the globe
+          tooltipLat = feature.clickedGeoCoords.lat;
+          tooltipLon = feature.clickedGeoCoords.lng;
+          const screenCoords = globeEl.current.getScreenCoords(tooltipLat, tooltipLon);
+          if (screenCoords) {
+            tooltipX = screenCoords.x;
+            tooltipY = screenCoords.y - 60; // Offset above click point
+          } else {
+            tooltipX = rect.width / 2;
+            tooltipY = rect.height / 2 - 50;
+          }
         } else {
-          setCoachingTip({
-            visible: true,
-            text,
-            type,
-            x: rect.width / 2,
-            y: rect.height / 2 - 50,
-            lat: guessCentroid.lat,
-            lon: guessCentroid.lon
-          });
+          // Fallback to centroid-based positioning
+          tooltipLat = guessCentroid.lat;
+          tooltipLon = guessCentroid.lon;
+          const screenCoords = globeEl.current.getScreenCoords(tooltipLat, tooltipLon);
+          if (screenCoords) {
+            tooltipX = screenCoords.x;
+            tooltipY = screenCoords.y - 60;
+          } else {
+            tooltipX = rect.width / 2;
+            tooltipY = rect.height / 2 - 50;
+          }
         }
+        
+        // Clamp to stay within container bounds
+        tooltipX = Math.min(Math.max(tooltipX, 80), rect.width - 80);
+        tooltipY = Math.max(tooltipY, 100);
+        
+        setCoachingTip({
+          visible: true,
+          text,
+          type,
+          x: tooltipX,
+          y: tooltipY,
+          lat: tooltipLat,
+          lon: tooltipLon,
+          heatmapColor,  // Pass exact color from getColor()
+          isOnVisibleSide: true  // Country is visible when user clicks it
+        });
         
         setCoachingTooltipCount(prev => prev + 1);
         
-        // Auto-hide coaching tip after 4 seconds
-        setTimeout(() => {
-          setCoachingTip(prev => ({ ...prev, visible: false }));
-        }, 4000);
+        // Tooltip stays visible until next click (no auto-hide timer)
       }
     };
     
@@ -771,6 +923,8 @@ function App() {
     if (coachingTooltipCount < 3) {
       if (lastGuessDistance === null) {
         // First guess ever: Show initial distance-based feedback
+        // Use warmer color (more intense) for first guess
+        const tooltipColor = getTooltipColor(distance, true);
         let coachType = 'cold';
         let coachText = '';
         
@@ -788,18 +942,20 @@ function App() {
           coachText = 'Cold — try another region ❄️';
         }
         
-        showCoachingTooltip(coachText, coachType);
+        showCoachingTooltip(coachText, coachType, tooltipColor);
       } else {
         // Compare with previous guess
         const isWarmer = distance < lastGuessDistance;
+        // Tooltip color shifts in direction of feedback
+        const tooltipColor = getTooltipColor(distance, isWarmer);
         
         if (isWarmer && !wasGettingWarmer) {
-          // Started getting warmer - show feedback
-          showCoachingTooltip('Getting warmer! 🔥', 'warm');
+          // Started getting warmer - show feedback with more intense color
+          showCoachingTooltip('Getting warmer! 🔥', 'warm', tooltipColor);
           setWasGettingWarmer(true);
         } else if (!isWarmer && wasGettingWarmer) {
-          // Was getting warmer but now getting colder - show feedback
-          showCoachingTooltip('Getting colder! ❄️', 'cool');
+          // Was getting warmer but now getting colder - show feedback with less intense color
+          showCoachingTooltip('Getting colder! ❄️', 'cool', tooltipColor);
           setWasGettingWarmer(false);
         }
         // If continuing in same direction, no tooltip needed
@@ -821,7 +977,7 @@ function App() {
       distance, 
       color: getColor(distance), 
       countryCode: getCountryCode(feature),
-      altitude: 0.08 // Start with elevated altitude for pop effect
+      altitude: 0.096 // Start with elevated altitude for pop effect (8× base of 0.012)
     };
     
     if (distance < 10) { // changed threshold from 50 to 10
@@ -921,11 +1077,12 @@ function App() {
     // Each setTimeout sets the NEXT target altitude - library interpolates smoothly between values
     
     // Altitude keyframes for damped spring oscillation (2 bounces before settling)
+    // Base altitude is 0.012, guessed countries rest slightly higher to stand out
     const groundAltitude = 0.001;        // Starting flat
-    const peakAltitude = 0.040;          // Overshoot ceiling (2.67× rest) - dramatic "shoot up"
-    const undershootAltitude = 0.010;    // Below rest (67% of rest) - "floor bounce"
-    const miniOvershootAltitude = 0.018; // Small bounce above rest (damping)
-    const restAltitude = 0.015;          // Final resting position
+    const peakAltitude = 0.048;          // Overshoot ceiling (4× base) - dramatic "shoot up"
+    const undershootAltitude = 0.010;    // Below rest - "floor bounce"
+    const miniOvershootAltitude = 0.020; // Small bounce above rest (damping)
+    const restAltitude = 0.018;          // Final resting position (1.5× base, above unclicked countries)
     
     const guessId = newGuess.id;
     const targetColor = newGuess.color;
@@ -1178,12 +1335,19 @@ function App() {
     if (audioPlaying) {
       audioRef.current.pause();
       setAudioPlaying(false);
+      setUserPausedAudio(true);  // User intentionally paused
     } else {
-      setIsLoading(true); // Show spinner before play
+      // Only show loading spinner if audio needs to buffer
+      // Check if audio has enough data to play (readyState >= 3 means HAVE_FUTURE_DATA)
+      const needsBuffering = audioRef.current.readyState < 3;
+      if (needsBuffering) {
+        setIsLoading(true);
+      }
+      setUserPausedAudio(false);  // User is playing, clear the paused flag
       audioRef.current
         .play()
         .then(() => {
-          setIsLoading(false); // Hide spinner once play promise resolves
+          setIsLoading(false);
           setAudioPlaying(true);
         })
         .catch((e) => {
@@ -1191,7 +1355,7 @@ function App() {
             console.error("Audio playback error in toggleAudio:", e);
             callStationBroken();
           }
-          setIsLoading(false); // Clear loading on error
+          setIsLoading(false);
         });
     }
   };
@@ -1375,6 +1539,103 @@ function App() {
       audio.removeEventListener('playing', handlePlaying);
     };
   }, [audioRef]);
+
+  // Web Audio API: Set up analyser and draw waveform
+  useEffect(() => {
+    if (!audioPlaying || !canvasRef.current || !audioRef.current) {
+      // Cancel animation when not playing
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+
+    // Create audio context if needed
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    const audioContext = audioContextRef.current;
+
+    // Resume context if suspended (browser autoplay policy)
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+
+    // Create analyser if needed
+    if (!analyserRef.current) {
+      analyserRef.current = audioContext.createAnalyser();
+      analyserRef.current.fftSize = 64; // Small for performance, gives 32 frequency bins
+      analyserRef.current.smoothingTimeConstant = 0.8;
+    }
+
+    // Connect source to analyser (only once per audio element)
+    if (!sourceRef.current) {
+      try {
+        sourceRef.current = audioContext.createMediaElementSource(audioRef.current);
+        sourceRef.current.connect(analyserRef.current);
+        analyserRef.current.connect(audioContext.destination);
+        setAnalyserReady(true);
+      } catch (e) {
+        // Source already connected - this can happen on hot reload
+        console.log('Audio source already connected');
+        setAnalyserReady(true);
+      }
+    }
+
+    const analyser = analyserRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      animationFrameRef.current = requestAnimationFrame(draw);
+
+      analyser.getByteFrequencyData(dataArray);
+
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Fixed 5 bars, always rendered - sample from lower frequencies where most audio content lives
+      const barCount = 5;
+      const barWidth = 5;
+      const barSpacing = 3;
+      const totalWidth = barCount * barWidth + (barCount - 1) * barSpacing;
+      const startX = (canvas.width - totalWidth) / 2; // Center the bars
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+
+      // Focus on lower frequency bins (0-12) where most music/voice content is
+      const usableBins = Math.min(12, bufferLength);
+
+      for (let i = 0; i < barCount; i++) {
+        // Sample from the lower frequency range
+        const dataIndex = Math.floor((i / barCount) * usableBins);
+        const value = dataArray[dataIndex];
+        
+        // Smooth minimum height - bars shrink to tiny dot, never disappear
+        const barHeight = Math.max(2, (value / 255) * canvas.height);
+        
+        const x = startX + i * (barWidth + barSpacing);
+        const y = (canvas.height - barHeight) / 2; // Center vertically
+
+        // Draw rounded bar
+        ctx.beginPath();
+        ctx.roundRect(x, y, barWidth, barHeight, 2);
+        ctx.fill();
+      }
+    };
+
+    draw();
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [audioPlaying]);
 
   // ACCESSIBILITY: Escape key handler for modal dismissal
   useEffect(() => {
@@ -1582,10 +1843,10 @@ function App() {
 
   return (
     <div className="globe-container">
-      {/* Score/Round overlay - only visible after game starts */}
+      {/* Scoreboard - only visible after game starts */}
       {gameStarted && (
         <div 
-          className={`overlay ${!scoreboardEntranceComplete ? 'flip-in-top' : ''} ${scoreboardAnimationStage}`}
+          className={`scoreboard ${!scoreboardEntranceComplete ? 'flip-in-top' : ''} ${scoreboardAnimationStage}`}
           onAnimationEnd={(e) => {
             // Mark entrance animation complete so it doesn't interfere with later animations
             if (e.animationName === 'flipInToTop' && !scoreboardEntranceComplete) {
@@ -1593,17 +1854,15 @@ function App() {
             }
           }}
         >
-          <div className="stats-container">
-            <div className="stat-item">
-              <span className="stat-label">SCORE</span>
-              {/* UPDATED: Use animatedScore for smooth score transition */}
-              <span className="stat-value">{animatedScore}</span>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <span className="stat-label">ROUND</span>
-              <span className="stat-value">{currentRound}<span className="stat-max">/5</span></span>
-            </div>
+          <div className="stat-item">
+            <span className="stat-label">SCORE</span>
+            {/* UPDATED: Use animatedScore for smooth score transition */}
+            <span className="stat-value">{animatedScore}</span>
+          </div>
+          <div className="stat-divider"></div>
+          <div className="stat-item">
+            <span className="stat-label">ROUND</span>
+            <span className="stat-value">{currentRound}<span className="stat-max">/5</span></span>
           </div>
           {/* Removed feedback text - colors are self-explanatory per Rams #10 */}
         </div>
@@ -1616,6 +1875,8 @@ function App() {
         type={coachingTip.type || 'cold'}
         x={coachingTip.x}
         y={coachingTip.y}
+        heatmapColor={coachingTip.heatmapColor}
+        isOnVisibleSide={coachingTip.isOnVisibleSide}
       />
 
       {/* Custom Audio Player */}
@@ -1628,12 +1889,12 @@ function App() {
             }
           }}
         >
-          <button onClick={toggleAudio} className="audio-btn">
+          <button 
+            onClick={toggleAudio} 
+            className={`audio-btn ${!audioPlaying && !userPausedAudio ? 'audio-btn--pulse' : ''}`}
+          >
             {audioPlaying ? 'Pause' : 'Play'}
           </button>
-          <span className="audio-instructions">
-            {audioPlaying ? 'Adjust volume:' : 'Press play to start'}
-          </span>
           <input 
             type="range" 
             min="0" 
@@ -1642,10 +1903,21 @@ function App() {
             onChange={onVolumeChange}
             className="volume-slider"
           />
-          {/* Add loading indicator */}
-          {isLoading && <div className="loading-spinner"></div>}
+          {/* Audio status indicator - grid container for proper gap collapse */}
+          <div className={`audio-status ${isLoading || audioPlaying ? 'visible' : ''}`}>
+            <div className="audio-status-inner">
+              <div className={`loading-spinner ${isLoading ? 'visible' : ''}`}></div>
+              <canvas 
+                ref={canvasRef} 
+                className={`audio-waveform-canvas ${!isLoading && audioPlaying ? 'visible' : ''}`}
+                width={60}
+                height={24}
+              />
+            </div>
+          </div>
           <audio 
-            ref={audioRef} 
+            ref={audioRef}
+            crossOrigin="anonymous" 
             muted={false}   // NEW: Ensure audio is unmuted on play
             style={{ display: 'block' }}  // NEW: Make it visible for debugging (or remove to show custom player)
             onError={(e) => handleAudioError(e.target.error)}
@@ -1669,6 +1941,12 @@ function App() {
         height={height}
         globeMaterial={globeMaterial}
         backgroundColor="rgba(0,0,0,0)"
+        rendererConfig={{
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
+          logarithmicDepthBuffer: true
+        }}
         polygonsData={countriesData}
         polygonCapColor={(d) => {
           const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
@@ -1690,7 +1968,7 @@ function App() {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return '#000000';  // black stroke for correct country
           }
-          return '#1B5E20';  // darker green stroke for better visibility
+          return '#0D3010';  // dark green stroke for crisp border visibility
         }}
         polygonSideColor={d => {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
@@ -1706,9 +1984,9 @@ function App() {
             return guess.altitude;
           }
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
-            return 0.02;  // extrude correct country
+            return 0.025;  // extrude correct country
           }
-          return 0.01;  // slight elevation for all countries to show borders
+          return 0.012;  // slight elevation for all countries to show borders
         }}
         polygonLabel={(d) => isMobile ? null : `
           <span style="
