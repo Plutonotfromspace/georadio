@@ -225,15 +225,22 @@ function App() {
   /**
    * Helper function to get proxied URL for audio streams
    * Uses VITE_PROXY_BASE_URL env var or falls back to /api/proxy on current origin
+   * Only uses proxy in production to avoid CORS issues
    * @param {string} stationUrl - The original station URL
-   * @returns {string} The proxied URL
+   * @returns {string} The proxied URL (in production) or original URL (in dev)
    */
   const getProxiedUrl = useCallback((stationUrl) => {
-    // Use configured proxy URL, or default to the proxy endpoint on current origin
+    // In development, use direct URLs to avoid proxy issues
+    if (import.meta.env.DEV) {
+      console.debug('Development mode: using direct URL', stationUrl);
+      return stationUrl;
+    }
+    
+    // In production, use the proxy to handle CORS
     const proxyBase = import.meta.env.VITE_PROXY_BASE_URL || 
       `${window.location.origin}${DEFAULT_PROXY_PATH}`;
     const proxiedUrl = `${proxyBase}?url=${encodeURIComponent(stationUrl)}`;
-    console.debug('Using proxied URL', proxiedUrl, '-> original', stationUrl);
+    console.debug('Production mode: using proxied URL', proxiedUrl, '-> original', stationUrl);
     return proxiedUrl;
   }, []);
 
