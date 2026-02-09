@@ -1,6 +1,20 @@
 /* ============================================
    GAME COMPLETE MODAL STYLES
+   Dark space theme with glassmorphism
    ============================================ */
+
+/* Override base modal tokens for dark theme */
+.base-modal-overlay .base-modal.game-complete-modal {
+  --modal-bg: rgba(15, 20, 40, 0.82);
+  background: var(--modal-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(0, 229, 255, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
 
 .game-complete-modal {
   text-align: center;
@@ -10,22 +24,26 @@
 .game-complete-modal__hero {
   margin-bottom: var(--modal-space-lg, 20px);
   padding-bottom: var(--modal-space-lg, 20px);
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.15);
 }
 
 .game-complete-modal__score {
   font-size: 48px;
   font-weight: 800;
-  color: #2563eb;
+  color: #00E5FF;
   line-height: 1;
   font-family: 'CustomHeader', 'Arial', sans-serif;
+  text-shadow: 0 0 24px rgba(0, 229, 255, 0.35);
 }
 
 .game-complete-modal__label {
   font-size: 14px;
   font-weight: 500;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.5);
   margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-family: 'Regular', sans-serif;
 }
 
 /* Rounds Summary */
@@ -44,8 +62,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: var(--modal-radius-md, 8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s ease;
+}
+
+.game-complete-modal__round:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .game-complete-modal__round-left {
@@ -62,29 +86,32 @@
   object-fit: cover;
   border-radius: 3px;
   flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .game-complete-modal__round-country {
   font-size: 14px;
   font-weight: 500;
-  color: #1e293b;
+  color: rgba(255, 255, 255, 0.88);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: 'Regular', sans-serif;
 }
 
 .game-complete-modal__round-score {
   font-size: 14px;
   font-weight: 600;
-  color: #10b981;
+  color: #58CC02;
   flex-shrink: 0;
+  font-family: 'Regular', sans-serif;
 }
 
 /* Play Again Button */
 .game-complete-modal__button {
   width: 100%;
   padding: 14px 24px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #58CC02 0%, #46a302 100%);
   color: white;
   font-size: 16px;
   font-weight: 600;
@@ -92,14 +119,14 @@
   border-radius: var(--modal-radius-lg, 12px);
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 16px rgba(88, 204, 2, 0.25);
   font-family: 'Regular', sans-serif;
 }
 
 .game-complete-modal__button:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  background: linear-gradient(135deg, #65d60a 0%, #58CC02 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 6px 20px rgba(88, 204, 2, 0.35);
 }
 
 .game-complete-modal__button:active {
