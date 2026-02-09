@@ -15,28 +15,82 @@
   font-display: swap;
 }
 
+/* ============================================
+   GEOGUESSR-STYLE DESIGN TOKENS
+   ============================================ */
+
+/* Root font size is now 18px (set in index.css) to match GeoGuessr exactly.
+   All rem values below are the EXACT same as GeoGuessr's CSS. */
+:root {
+  /* Colors - GeoGuessr Design System */
+  --gg-purple-100: #171235;
+  --gg-white: rgb(255, 255, 255);
+  --gg-white-80: rgba(255, 255, 255, 0.8);
+  --gg-white-40: rgba(255, 255, 255, 0.4);
+  --gg-white-20: rgba(255, 255, 255, 0.2);
+  --gg-white-10: rgba(255, 255, 255, 0.1);
+  --gg-black-50: rgba(16, 16, 28, 0.5);
+  --gg-green-50: #97e851;
+  --gg-green-80: #479440;
+  --gg-blue-50: #00a2fe;
+  --gg-brand-50: #7950e5;
+  --gg-turquoise-50: #3ae8bd;
+  --gg-purple-10: #d9d7f0;
+  --gg-purple-20: #bdb5ff;
+  --gg-red-50: #e94555;
+  --gg-orange-50: #ffa43d;
+  --gg-orange-80: #d06429;
+  --gg-yellow-50: #ffc628;
+  
+  /* Font Sizes - exact GeoGuessr values */
+  --gg-font-size-9: 0.5625rem;   /* 10.125px - GeoGuessr label size */
+  --gg-font-size-10: 0.625rem;   /* ~11px */
+  --gg-font-size-12: 0.75rem;    /* ~13.5px */
+  --gg-font-size-14: 0.875rem;   /* ~15.75px */
+  --gg-font-size-20: 1.25rem;    /* 22.5px */
+  --gg-shadow-text-base: 2rem;   /* 36px - defaultFontSize */
+  --gg-line-height-label: 0.6875rem; /* 12.375px - GeoGuessr label line-height */
+  
+  /* Layout sizes - exact GeoGuessr values */
+  --gg-left-indicator-base: 8rem;      /* 144px base */
+  --gg-left-indicator-desktop: 9rem;   /* 162px at ≥680px */
+  --gg-right-indicator-width: 7rem;    /* 126px */
+  --gg-slide-offset: 9rem;             /* 162px for animation */
+  --gg-button-width: 14.125rem;        /* 254.25px */
+  --gg-button-width-mobile: 12.125rem; /* 218.25px */
+  --gg-button-height: 3.5rem;          /* ~63px */
+  
+  /* Line Heights - exact GeoGuessr values */
+  --gg-line-height-9: 0.6875rem;
+  --gg-line-height-12: 0.875rem;
+  
+  /* Text Shadows - Positive (blue/purple glow) */
+  --gg-positive-shadow: 
+    0 0.25rem 0 var(--gg-black-50),
+    0.125rem 0.125rem 0.5rem var(--gg-blue-50),
+    0 -0.25rem 0.5rem var(--gg-brand-50),
+    -0.25rem 0.5rem 0.5rem var(--gg-turquoise-50),
+    0 0.375rem 2rem var(--gg-brand-50),
+    0 0 0 var(--gg-purple-10),
+    0 0 1.5rem rgba(161, 155, 217, 0.65),
+    0.25rem 0.25rem 1rem var(--gg-purple-20);
+  
+  /* Text Shadows - Negative (red/orange glow) */
+  --gg-negative-shadow:
+    0 0.25rem 0 var(--gg-orange-80),
+    0.125rem 0.125rem 0.5rem var(--gg-red-50),
+    0 -0.25rem 0.5rem var(--gg-orange-50),
+    -0.25rem 0.5rem 0.5rem var(--gg-yellow-50),
+    0 0.375rem 2rem var(--gg-red-50),
+    0 0 0 var(--gg-red-50),
+    0 0 1.5rem var(--gg-red-50),
+    0.25rem 0.25rem 1rem var(--gg-yellow-50);
+}
+
 /* Main app container */
 #root {
   max-width: 100%;
   text-align: center;
-}
-
-/* Scoreboard - single container for score/round display (Rams #10: as little design as possible) */
-.scoreboard {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 8px 16px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  font-family: 'Regular', sans-serif;
 }
 
 /* Legacy .overlay styles - keeping for any other uses */
@@ -53,6 +107,44 @@
   width: 100%;
   height: 100%;
   position: relative;
+}
+
+.globe-container:active {
+  cursor: grabbing;
+}
+
+/* Warm ambient sun-glow behind the globe — pulses brightness with audio via --glow-intensity */
+.globe-container::before {
+  content: '';
+  position: absolute;
+  top: 15%;
+  right: -5%;
+  width: 60%;
+  height: 70%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 160, 60, 0.08) 0%,
+    rgba(255, 120, 40, 0.04) 30%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--glow-intensity, 1);
+  transition: opacity 0.08s ease-out;
+}
+
+/* Cinematic vignette overlay — darkens edges for depth */
+.globe-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    transparent 50%,
+    rgba(5, 5, 15, 0.4) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* NEW: Disable tap highlight and touch actions to prevent country highlighting effects on mobile */
@@ -306,39 +398,360 @@
   margin-left: 8px;
 }
 
-/* Stat items within scoreboard */
-.stat-item {
+/* ========================================
+   Result Bar - GeoGuessr 1:1 Implementation
+   ======================================== */
+
+/* Main container - fixed at bottom */
+.result-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  box-shadow: rgba(0, 0, 0, 0.4) 0px 0px 10px -1px;
+}
+
+/* Content wrapper - dark purple background */
+.result-bar__content {
+  background-color: var(--gg-purple-100);
+  text-align: center;
+  position: relative;
+  min-height: 100%;
+  box-sizing: border-box;
+  /* Entrance animation: fade in */
+  animation: resultBarEnter 0.4s ease forwards;
+}
+
+@keyframes resultBarEnter {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Main flex wrapper - holds all 3 sections */
+.result-bar__wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-1rem); /* Exact GeoGuessr value */
+}
+
+/* Exit animation */
+.result-bar.closing .result-bar__content {
+  animation: resultBarExit 0.3s ease-in forwards;
+}
+
+@keyframes resultBarExit {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---- LEFT SECTION: Attempts indicator ---- */
+.result-bar__left {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  justify-content: center;
+  text-align: center;
+  width: var(--gg-left-indicator-base);
+  flex-shrink: 0;
+  /* Entrance: start translated right, fade in, then slide to position */
+  transform: translateX(var(--gg-slide-offset));
+  animation: 
+    indicatorFadeIn 0.5s ease 0s forwards,
+    leftIndicatorSlide 0.25s ease-in-out 1.5s forwards;
 }
 
-.stat-label {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  opacity: 0.7;
+/* Desktop: wider left indicator */
+@media (min-width: 680px) {
+  .result-bar__left {
+    width: var(--gg-left-indicator-desktop);
+  }
 }
 
-.stat-value {
-  font-size: 24px;
+@keyframes indicatorFadeIn {
+  0% { opacity: 0; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes leftIndicatorSlide {
+  0% { transform: translateX(var(--gg-slide-offset)); }
+  100% { transform: translateX(0); }
+}
+
+/* Attempts value wrapper - flex row centered */
+.result-bar__attempts-wrapper {
+  display: inline-flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: normal;
+  height: 2.93rem; /* 52.8px at 18px root */
+  overflow: visible;
+}
+
+/* Big number - glowing text */
+.result-bar__attempts {
+  display: block;
+  font-size: calc(var(--gg-shadow-text-base) * 1.2);
   font-weight: 700;
-  line-height: 1;
+  color: var(--gg-white);
+  font-family: 'Regular', sans-serif;
+  line-height: normal;
+  height: 2.93rem; /* 52.8px - match parent wrapper */
+  user-select: none;
+  /* Positive glow (blue/purple) */
+  text-shadow: var(--gg-positive-shadow);
 }
 
-.stat-max {
-  font-size: 18px;
-  opacity: 0.5;
-  margin-left: 2px;
+/* Ordinal suffix (st, nd, rd, th) - in its own container like GeoGuessr's unitIndicator */
+.result-bar__attempts-suffix {
+  display: block;
+  font-size: calc(var(--gg-shadow-text-base) * 1.2); /* 2.4rem = 43.2px - same as main number */
+  font-weight: 700;
+  color: var(--gg-white);
+  font-family: 'Regular', sans-serif;
+  height: 2.93rem; /* 52.8px - match parent wrapper */
+  margin-left: 0.5rem; /* 9px gap like GeoGuessr */
+  text-shadow: var(--gg-positive-shadow);
 }
 
-.stat-divider {
-  width: 1px;
-  height: 32px;
-  background-color: rgba(0, 0, 0, 0.35);
+/* Label below attempts */
+.result-bar__label {
+  font-size: var(--gg-font-size-9);
+  line-height: var(--gg-line-height-label);
+  color: var(--gg-white-40);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-style: italic;
+  margin: 0.3rem 0 0 0;
+  font-family: 'Regular', sans-serif;
 }
+
+/* ---- CENTER SECTION: Next button ---- */
+.result-bar__center {
+  display: block;
+  text-align: center;
+  width: var(--gg-button-width);
+  flex-shrink: 0;
+  margin: 1.5rem 2.5rem; /* Exact GeoGuessr values */
+  /* Initially hidden, becomes visible after indicators slide */
+  visibility: hidden;
+  animation: actionsReveal 0.25s ease-in-out 1.65s forwards;
+}
+
+@keyframes actionsReveal {
+  0% { visibility: hidden; }
+  100% { visibility: visible; }
+}
+
+/* Next button - GeoGuessr style */
+.result-bar__next-btn {
+  display: inline-block;
+  box-sizing: border-box;
+  padding: 0 1.5rem 0.125rem 1.5rem;
+  border: 0;
+  border-radius: 3.75rem;
+  cursor: pointer;
+  font-family: 'Regular', sans-serif;
+  font-size: var(--gg-font-size-20);
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--gg-white);
+  /* Green gradient */
+  background: linear-gradient(var(--gg-green-50), var(--gg-green-80));
+  /* Text shadow for depth */
+  text-shadow: 0 0.07rem 0.14rem var(--gg-purple-100);
+  /* 3D box shadow */
+  box-shadow: 
+    0 0.31rem 1.27rem rgba(0, 0, 0, 0.25),
+    inset 0 0.07rem 0 var(--gg-white-20),
+    inset 0 -0.14rem 0 rgba(0, 0, 0, 0.3);
+  /* Transition for hover/active */
+  transition: transform 0.15s, background 0.15s;
+  /* Fixed width like GeoGuessr */
+  width: var(--gg-button-width);
+}
+
+/* Button inner wrapper */
+.result-bar__next-btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--gg-button-height);
+}
+
+/* Hover: scale up */
+.result-bar__next-btn:hover {
+  transform: scale(1.05);
+}
+
+/* Active: scale down */
+.result-bar__next-btn:active {
+  transform: scale(0.975);
+}
+
+/* Focus state for accessibility */
+.result-bar__next-btn:focus-visible {
+  outline: 3px solid var(--gg-blue-50);
+  outline-offset: 2px;
+}
+
+/* Spacebar hint */
+.result-bar__hint {
+  font-size: var(--gg-font-size-12);
+  line-height: var(--gg-line-height-12);
+  color: var(--gg-white-40);
+  font-weight: 400;
+  margin-top: 0.5rem;
+  font-family: 'Regular', sans-serif;
+}
+
+/* Hotkey indicator (SPACE) */
+.result-bar__hotkey {
+  font-weight: 400;
+  font-size: var(--gg-font-size-12);
+  line-height: var(--gg-line-height-12);
+  color: var(--gg-white-40);
+  border: 0.0625rem solid var(--gg-white-40);
+  border-radius: 0.3125rem;
+  padding: 0 0.25rem 0 0.3rem;
+  margin: 0 0.25rem;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* ---- RIGHT SECTION: Points indicator ---- */
+.result-bar__right {
+  display: block;
+  text-align: center;
+  width: var(--gg-right-indicator-width);
+  flex-shrink: 0; /* Prevent flex shrinking */
+  /* Entrance: start translated left, fade in, then slide to position */
+  transform: translateX(calc(var(--gg-slide-offset) * -1));
+  animation: 
+    indicatorFadeIn 0.5s ease 0s forwards,
+    rightIndicatorSlide 0.25s ease-in-out 1.5s forwards;
+}
+
+@keyframes rightIndicatorSlide {
+  0% { transform: translateX(calc(var(--gg-slide-offset) * -1)); }
+  100% { transform: translateX(0); }
+}
+
+/* Big score number - glowing text */
+.result-bar__score {
+  font-size: calc(var(--gg-shadow-text-base) * 1.2);
+  font-weight: 700;
+  color: var(--gg-white);
+  font-family: 'Regular', sans-serif;
+  line-height: normal;
+  user-select: none;
+  /* Negative glow (red/orange) for score - makes it pop */
+  text-shadow: var(--gg-negative-shadow);
+}
+
+/* "OF X POINTS" label */
+.result-bar__max-label {
+  font-size: var(--gg-font-size-9);
+  line-height: var(--gg-line-height-label);
+  color: var(--gg-white-40);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-style: italic;
+  margin-top: 0.3rem;
+  font-family: 'Regular', sans-serif;
+}
+
+/* ========================================
+   Result Bar - Responsive Breakpoints
+   ======================================== */
+
+/* Smaller desktop */
+@media (max-width: 1019px) {
+  .result-bar__attempts,
+  .result-bar__score {
+    font-size: var(--gg-shadow-text-base);
+  }
+}
+
+/* Mobile: Grid layout */
+@media (max-width: 679px) {
+  .result-bar__wrapper {
+    display: grid;
+    grid-template-areas: 
+      "attempts score"
+      "actions actions";
+    gap: 1rem;
+    padding-top: 1rem;
+    transform: none;
+  }
+  
+  .result-bar__left {
+    grid-area: attempts;
+    width: auto;
+    transform: none;
+    animation: none;
+    opacity: 1;
+  }
+  
+  .result-bar__center {
+    grid-area: actions;
+    width: var(--gg-button-width-mobile);
+    margin: 1.5rem;
+    visibility: visible;
+    animation: none;
+  }
+  
+  .result-bar__right {
+    grid-area: score;
+    width: auto;
+    transform: none;
+    animation: none;
+    opacity: 1;
+  }
+  
+  /* Hide spacebar hint on mobile */
+  .result-bar__hint {
+    display: none;
+  }
+  
+  /* Smaller button on mobile */
+  .result-bar__next-btn {
+    width: var(--gg-button-width-mobile);
+  }
+  
+  /* Bottom bar height adjustment */
+  .result-bar {
+    max-height: 12.125rem;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 400px) {
+  .result-bar__wrapper {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  .result-bar__next-btn {
+    width: 100%;
+  }
+  
+  .result-bar__center {
+    margin: 1rem;
+  }
+}
+
+/* Desktop: max height constraint */
+@media (min-width: 680px) {
+  .result-bar {
+    max-height: 8rem;
+  }
+}
+
+/* ======================================== */
 
 /* Credits styling */
 .credits-container {
@@ -534,6 +947,8 @@
     gap: 8px;
     bottom: 20px; /* Adjust to prevent overlap */
     z-index: 35;
+    opacity: 1;
+    transition: opacity 0.25s ease, transform 0.25s ease !important;
   }
 
   .audio-btn {
@@ -561,14 +976,6 @@
 
   .stats-container {
     padding: 4px 8px;
-  }
-
-  .stat-value {
-    font-size: 20px;
-  }
-
-  .stat-max {
-    font-size: 14px;
   }
 
   .summary-card {
@@ -637,6 +1044,95 @@
     stroke: #fff !important;
     stroke-width: 2px !important;
     filter: brightness(1.2);
+  }
+
+  /* ─── Selection Card (swaps with audio player) ─── */
+  .selection-card {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px 8px 10px;
+    border-radius: 8px;
+    background: rgba(15, 20, 40, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 229, 255, 0.25);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 8px rgba(0, 229, 255, 0.1);
+    z-index: 36;
+  }
+
+  /* ─── Player/Card swap ─── */
+  /* Player fades out/in via transition (stays mounted) */
+  .audio-player.player-hidden {
+    opacity: 0 !important;
+    transform: translateX(-50%) scale(0.92) !important;
+    pointer-events: none !important;
+  }
+
+  /* Card animates in on mount, since React unmounts it */
+  .selection-card {
+    animation: cardFadeIn 0.25s ease-out both;
+  }
+
+  @keyframes cardFadeIn {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
+  }
+
+  .selection-card__flag {
+    width: 36px;
+    height: 27px;
+    border-radius: 4px;
+    object-fit: cover;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    flex-shrink: 0;
+  }
+
+  .selection-card__name {
+    color: #fff;
+    font-family: 'Regular', sans-serif;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+  }
+
+  .selection-card__guess-btn {
+    background: linear-gradient(135deg, #00E5FF, #00B0FF);
+    color: #fff;
+    font-family: 'Bold', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 229, 255, 0.3);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .selection-card__guess-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(0, 229, 255, 0.2);
+  }
+
+  .selection-card__guess-btn:focus-visible {
+    outline: 3px solid #00E5FF;
+    outline-offset: 2px;
   }
 
   .continue-button {
@@ -802,93 +1298,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-/* NEW: Scoreboard animation to center */
-@keyframes flipOutToCenter {
-  0% { transform: translateX(-50%) rotateX(0) scale(1); }
-  100% { transform: translateX(-50%) rotateX(90deg) scale(1); }
-}
-@keyframes flipInFromCenter {
-  0% { transform: translate(-50%, -50%) rotateX(-90deg) scale(var(--scoreboard-scale)); }
-  100% { transform: translate(-50%, -50%) rotateX(0) scale(var(--scoreboard-scale)); }
-}
-/* NEW: Scoreboard animation back to top */
-@keyframes flipOutFromCenter {
-  0% { transform: translate(-50%, -50%) rotateX(0) scale(var(--scoreboard-scale)); }
-  100% { transform: translate(-50%, -50%) rotateX(90deg) scale(var(--scoreboard-scale)); }
-}
-@keyframes flipInToTop {
-  0% { transform: translateX(-50%) rotateX(-90deg) scale(1); }
-  100% { transform: translateX(-50%) rotateX(0) scale(1); }
-}
-
-.flip-out-center {
-  animation: flipOutToCenter 0.5s ease-in-out forwards;
-}
-.flip-in-center {
-  animation: flipInFromCenter 0.5s ease-in-out forwards;
-}
-.flip-out-top {
-  animation: flipOutFromCenter 0.5s ease-in-out forwards;
-}
-.flip-in-top {
-  animation: flipInToTop 0.5s ease-in-out forwards;
-}
-
-/* UPDATED: Separate flips from position changes */
-@keyframes flipOutToCenter {
-  0% { transform: translateX(-50%) rotateX(0) scale(1); }
-  100% { transform: translateX(-50%) rotateX(90deg) scale(1); }
-}
-
-@keyframes flipOutFromCenter {
-  0% { transform: translate(-50%, -50%) rotateX(0) scale(var(--scoreboard-scale)); }
-  100% { transform: translate(-50%, -50%) rotateX(90deg) scale(var(--scoreboard-scale)); }
-}
-
-@keyframes flipInToTop {
-  0% { transform: translateX(-50%) rotateX(-90deg) scale(1); }
-  100% { transform: translateX(-50%) rotateX(0) scale(1); }
-}
-
-/* Class that moves to center immediately when added */
-.centered {
-  top: 50% !important;
-  transition: none !important;
-}
-
-/* Class that moves back to top immediately */
-.top {
-  top: 20px !important;
-  transition: none !important;
-}
-
-.flip-out-center {
-  animation: flipOutToCenter 0.5s ease-in-out forwards;
-}
-.flip-in-center {
-  animation: flipInFromCenter 0.5s ease-in-out forwards;
-}
-.flip-out-top {
-  animation: flipOutFromCenter  0.5s ease-in-out forwards;
-}
-.flip-in-top {
-  animation: flipInToTop 0.5s ease-in-out forwards;
-}
-
-/* NEW: Set default scoreboard scale for desktop */
-:root {
-  --scoreboard-scale: 2.5;
-}
-
-/* Mobile override for scoreboard scale */
-@media screen and (max-width: 768px) {
-  :root {
-    --scoreboard-scale: 1.5;
-  }
-
-  /* ...existing mobile code... */
 }
 
 /* Disable text selection on mobile devices */
@@ -4635,6 +5044,7 @@ html, body {
   .audio-player,
   .overlay,
   .confirm-button,
+  .selection-card,
   .flag-container,
   .guess-item,
   .journey-item {
@@ -4648,6 +5058,7 @@ html, body {
 /* Focus visible styles for keyboard navigation */
 .continue-button:focus-visible,
 .confirm-button:focus-visible,
+.selection-card__guess-btn:focus-visible,
 .audio-btn:focus-visible {
   outline: 3px solid var(--primary-color, #00d0ff);
   outline-offset: 2px;

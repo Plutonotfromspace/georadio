@@ -11,10 +11,11 @@ import { initGA, logEvent, logPageView } from './services/analytics';
 // NEW: Import confetti animation library
 import confetti from 'canvas-confetti';
 // Modal components
-import RoundSummaryModal from './components/RoundSummaryModal';
 import GameCompleteModal from './components/GameCompleteModal';
 // Coaching tooltip for first-guess onboarding
 import CoachingTooltip from './components/CoachingTooltip';
+// Globe transition animation hook
+import { useGlobeTransition } from './hooks/useGlobeTransition';
 
 /* Custom Hook: Tracks window's current width & height */
 function useWindowSize() {
@@ -151,6 +152,7 @@ window.debugGeoRadio = {
 function App() {
   const { width, height } = useWindowSize();
   const globeEl = useRef();
+  const { spinTransition, resetToDefault } = useGlobeTransition(globeEl);
   const audioRef = useRef(null);
   // Web Audio API refs for waveform visualization
   const audioContextRef = useRef(null);
@@ -161,17 +163,16 @@ function App() {
 
   const [countriesData, setCountriesData] = useState([]);
   const [guesses, setGuesses] = useState([]);
+  const [hoveredPolygonId, setHoveredPolygonId] = useState(null);
   const [targetCountry, setTargetCountry] = useState(null);
   const [attempts, setAttempts] = useState(0);
   const [score, setScore] = useState(0);
-  // NEW: Animated score state for score animation effect.
-  const [animatedScore, setAnimatedScore] = useState(0);
   const [radioStation, setRadioStation] = useState(null);
-  const [gameStarted, setGameStarted] = useState(false);
+  const [, setGameStarted] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [userPausedAudio, setUserPausedAudio] = useState(false);  // Track intentional pause
   const [volume, setVolume] = useState(50); // new state for volume
-  const [analyserReady, setAnalyserReady] = useState(false); // Track if audio analyser is connected
+  const [, setAnalyserReady] = useState(false); // Track if audio analyser is connected
   const [currentRound, setCurrentRound] = useState(1);
   const [roundResults, setRoundResults] = useState([]);
   const [showRoundModal, setShowRoundModal] = useState(false);
@@ -179,23 +180,23 @@ function App() {
   const [usedCountries, setUsedCountries] = useState([]);
   const [allStations, setAllStations] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectionRing, setSelectionRing] = useState(null);
   const isMobile = width <= 768; // Add this line to detect mobile
   const [usedLanguages, setUsedLanguages] = useState(new Set()); // Add this new state
   // Add new state for correct guess
   const [correctGuess, setCorrectGuess] = useState(false);
-  const [continueFading, setContinueFading] = useState(false);
+  const [, setContinueFading] = useState(false);
+  // Result bar - bottom bar shown after correct guess
+  const [showResultBar, setShowResultBar] = useState(false);
+  const [animatedRoundScore, setAnimatedRoundScore] = useState(0);
+  const [animatedAttempts, setAnimatedAttempts] = useState(0);
   // Modal closing animation states
   const [modalClosing, setModalClosing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [audioError, setAudioError] = useState(false); // Track audio errors for progressive disclosure
-  const [scoreboardEntranceComplete, setScoreboardEntranceComplete] = useState(false); // Track if entrance animation finished
   const [audioPlayerEntranceComplete, setAudioPlayerEntranceComplete] = useState(false); // Track if audio player entrance animation finished
-  // NEW: Add state for triggering scoreboard animation
-  const [scoreboardAnimationStage, setScoreboardAnimationStage] = useState('');
-  // NEW: State to track when the scoreboard is in the middle
-  const [scoreboardInMiddle, setScoreboardInMiddle] = useState(false);
   // NEW: State for preloaded flag image
-  const [preloadedFlagUrl, setPreloadedFlagUrl] = useState(null);
+  const [, setPreloadedFlagUrl] = useState(null);
   // NEW: Track if first-run experience is complete (user clicked "Tap to tune in")
   const [firstRunComplete, setFirstRunComplete] = useState(false);
   // Ref to store onGameStart callback for first-run experience
@@ -216,7 +217,8 @@ function App() {
     lat: 0,  // Store lat/lon to update position on globe movement
     lon: 0,
     heatmapColor: null,  // Exact color from getColor() to match country polygon
-    isOnVisibleSide: true  // Whether the country is on the visible side of globe
+    isOnVisibleSide: true,  // Whether the country is on the visible side of globe
+    id: 0  // Unique ID to trigger animation only on new tooltips
   });
 
   // Default proxy endpoint path for audio streaming CORS bypass
@@ -292,18 +294,7 @@ function App() {
     }
   }, []);
 
-  /**
-   * Helper function to reset globe to default view
-   * Centralizes globe reset logic to avoid duplication
-   */
-  const resetGlobeToDefault = useCallback(() => {
-    if (globeEl.current) {
-      globeEl.current.pointOfView(
-        { lat: 0, lng: 0, altitude: 2.5 },
-        2000
-      );
-    }
-  }, []);
+
 
   // Initialize GA when app loads
   useEffect(() => {
@@ -311,7 +302,7 @@ function App() {
     logPageView();
   }, []);
 
-  // Set up zoom constraints - prevent zooming out beyond default altitude
+  // Set up zoom constraints and splash-mode auto-rotation
   useEffect(() => {
     const setupControls = () => {
       if (globeEl.current) {
@@ -319,9 +310,17 @@ function App() {
         if (controls) {
           // maxDistance limits how far you can zoom out
           // Globe radius is ~100, altitude 2.5 means camera is at ~350 from center
-          // Set maxDistance to match the default altitude of 2.5
           controls.maxDistance = 350;  // Prevents zooming out beyond default
           controls.minDistance = 120;  // Allow zooming in close
+          
+          // During splash: slow auto-rotate, no user interaction
+          if (!firstRunComplete) {
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.4;
+            controls.enableRotate = false;
+            controls.enableZoom = false;
+            controls.enablePan = false;
+          }
           return true;
         }
       }
@@ -333,10 +332,242 @@ function App() {
       const timer = setTimeout(setupControls, 500);
       return () => clearTimeout(timer);
     }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Starfield — twinkling stars + audio-reactive effects
+  useEffect(() => {
+    let stars = null;
+    let frameId = null;
+    // Smooth audio energy values (persisted across frames)
+    let smoothBass = 0;
+    let smoothMid = 0;
+    let smoothHigh = 0;
+    let smoothEnergy = 0;
+
+    const setup = () => {
+      if (!globeEl.current) return false;
+      const scene = globeEl.current.scene();
+      if (!scene) return false;
+
+      const STAR_COUNT = 1800;
+      const SPHERE_RADIUS = 800;
+
+      const positions = new Float32Array(STAR_COUNT * 3);
+      const baseSizes = new Float32Array(STAR_COUNT);
+      const twinkleOffsets = new Float32Array(STAR_COUNT);
+      // Pre-assign each star to a frequency band for varied reactivity
+      const starBands = new Uint8Array(STAR_COUNT); // 0=bass, 1=mid, 2=high
+
+      for (let i = 0; i < STAR_COUNT; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = SPHERE_RADIUS + (Math.random() - 0.5) * 200;
+
+        positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i * 3 + 2] = r * Math.cos(phi);
+
+        baseSizes[i] = 2.0 + Math.random() * 1.0; // 2–3 screen-space pixels
+        twinkleOffsets[i] = Math.random() * Math.PI * 2;
+        starBands[i] = Math.floor(Math.random() * 3); // random band assignment
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(baseSizes), 1));
+
+      // Custom shader to support per-star sizes
+      const material = new THREE.ShaderMaterial({
+        uniforms: {
+          uColor: { value: new THREE.Color(0xffffff) },
+          uOpacity: { value: 0.85 },
+        },
+        vertexShader: `
+          attribute float aSize;
+          varying float vSize;
+          void main() {
+            vSize = aSize;
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            gl_PointSize = aSize;
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 uColor;
+          uniform float uOpacity;
+          varying float vSize;
+          void main() {
+            float dist = length(gl_PointCoord - vec2(0.5));
+            // Large stars (>3px): soft circular glow with discard
+            // Small stars: solid square, no discard, no edge fade
+            if (vSize > 3.0) {
+              if (dist > 0.5) discard;
+              float edge = smoothstep(0.3, 0.5, dist);
+              gl_FragColor = vec4(uColor, uOpacity * (1.0 - edge));
+            } else {
+              gl_FragColor = vec4(uColor, uOpacity);
+            }
+          }
+        `,
+        transparent: true,
+        depthWrite: false,
+      });
+
+      stars = new THREE.Points(geometry, material);
+      scene.add(stars);
+
+      // Frequency data buffer (reused each frame)
+      const freqData = new Uint8Array(32);
+      let corsBlocked = false; // detect CORS-tainted source
+      let corsCheckFrames = 0;
+
+      const animate = () => {
+        const time = performance.now() * 0.001;
+
+        // ─── AUDIO ANALYSIS ──────────────────────────────────
+        // Read frequency data if the analyser is connected and audio is playing
+        let bass = 0, mid = 0, high = 0, energy = 0;
+        const analyser = analyserRef.current;
+        const audioEl = audioRef.current;
+        const isPlaying = audioEl && !audioEl.paused && audioEl.currentTime > 0;
+
+        if (analyser && !corsBlocked) {
+          analyser.getByteFrequencyData(freqData);
+
+          // Check for CORS block: if analyser exists, audio is playing,
+          // but all freq data is zero for 60+ frames → CORS is blocking
+          if (isPlaying) {
+            let allZero = true;
+            for (let i = 0; i < 32; i++) {
+              if (freqData[i] > 0) { allZero = false; break; }
+            }
+            if (allZero) {
+              corsCheckFrames++;
+              if (corsCheckFrames > 60) corsBlocked = true; // confirmed CORS block
+            } else {
+              corsCheckFrames = 0; // real data flowing, reset
+            }
+          }
+
+          if (!corsBlocked) {
+            // Split 32 bins into 3 bands
+            let bassSum = 0, midSum = 0, highSum = 0;
+            let bassMax = 0, midMax = 0, highMax = 0;
+            for (let i = 0; i < 6; i++) { bassSum += freqData[i]; bassMax = Math.max(bassMax, freqData[i]); }
+            for (let i = 6; i < 16; i++) { midSum += freqData[i]; midMax = Math.max(midMax, freqData[i]); }
+            for (let i = 16; i < 32; i++) { highSum += freqData[i]; highMax = Math.max(highMax, freqData[i]); }
+
+            bass = (bassSum / (6 * 255) + bassMax / 255) * 0.5;
+            mid = (midSum / (10 * 255) + midMax / 255) * 0.5;
+            high = (highSum / (16 * 255) + highMax / 255) * 0.5;
+            energy = (bass * 0.5 + mid * 0.35 + high * 0.15);
+          }
+        }
+
+        // ─── SYNTHETIC AUDIO REACTIVITY (CORS fallback) ──────
+        // When real frequency data is unavailable (CORS-tainted streams),
+        // generate convincing pseudo-reactive values from time + noise
+        if ((corsBlocked || !analyser) && isPlaying) {
+          const t = time;
+          // Layered sine waves at different frequencies to simulate music dynamics
+          // Each "band" has its own rhythm to feel like separate instruments
+          bass = 0.3 + 0.25 * Math.sin(t * 2.1) + 0.15 * Math.sin(t * 0.7) + 0.1 * Math.sin(t * 4.3);
+          mid = 0.25 + 0.2 * Math.sin(t * 3.3 + 1.0) + 0.15 * Math.sin(t * 1.1 + 0.5) + 0.1 * Math.sin(t * 5.7 + 2.0);
+          high = 0.15 + 0.15 * Math.sin(t * 5.0 + 2.0) + 0.1 * Math.sin(t * 2.3 + 1.5) + 0.1 * Math.sin(t * 7.1 + 3.0);
+          
+          // Add stochastic "beats" — occasional spikes
+          const beatPhase = (t * 1.8) % 1.0;
+          if (beatPhase < 0.08) bass += 0.3 * (1 - beatPhase / 0.08); // sharp attack, fast decay
+          
+          // Clamp to 0-1
+          bass = Math.max(0, Math.min(1, bass));
+          mid = Math.max(0, Math.min(1, mid));
+          high = Math.max(0, Math.min(1, high));
+          energy = bass * 0.5 + mid * 0.35 + high * 0.15;
+        }
+
+        // Smooth with exponential moving average (prevents jitter)
+        const SMOOTH = 0.25; // faster response to audio changes
+        smoothBass += (bass - smoothBass) * SMOOTH;
+        smoothMid += (mid - smoothMid) * SMOOTH;
+        smoothHigh += (high - smoothHigh) * SMOOTH;
+        smoothEnergy += (energy - smoothEnergy) * SMOOTH;
+
+        // Band values for stars (each star uses its assigned band)
+        const bandValues = [smoothBass, smoothMid, smoothHigh];
+
+        // ─── STARFIELD ───────────────────────────────────────
+        // Constant slow rotation
+        stars.rotation.y = time * 0.008;
+        stars.rotation.x = Math.sin(time * 0.003) * 0.02;
+
+        // Per-star sizes: only some stars react to music, others stay still
+        const sizeAttr = geometry.getAttribute('aSize');
+        for (let i = 0; i < STAR_COUNT; i++) {
+          const base = baseSizes[i];
+
+          // Small stars stay completely static — no twinkle, no audio
+          if (base < 2.5) {
+            continue; // already seeded with base size, skip entirely
+          }
+
+          const twinkle = Math.sin(time * (1.5 + (i % 5) * 0.3) + twinkleOffsets[i]);
+          const twinkleSize = base * (0.8 + 0.2 * (twinkle * 0.5 + 0.5));
+
+          // Only ~30% of stars react to audio (band-assigned), rest just twinkle
+          const reactive = (i % 3 === 0);
+          if (reactive) {
+            const bandBoost = 1 + bandValues[starBands[i]] * 5;
+            sizeAttr.array[i] = Math.max(0.8, twinkleSize * bandBoost);
+          } else {
+            sizeAttr.array[i] = twinkleSize;
+          }
+        }
+        sizeAttr.needsUpdate = true;
+
+        // Star color: shift from white → warm amber/gold on bass hits
+        const r = 1.0;
+        const g = 1.0 - smoothBass * 0.25;
+        const b = 1.0 - smoothBass * 0.5;
+        material.uniforms.uColor.value.setRGB(r, g, b);
+
+        // Star opacity: brighter when audio is active
+        material.uniforms.uOpacity.value = 0.6 + smoothEnergy * 0.4;
+
+        // (Ocean color is now a fixed vivid blue — no audio reactivity needed)
+
+        // ─── SUN-GLOW PULSE (CSS) ────────────────────────────
+        // Drive the ::before pseudo-element opacity via custom property
+        const glowScale = 1 + smoothBass * 4; // 1× → 5× at peak bass
+        document.documentElement.style.setProperty('--glow-intensity', glowScale);
+
+        frameId = requestAnimationFrame(animate);
+      };
+      animate();
+      return true;
+    };
+
+    if (!setup()) {
+      const timer = setTimeout(setup, 600);
+      return () => clearTimeout(timer);
+    }
+
+    const globeRefCopy = globeEl.current;
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+      if (stars && globeRefCopy) {
+        const scene = globeRefCopy.scene();
+        if (scene) scene.remove(stars);
+      }
+      // Reset CSS custom property
+      document.documentElement.style.removeProperty('--glow-intensity');
+    };
   }, []);
 
   // Ref to track last tooltip position to avoid unnecessary re-renders
   const lastTooltipPosRef = useRef({ x: 0, y: 0 });
+  // Ref to track last visibility state
+  const lastTooltipVisibilityRef = useRef(true);
   
   // Helper function to check if a point is on the visible hemisphere of the globe
   const isPointOnVisibleHemisphere = (lat, lon) => {
@@ -395,10 +626,11 @@ function App() {
         // Check if we need to update position or visibility
         const deltaX = Math.abs(newX - lastTooltipPosRef.current.x);
         const deltaY = Math.abs(newY - lastTooltipPosRef.current.y);
-        const visibilityChanged = isVisible !== coachingTip.isOnVisibleSide;
+        const visibilityChanged = isVisible !== lastTooltipVisibilityRef.current;
         
         if (deltaX > POSITION_THRESHOLD || deltaY > POSITION_THRESHOLD || visibilityChanged) {
           lastTooltipPosRef.current = { x: newX, y: newY };
+          lastTooltipVisibilityRef.current = isVisible;
           setCoachingTip(prev => ({
             ...prev,
             x: newX,
@@ -411,8 +643,9 @@ function App() {
       animationFrameId = requestAnimationFrame(updateTooltipPosition);
     };
     
-    // Initialize last position ref
+    // Initialize last position and visibility refs
     lastTooltipPosRef.current = { x: coachingTip.x, y: coachingTip.y };
+    lastTooltipVisibilityRef.current = true; // Assume visible when tooltip is first shown
     animationFrameId = requestAnimationFrame(updateTooltipPosition);
     
     return () => {
@@ -420,42 +653,7 @@ function App() {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [coachingTip.visible, coachingTip.lat, coachingTip.lon, coachingTip.isOnVisibleSide]);
-
-  /* Helper function to parse hex color to RGB */
-  function hexToRgb(hex) {
-    // Handle null/undefined
-    if (!hex) return null;
-    // Ensure hex is a string
-    const hexStr = String(hex);
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hexStr);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : null;
-  }
-
-  /* Helper function to convert RGB to hex */
-  function rgbToHex(r, g, b) {
-    return '#' + [r, g, b].map(x => {
-      const hex = Math.round(Math.max(0, Math.min(255, x))).toString(16);
-      return hex.length === 1 ? '0' + hex : hex;
-    }).join('');
-  }
-
-  /* Helper function to interpolate between two colors */
-  function interpolateColor(color1, color2, factor) {
-    const c1 = hexToRgb(color1);
-    const c2 = hexToRgb(color2);
-    // If either color is invalid, return the target color (color2) or a default
-    if (!c1 || !c2) return color2 || '#4CAF50';
-    return rgbToHex(
-      c1.r + (c2.r - c1.r) * factor,
-      c1.g + (c2.g - c1.g) * factor,
-      c1.b + (c2.b - c1.b) * factor
-    );
-  }
+  }, [coachingTip.visible, coachingTip.lat, coachingTip.lon, coachingTip.x, coachingTip.y]);
 
   /* Distance to Color Scale */
   function getColor(distance) {
@@ -555,10 +753,12 @@ function App() {
       const firstRun = document.getElementById('first-run');
       const status = document.getElementById('first-run-status');
       const cta = document.getElementById('first-run-cta');
+      const eq = document.getElementById('first-run-eq');
       
       if (firstRun && status && cta) {
-        // Update status and show CTA
+        // Update status and show CTA, hide equalizer
         status.textContent = 'Ready to play';
+        if (eq) eq.classList.add('eq-hidden');
         cta.style.display = 'flex';
         firstRun.classList.add('ready');
         
@@ -572,13 +772,24 @@ function App() {
           firstRun.classList.add('hidden');
           setFirstRunComplete(true);
           
-          // Call onGameStart via ref after state update
+          // Stop auto-rotate and re-enable user controls
+          if (globeEl.current) {
+            const controls = globeEl.current.controls();
+            if (controls) {
+              controls.autoRotate = false;
+              controls.enableRotate = true;
+              controls.enableZoom = true;
+              controls.enablePan = true;
+            }
+          }
+          
+          // Call onGameStart via ref after overlay fades
           setTimeout(() => {
             firstRun.style.display = 'none';
             if (onGameStartRef.current) {
               onGameStartRef.current();
             }
-          }, 400);
+          }, 600);
         };
         
         cta.addEventListener('click', handleStart);
@@ -611,9 +822,9 @@ function App() {
 
   /**
    * Animate guessed country colors to a target color using discrete keyframe steps.
-   * Uses 5 steps over 300ms instead of per-frame updates to avoid Globe re-render choppiness.
+   * Uses 12 steps over 400ms for smooth animation without Globe re-render choppiness.
    * @param {Array} guessesSnapshot - Snapshot of current guesses
-   * @param {string} targetColor - Final color to animate to (e.g., '#4CAF50')
+   * @param {string} targetColor - Final color to animate to (e.g., '#58CC02')
    * @param {Function} onComplete - Callback when animation completes
    */
   const animateColorsToTarget = useCallback((guessesSnapshot, targetColor, onComplete) => {
@@ -622,9 +833,37 @@ function App() {
       return;
     }
     
-    const originalColors = guessesSnapshot.map(g => g.color || '#4CAF50');
-    const totalDuration = 300; // Total animation duration in ms
-    const steps = 5; // Number of discrete color steps
+    // Color helpers (local to avoid stale closure / exhaustive-deps issues)
+    const hexToRgbLocal = (hex) => {
+      if (!hex) return null;
+      const hexStr = String(hex);
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hexStr);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+    const rgbToHexLocal = (r, g, b) => {
+      return '#' + [r, g, b].map(x => {
+        const h = Math.round(Math.max(0, Math.min(255, x))).toString(16);
+        return h.length === 1 ? '0' + h : h;
+      }).join('');
+    };
+    const interpolate = (color1, color2, factor) => {
+      const c1 = hexToRgbLocal(color1);
+      const c2 = hexToRgbLocal(color2);
+      if (!c1 || !c2) return color2 || '#58CC02';
+      return rgbToHexLocal(
+        c1.r + (c2.r - c1.r) * factor,
+        c1.g + (c2.g - c1.g) * factor,
+        c1.b + (c2.b - c1.b) * factor
+      );
+    };
+    
+    const originalColors = guessesSnapshot.map(g => g.color || '#58CC02');
+    const totalDuration = 400; // Total animation duration in ms
+    const steps = 12; // Number of discrete color steps (~30fps)
     const stepDuration = totalDuration / steps;
     
     // Create keyframes at 20%, 40%, 60%, 80%, 100% progress
@@ -638,7 +877,7 @@ function App() {
         
         const animatedGuesses = guessesSnapshot.map((g, idx) => ({
           ...g,
-          color: interpolateColor(originalColors[idx], targetColor, easedProgress)
+          color: interpolate(originalColors[idx], targetColor, easedProgress)
         }));
         
         setGuesses(animatedGuesses);
@@ -649,7 +888,7 @@ function App() {
         }
       }, delay);
     }
-  }, [interpolateColor]);
+  }, []);
 
   /* Calculate Distance Between Two Points */
   const toRadians = (deg) => deg * (Math.PI / 180);
@@ -663,26 +902,6 @@ function App() {
       Math.sin(dLon / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
-
-  // NEW: Animate score change using requestAnimationFrame.
-  useEffect(() => {
-    if (scoreboardInMiddle) {
-      let start = animatedScore;
-      let end = score;
-      let startTime = null;
-      const duration = 1000; // 1 second animation
-      function animate(time) {
-        if (!startTime) startTime = time;
-        const progress = Math.min((time - startTime) / duration, 1);
-        const current = Math.floor(start + (end - start) * progress);
-        setAnimatedScore(current);
-        if (progress < 1) requestAnimationFrame(animate);
-      }
-      requestAnimationFrame(animate);
-    } 
-    /* Removed else branch resetting animatedScore to 0 */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoreboardInMiddle, score]);
 
   /* Start a New Round: Now fetches a random radio station and sets the target country */
   const startNewRound = useCallback(() => {
@@ -842,10 +1061,12 @@ function App() {
 
   /* Handle Guess - updated with logging and modal check */
   const onPolygonClick = (feature, event, coords) => {
+    // Block interaction during splash screen
+    if (!firstRunComplete) return;
     // NEW: Do nothing if a correct guess has been made
     if (correctGuess) return;
     
-    if (showRoundModal || gameOver) return;
+    if (showResultBar || gameOver) return;
     if (!targetCountry) return;
     
     const polygonId = feature.properties?.iso_a2 || feature.properties?.name || feature.id;
@@ -859,6 +1080,13 @@ function App() {
     if (isMobile) {
       // Mobile: Set as selected country with click coords
       setSelectedCountry({ ...feature, polygonId, clickedGeoCoords });
+      // Haptic feedback (Android — gracefully ignored on iOS)
+      navigator.vibrate?.(10);
+      // Ripple ring at tap point — auto-clears after propagation
+      if (clickedGeoCoords) {
+        setSelectionRing({ lat: clickedGeoCoords.lat, lng: clickedGeoCoords.lng, t: Date.now() });
+        setTimeout(() => setSelectionRing(null), 1200); // clear after ring finishes
+      }
     } else {
       // Desktop: Make guess immediately with click coords
       handleConfirmGuess({ ...feature, polygonId, clickedGeoCoords });
@@ -930,7 +1158,7 @@ function App() {
         tooltipX = Math.min(Math.max(tooltipX, 80), rect.width - 80);
         tooltipY = Math.max(tooltipY, 100);
         
-        setCoachingTip({
+        setCoachingTip(prev => ({
           visible: true,
           text,
           type,
@@ -939,8 +1167,9 @@ function App() {
           lat: tooltipLat,
           lon: tooltipLon,
           heatmapColor,  // Pass exact color from getColor()
-          isOnVisibleSide: true  // Country is visible when user clicks it
-        });
+          isOnVisibleSide: true,  // Country is visible when user clicks it
+          id: prev.id + 1  // Increment ID to trigger animation
+        }));
         
         setCoachingTooltipCount(prev => prev + 1);
         
@@ -1116,6 +1345,12 @@ function App() {
     const guessId = newGuess.id;
     const targetColor = newGuess.color;
     
+    // Play selection sound on every guess — scale with music volume so it's always heard
+    const selectSfx = countrySelectSound.cloneNode();
+    const musicVol = volume / 100; // 0–1 from slider
+    selectSfx.volume = Math.min(1.0, 0.30 + musicVol * 0.5);
+    selectSfx.play().catch(() => {});
+
     // Step 1: Add polygon at ground level with final color (instant color, animated altitude)
     setGuesses(prevGuesses => [...prevGuesses, { ...newGuess, altitude: groundAltitude, color: targetColor }]);
     
@@ -1160,7 +1395,7 @@ function App() {
   };
 
   /* Handler to move to the next round */
-  const handleNextRound = () => {
+  const handleNextRound = useCallback(() => {
     setContinueFading(false);
     if (currentRound < 5) {
       // Reset the animation classes
@@ -1173,8 +1408,8 @@ function App() {
       // Force a reflow to reset animations
       void audioPlayer.offsetWidth;
       
-      // Reset globe to default view using helper function
-      resetGlobeToDefault();
+      // Cinematic globe spin animation to random position
+      spinTransition();
       
       setCorrectGuess(false);
       // ...existing code...
@@ -1220,7 +1455,7 @@ function App() {
       };
       
       if (guesses.length > 0) {
-        animateColorsToTarget(guessesSnapshot, '#4CAF50', proceedToNextRound);
+        animateColorsToTarget(guessesSnapshot, '#58CC02', proceedToNextRound);
       } else {
         // No guesses to animate, just proceed
         setTimeout(proceedToNextRound, 250);
@@ -1244,7 +1479,87 @@ function App() {
         setGameOver(true);
       }, 250);
     }
-  };
+  }, [currentRound, guesses, score, radioStation, spinTransition, startNewRound, animateColorsToTarget]);
+
+  // Handler for result bar continue button - simplified flow
+  const handleResultBarContinue = useCallback(() => {
+    // Stop current audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setAudioPlaying(false);
+    }
+    
+    // Animate heatmap colors to green
+    const guessesSnapshot = [...guesses];
+    
+    const proceedAfterAnimation = () => {
+      // Reset state for next round
+      setCorrectGuess(false);
+      
+      if (currentRound < 5) {
+        // Cinematic globe spin animation to random position (only between rounds)
+        spinTransition();
+
+        // Next round
+        logEvent('game', 'next_round', `Round ${currentRound + 1} started`);
+        setCurrentRound(prev => prev + 1);
+        setAttempts(0);
+        setGuesses([]);
+        setPreloadedFlagUrl(null);
+        
+        startNewRound();
+        
+        // Flip in audio player after result bar is gone
+        setTimeout(() => {
+          const audioPlayer = document.querySelector('.audio-player');
+          audioPlayer?.classList.remove('flip-out');
+          audioPlayer?.classList.add('flip-in-reset');
+          setTimeout(() => {
+            audioPlayer?.classList.remove('flip-in-reset');
+          }, 500);
+        }, 50);
+        
+        // Start playing audio after setup
+        setTimeout(() => {
+          if (audioRef.current && radioStation) {
+            audioRef.current.play()
+              .then(() => setAudioPlaying(true))
+              .catch(e => {
+                if (!(e.message && e.message.includes("aborted"))) {
+                  console.error("Audio playback error:", e);
+                }
+              });
+          }
+        }, 100);
+      } else {
+        // Game over - go to results
+        logEvent('game', 'game_over', `Final score: ${score}`);
+        setTimeout(() => {
+          setGameOver(true);
+        }, 300);
+      }
+    };
+    
+    // Start everything simultaneously — spin, color fade, and result bar close
+    const closeAndProceed = () => {
+      const resultBar = document.querySelector('.result-bar');
+      resultBar?.classList.add('closing');
+      setTimeout(() => {
+        setShowResultBar(false);
+        proceedAfterAnimation();
+      }, 300);
+    };
+
+    if (currentRound < 5) {
+      // Fire spin, color fade, and bar close all at once
+      if (guessesSnapshot.length > 0) {
+        animateColorsToTarget(guessesSnapshot, '#58CC02', () => {});
+      }
+      closeAndProceed();
+    } else {
+      closeAndProceed();
+    }
+  }, [guesses, currentRound, score, spinTransition, startNewRound, radioStation, animateColorsToTarget]); // handleResultBarContinue
 
   // Add cleanup effect using helper function
   useEffect(() => {
@@ -1254,9 +1569,9 @@ function App() {
   }, [cleanupAudio]);
 
   /* Handler to restart the entire game */
-  const playAgain = () => {
-    // Reset globe to default position using helper function
-    resetGlobeToDefault();
+  const playAgain = useCallback(() => {
+    // Reset globe to default position
+    resetToDefault();
 
     // Trigger closing animation
     setModalClosing(true);
@@ -1274,7 +1589,6 @@ function App() {
       
       setAttempts(0);
       setScore(0);
-      setAnimatedScore(0);
       setGuesses([]);
       setPreloadedFlagUrl(null); // Reset preloaded flag
       setUsedCountries([]); // Clear used countries for a fresh start
@@ -1292,12 +1606,12 @@ function App() {
     };
     
     if (guesses.length > 0) {
-      animateColorsToTarget(guessesSnapshot, '#4CAF50', resetGame);
+      animateColorsToTarget(guessesSnapshot, '#58CC02', resetGame);
     } else {
       // No guesses to animate, just proceed
       setTimeout(resetGame, 250);
     }
-  };
+  }, [guesses, resetToDefault, startNewRound, animateColorsToTarget]);
 
   // Helper to mimic "Station broken?" button
   const callStationBroken = useCallback(() => {
@@ -1352,9 +1666,15 @@ function App() {
     };
   }, [handleAudioError, cleanupAudio]);
 
-  /* Globe Material */
+  /* Globe Material — vivid ocean blue */
   const globeMaterial = useMemo(
-    () => new THREE.MeshPhongMaterial({ color: '#03A9F4' }),
+    () => new THREE.MeshPhongMaterial({
+      color: '#039BE5',
+      emissive: new THREE.Color(0x0066aa),
+      emissiveIntensity: 0.45,
+      shininess: 15,
+      specular: new THREE.Color('#2a5a7a'),
+    }),
     []
   );
 
@@ -1404,7 +1724,6 @@ function App() {
     setGameStarted(true);
     setCurrentRound(1);
     setScore(0);
-    setAnimatedScore(0);
     setUsedCountries([]);
     setUsedLanguages(new Set());
     startNewRound(); // Starts new round after user gesture
@@ -1459,19 +1778,24 @@ function App() {
     }
   }, [countriesData]);
 
-  // NEW: Handle continue button click with fade out animation then open modal
-  const handleContinue = () => {
-    setContinueFading(true);
-    setTimeout(() => {
-      setShowRoundModal(true);
-      // Removed: setContinueFading(false);
-    }, 500); // duration matches CSS transition timing
-  };
+  // Old handleContinue removed - replaced by handleResultBarContinue
 
   // Add success sound effect with lower volume
   const successSound = useMemo(() => {
     const audio = new Audio(`${import.meta.env.BASE_URL}audio/success.mp3`);
     audio.volume = 0.05; // Set volume to 5%
+    return audio;
+  }, []);
+
+  // Country selection "pop" sound — plays on every guess (correct or wrong)
+  const countrySelectSound = useMemo(() => {
+    const audio = new Audio(`${import.meta.env.BASE_URL}audio/countryselect.mp3`);
+    return audio;
+  }, []);
+
+  // Tally tick sound — played as individual ticks during score count-up
+  const tallySound = useMemo(() => {
+    const audio = new Audio(`${import.meta.env.BASE_URL}audio/tally.mp3`);
     return audio;
   }, []);
 
@@ -1606,7 +1930,7 @@ function App() {
         sourceRef.current.connect(analyserRef.current);
         analyserRef.current.connect(audioContext.destination);
         setAnalyserReady(true);
-      } catch (e) {
+      } catch {
         // Source already connected - this can happen on hot reload
         console.log('Audio source already connected');
         setAnalyserReady(true);
@@ -1618,11 +1942,27 @@ function App() {
     const ctx = canvas.getContext('2d');
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
+    let waveformCorsBlocked = false;
+    let waveformCheckFrames = 0;
 
     const draw = () => {
       animationFrameRef.current = requestAnimationFrame(draw);
 
       analyser.getByteFrequencyData(dataArray);
+
+      // Detect CORS block on the waveform side too
+      if (!waveformCorsBlocked && audioRef.current && !audioRef.current.paused) {
+        let allZero = true;
+        for (let i = 0; i < bufferLength; i++) {
+          if (dataArray[i] > 0) { allZero = false; break; }
+        }
+        if (allZero) {
+          waveformCheckFrames++;
+          if (waveformCheckFrames > 60) waveformCorsBlocked = true;
+        } else {
+          waveformCheckFrames = 0;
+        }
+      }
 
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1640,9 +1980,20 @@ function App() {
       const usableBins = Math.min(12, bufferLength);
 
       for (let i = 0; i < barCount; i++) {
-        // Sample from the lower frequency range
-        const dataIndex = Math.floor((i / barCount) * usableBins);
-        const value = dataArray[dataIndex];
+        let value;
+        if (waveformCorsBlocked && audioRef.current && !audioRef.current.paused) {
+          // Synthetic waveform: different sine combos per bar for natural movement
+          const t = performance.now() * 0.001;
+          const barFreqs = [2.1, 3.3, 1.7, 4.5, 2.8];
+          const barPhases = [0, 1.2, 0.7, 2.1, 1.5];
+          value = 80 + 100 * Math.sin(t * barFreqs[i] + barPhases[i]) 
+                     + 50 * Math.sin(t * barFreqs[i] * 2.3 + barPhases[i] + 1.0);
+          value = Math.max(30, Math.min(255, value));
+        } else {
+          // Sample from the lower frequency range
+          const dataIndex = Math.floor((i / barCount) * usableBins);
+          value = dataArray[dataIndex];
+        }
         
         // Smooth minimum height - bars shrink to tiny dot, never disappear
         const barHeight = Math.max(2, (value / 255) * canvas.height);
@@ -1666,9 +2017,16 @@ function App() {
     };
   }, [audioPlaying]);
 
-  // ACCESSIBILITY: Escape key handler for modal dismissal
+  // ACCESSIBILITY: Keyboard handlers for modal dismissal and result bar continue
   useEffect(() => {
-    const handleEscape = (e) => {
+    const handleKeyDown = (e) => {
+      // Space, Enter or Escape in result bar continues to next round
+      if (showResultBar && (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape')) {
+        e.preventDefault();
+        handleResultBarContinue();
+        return;
+      }
+      
       if (e.key === 'Escape') {
         if (showRoundModal) {
           handleNextRound();
@@ -1679,45 +2037,80 @@ function App() {
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [showRoundModal, gameOver, handleNextRound, playAgain]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showResultBar, showRoundModal, gameOver, handleResultBarContinue, handleNextRound, playAgain]);
 
-  // NEW: Trigger scoreboard animation sequence on a correct guess
+  // NEW: Show result bar on correct guess
   useEffect(() => {
     if (correctGuess) {
-      // 1. Flip out at top position
-      setScoreboardAnimationStage('flip-out-center');
-      document.querySelector('.audio-player').classList.add('flip-out');
+      // 1. Start audio player exit animation
+      document.querySelector('.audio-player')?.classList.add('flip-out');
       
-      // 2. Once flipped out, move to center position and start flip in
-      setTimeout(() => {
-        setScoreboardAnimationStage('centered flip-in-center');
-        
-        setTimeout(() => {
-          setScoreboardInMiddle(true);
-
-          // 3. After being visible in center, flip out
-          setTimeout(() => {
-            setScoreboardAnimationStage('centered flip-out-top');
-            
-            // 4. Once flipped out in center, move back to top and flip in
-            setTimeout(() => {
-              setScoreboardAnimationStage('top flip-in-top');
-              
-              // 5. Only show continue button after scoreboard animation is complete
-              setTimeout(() => {
-                setScoreboardAnimationStage('');
-                setScoreboardInMiddle(false);
-                // Show continue button after everything else is done
-                document.querySelector('.continue-button').classList.add('flip-in');
-              }, 500);
-            }, 500);
-          }, 3000);
-        }, 500);
-      }, 500);
+      // 2. After audio player exits (500ms), show result bar
+      const resultBarTimer = setTimeout(() => {
+        setShowResultBar(true);
+      }, 550);
+      
+      // 3. Confetti when result bar is sliding in
+      const confettiTimer = setTimeout(() => {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }, 650);
+      
+      return () => {
+        clearTimeout(resultBarTimer);
+        clearTimeout(confettiTimer);
+      };
     }
   }, [correctGuess]);
+
+  // Animate round score and attempts from 0 to final when result bar appears
+  useEffect(() => {
+    if (showResultBar && roundResults.length > 0) {
+      const roundScore = roundResults[currentRound - 1]?.score || 0;
+      const finalAttempts = roundResults[currentRound - 1]?.attempts || attempts || 1;
+      const duration = 1500;
+      const startTime = performance.now();
+      const tickVolume = Math.min(1.0, 0.25 + (volume / 100) * 0.4);
+
+      // Track state for tick-synced tally sound
+      let lastDisplayedScore = 0;
+      let lastTickTime = 0;
+      const MIN_TICK_GAP = 50; // ms — prevent machine-gun ticking
+      
+      const animate = (currentTime) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Ease-out curve for satisfying deceleration
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const displayedScore = Math.floor(easeOut * roundScore);
+        setAnimatedRoundScore(displayedScore);
+        setAnimatedAttempts(Math.max(1, Math.ceil(easeOut * finalAttempts)));
+
+        // Play a tick when the displayed score changes (and enough time has passed)
+        if (roundScore > 0 && displayedScore > lastDisplayedScore && (currentTime - lastTickTime) > MIN_TICK_GAP) {
+          const tick = tallySound.cloneNode();
+          tick.volume = tickVolume;
+          tick.play().catch(() => {});
+          lastTickTime = currentTime;
+          lastDisplayedScore = displayedScore;
+        }
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      requestAnimationFrame(animate);
+    } else {
+      setAnimatedRoundScore(0);
+      setAnimatedAttempts(0);
+    }
+  }, [showResultBar, roundResults, currentRound, attempts, tallySound, volume]);
 
   // NEW: Automatically load station when radioStation changes
   useEffect(() => {
@@ -1732,109 +2125,15 @@ function App() {
     }
   }, [radioStation, getProxiedUrl]);
 
-  // Add this useEffect to handle animations after the round summary modal appears
+  // Play reveal sound when result bar appears
   useEffect(() => {
-    if (showRoundModal) {
+    if (showResultBar) {
       // Play reveal sound
       if (window.gameSounds?.reveal) {
         window.gameSounds.reveal.play().catch(() => {});
       }
-      
-      // Set a small timeout to ensure DOM is ready
-      setTimeout(() => {
-        // Execute score counter animation
-        const scoreValue = document.querySelector('.metric-value');
-        if (scoreValue) {
-          // Get the target value from the dataset or the DOM content
-          const endValue = parseInt(scoreValue.getAttribute('data-value') || roundResults[currentRound - 1]?.score, 10);
-          // Duration of the count animation in milliseconds
-          const duration = 1500;
-          // Start time reference
-          let startTime = null;
-          
-          // Animation function for counting up
-          const countUp = (timestamp) => {
-            if (!startTime) startTime = timestamp;
-            // Calculate progress
-            const progress = Math.min((timestamp - startTime) / duration, 1);
-            // Calculate current count value
-            const currentValue = Math.floor(progress * endValue);
-            // Update the displayed value
-            scoreValue.textContent = currentValue;
-            
-            // Continue animation if not complete
-            if (progress < 1) {
-              requestAnimationFrame(countUp);
-            } else {
-              // Ensure final value is exact
-              scoreValue.textContent = endValue;
-              
-              // Play success sound on completion
-              if (window.gameSounds?.click) {
-                window.gameSounds.click.play().catch(() => {});
-              }
-            }
-          };
-          
-          // Start the animation
-          requestAnimationFrame(countUp);
-        }
-        
-        // Apply score bar animation
-        const scoreBar = document.querySelector('.score-bar');
-        if (scoreBar) {
-          const scorePercent = Math.min(roundResults[currentRound - 1]?.score / 50, 100);
-          scoreBar.style.width = `${scorePercent}%`;
-        }
-        
-        // Apply attempts bar animation
-        const attemptsBar = document.querySelector('.attempts-bar');
-        if (attemptsBar) {
-          const attemptsPercent = Math.min(roundResults[currentRound - 1]?.attempts * 10, 100);
-          attemptsBar.style.width = `${attemptsPercent}%`;
-        }
-        
-        // Add shine animation to flag image
-        const flagReveal = document.querySelector('.flag-reveal');
-        if (flagReveal) {
-          flagReveal.addEventListener('load', () => {
-            // Flag reveal animation happens automatically via CSS now
-          });
-        }
-        
-        // Add click sound for game controls
-        const interactives = document.querySelectorAll('.game-continue-button, .journey-header, .retro-button');
-        interactives.forEach(element => {
-          element.addEventListener('click', () => {
-            if (window.gameSounds?.click) {
-              // Clone and play to allow overlapping sounds
-              const sound = window.gameSounds.click.cloneNode();
-              sound.volume = 0.1;
-              sound.play().catch(() => {});
-            }
-          });
-        });
-
-        // Add journey toggle interaction
-        const journeyHeader = document.querySelector('.journey-header');
-        const journeyContent = document.querySelector('.journey-content');
-        
-        if (journeyHeader && journeyContent) {
-          journeyHeader.addEventListener('click', () => {
-            journeyContent.classList.toggle('expanded');
-            journeyHeader.classList.toggle('active');
-          });
-        }
-        
-        // Trigger flag shine animation
-        const flagShine = document.querySelector('.flag-shine');
-        if (flagShine) {
-          // Already handled by CSS animation
-        }
-        
-      }, 100);
     }
-  }, [showRoundModal, currentRound, roundResults]);
+  }, [showResultBar]);
 
   // Add this effect to initialize game sounds
   useEffect(() => {
@@ -1875,33 +2174,67 @@ function App() {
 
   return (
     <div className="globe-container">
-      {/* Scoreboard - only visible after game starts */}
-      {gameStarted && (
-        <div 
-          className={`scoreboard ${!scoreboardEntranceComplete ? 'flip-in-top' : ''} ${scoreboardAnimationStage}`}
-          onAnimationEnd={(e) => {
-            // Mark entrance animation complete so it doesn't interfere with later animations
-            if (e.animationName === 'flipInToTop' && !scoreboardEntranceComplete) {
-              setScoreboardEntranceComplete(true);
-            }
-          }}
-        >
-          <div className="stat-item">
-            <span className="stat-label">SCORE</span>
-            {/* UPDATED: Use animatedScore for smooth score transition */}
-            <span className="stat-value">{animatedScore}</span>
+      {/* Result Bar - GeoGuessr-style bottom panel after correct guess */}
+      {showResultBar && (
+        <div className="result-bar">
+          <div className="result-bar__content">
+            <div className="result-bar__wrapper">
+              {/* Left: Attempts indicator */}
+              <div className="result-bar__left">
+                {(() => {
+                  // Use animated attempts value for count-up effect
+                  const displayAttempts = animatedAttempts || 1;
+                  // Get final attempts for the label (don't animate the label text)
+                  const finalAttempts = roundResults[roundResults.length - 1]?.attempts || attempts || 1;
+                  return (
+                    <>
+                      <div className="result-bar__attempts-wrapper">
+                        <span className="result-bar__attempts">
+                          {displayAttempts}
+                        </span>
+                        <span className="result-bar__attempts-suffix">
+                          {displayAttempts === 1 ? 'st' : displayAttempts === 2 ? 'nd' : displayAttempts === 3 ? 'rd' : 'th'}
+                        </span>
+                      </div>
+                      <p className="result-bar__label">
+                        {finalAttempts === 1 ? 'FIRST TRY' : 'ATTEMPT'}
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
+              
+              {/* Center: Next button + hint */}
+              <div className="result-bar__center">
+                <button className="result-bar__next-btn" onClick={handleResultBarContinue}>
+                  <span className="result-bar__next-btn-content">
+                    {currentRound >= 5 ? 'See Results' : 'Next'}
+                  </span>
+                </button>
+                {!isMobile && (
+                  <p className="result-bar__hint">
+                    Hit <span className="result-bar__hotkey">Space</span> to continue
+                  </p>
+                )}
+              </div>
+              
+              {/* Right: Score indicator */}
+              <div className="result-bar__right">
+                <span className="result-bar__score">
+                  {animatedRoundScore.toLocaleString()}
+                </span>
+                <p className="result-bar__max-label">
+                  Of 5,000 points
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="stat-divider"></div>
-          <div className="stat-item">
-            <span className="stat-label">ROUND</span>
-            <span className="stat-value">{currentRound}<span className="stat-max">/5</span></span>
-          </div>
-          {/* Removed feedback text - colors are self-explanatory per Rams #10 */}
         </div>
       )}
 
       {/* Coaching tooltip - appears on first guess to teach hot/cold mechanic */}
       <CoachingTooltip 
+        key={coachingTip.id}
         visible={coachingTip.visible}
         text={coachingTip.text}
         type={coachingTip.type || 'cold'}
@@ -1914,7 +2247,7 @@ function App() {
       {/* Custom Audio Player */}
       {radioStation && (
         <div 
-          className={`audio-player ${!audioPlayerEntranceComplete ? 'flip-in-bottom' : ''}`}
+          className={`audio-player ${!audioPlayerEntranceComplete ? 'flip-in-bottom' : ''} ${isMobile && selectedCountry ? 'player-hidden' : ''}`}
           onAnimationEnd={(e) => {
             if (e.animationName === 'flipInBottom' && !audioPlayerEntranceComplete) {
               setAudioPlayerEntranceComplete(true);
@@ -1973,6 +2306,9 @@ function App() {
         height={height}
         globeMaterial={globeMaterial}
         backgroundColor="rgba(0,0,0,0)"
+        showAtmosphere={true}
+        atmosphereColor="rgba(80,160,255,0.35)"
+        atmosphereAltitude={0.18}
         rendererConfig={{
           antialias: true,
           alpha: true,
@@ -1988,25 +2324,33 @@ function App() {
             return guess.color;
           }
           
-          // Handle mobile selection only if we have a selected country
+          // Handle mobile selection — bright cyan highlight
           if (isMobile && selectedCountry?.polygonId === polygonId) {
-            return '#ffeb3b';
+            return '#00E5FF';
           }
           
           // Default color for all other cases
-          return '#4CAF50';
+          return '#58CC02';
         }}
         polygonStrokeColor={d => {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return '#000000';  // black stroke for correct country
           }
-          return '#0D3010';  // dark green stroke for crisp border visibility
+          const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
+          if (isMobile && selectedCountry?.polygonId === polygonId) {
+            return '#FFFFFF';  // white stroke for selected country
+          }
+          return '#1B5E20';  // dark green stroke for crisp border visibility
         }}
         polygonSideColor={d => {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return "#000000";  // solid color for sides when correct
           }
-          return "#2E7D32";  // slightly darker green for sides
+          const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
+          if (isMobile && selectedCountry?.polygonId === polygonId) {
+            return '#00ACC1';  // darker cyan sides for selected
+          }
+          return "#3DA30B";  // slightly darker green for sides
         }}
         polygonStrokeWidth={0.5}  // Increased stroke width
         polygonAltitude={d => {
@@ -2018,9 +2362,15 @@ function App() {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return 0.025;  // extrude correct country
           }
+          if (hoveredPolygonId === polygonId) {
+            return 0.025;  // raise hovered country
+          }
+          if (isMobile && selectedCountry?.polygonId === polygonId) {
+            return 0.035;  // raise selected country on mobile
+          }
           return 0.012;  // slight elevation for all countries to show borders
         }}
-        polygonLabel={(d) => isMobile ? null : `
+        polygonLabel={(d) => (!firstRunComplete || isMobile) ? null : `
           <span style="
             font-size: 18px; 
             font-weight: bold; 
@@ -2033,44 +2383,51 @@ function App() {
           </span>
         `}
         onPolygonClick={onPolygonClick}
+        onGlobeClick={() => {
+          if (isMobile && selectedCountry) setSelectedCountry(null);
+        }}
+        onPolygonHover={(polygon) => {
+          if (!firstRunComplete || correctGuess || showResultBar || gameOver) {
+            setHoveredPolygonId(null);
+            return;
+          }
+          const id = polygon ? (polygon.properties?.iso_a2 || polygon.properties?.name || polygon.id) : null;
+          setHoveredPolygonId(id);
+        }}
         polygonsTransitionDuration={250}
+        ringsData={selectionRing ? [selectionRing] : []}
+        ringLat={d => d.lat}
+        ringLng={d => d.lng}
+        ringColor={() => t => `rgba(0, 229, 255, ${1 - t})`}
+        ringMaxRadius={4}
+        ringPropagationSpeed={5}
+        ringRepeatPeriod={0}
+        ringAltitude={0.015}
       />
 
-      {/* Only show confirmation button on mobile */}
+      {/* Mobile selection card — swaps in place of audio player */}
       {isMobile && selectedCountry && (
-        <button 
-          className="confirm-button visible"
-          onClick={() => handleConfirmGuess()}
-        >
-          Confirm {selectedCountry.properties?.name}
-        </button>
+        <div className="selection-card">
+          <img
+            className="selection-card__flag"
+            src={`https://flagcdn.com/w80/${getCountryCode(selectedCountry)}.png`}
+            alt={selectedCountry.properties?.name || 'Flag'}
+            onError={(e) => { e.target.src = 'https://flagcdn.com/w80/un.png'; }}
+          />
+          <span className="selection-card__name">{selectedCountry.properties?.name || 'Unknown'}</span>
+          <button
+            className="selection-card__guess-btn"
+            onClick={() => handleConfirmGuess()}
+          >
+            Guess
+          </button>
+        </div>
       )}
 
-      {/* Add new continue button (initially hidden) */}
-      {correctGuess && (
-        <button 
-          className={`continue-button ${continueFading ? "flip-out" : ""}`}
-          onClick={handleContinue}
-        >
-          Continue
-        </button>
-      )}
+      {/* Continue button removed - now integrated into celebration mode in scoreboard */}
 
       {/* StartModal removed - first-run experience in index.html handles onboarding */}
-
-      {/* Round Summary Modal */}
-      <RoundSummaryModal
-        isOpen={showRoundModal}
-        isClosing={modalClosing}
-        onContinue={handleNextRound}
-        countryName={roundResults[currentRound - 1]?.target || 'Unknown'}
-        countryCode={roundResults[currentRound - 1]?.countryCode || (targetCountry ? getCountryCode(targetCountry) : 'un')}
-        preloadedFlagUrl={preloadedFlagUrl}
-        score={roundResults[currentRound - 1]?.score || 0}
-        currentRound={currentRound}
-        totalRounds={5}
-        onFlagError={handleFlagError}
-      />
+      {/* RoundSummaryModal removed - celebration mode in scoreboard replaces it */}
 
       {/* Game Complete Modal */}
       <GameCompleteModal

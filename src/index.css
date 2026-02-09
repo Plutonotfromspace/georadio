@@ -18,6 +18,11 @@
   font-display: swap;
 }
 
+/* Set root font size to match GeoGuessr (18px instead of default 16px) */
+html {
+  font-size: 18px;
+}
+
 :root {
   /* Game theme colors */
   --primary-color: #00d0ff;
@@ -52,7 +57,7 @@ html, body, #root {
   width: 100%;
   height: 100%;
   font-family: var(--game-text);
-  background: linear-gradient(to bottom, #b3e5fc 0%, #fff0d8 100%);
+  background: radial-gradient(ellipse at 60% 45%, #1a1a3e 0%, #0f0f2a 45%, #0a0e1a 100%);
   overflow: hidden;
   display: flex;
   align-items: center;

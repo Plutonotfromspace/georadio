@@ -12,19 +12,34 @@
     
     <!-- SEO meta tags -->
     <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#0a0e1a" />
     <meta name="author" content="PlutoNotFromSpace" />
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     
+    <!-- Preload fonts for instant splash rendering -->
+    <link rel="preload" href="/fonts/customheader.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/regular.woff2" as="font" type="font/woff2" crossorigin />
+    
     <!-- Critical CSS: Instant first paint with purpose-driven loading -->
     <style>
       /* ============================================
          FIRST-RUN EXPERIENCE - Critical Inline CSS
-         Design: 2025-level sophisticated, zero-modal onboarding
-         Principles: Dieter Rams #4 (understandable), Norman (feedback), Nielsen #1 (visibility)
+         Transparent overlay — real 3D globe shows through
          ============================================ */
+      
+      /* Inline @font-face so splash can use custom fonts before React loads */
+      @font-face {
+        font-family: 'CustomHeader';
+        src: url('/fonts/customheader.woff2') format('woff2');
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Regular';
+        src: url('/fonts/regular.woff2') format('woff2');
+        font-display: swap;
+      }
       
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       
@@ -35,13 +50,12 @@
       }
       
       body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #0f172a;
+        font-family: 'Regular', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #0a0e1a;
       }
       
       /* ============================================
-         LOADING EXPERIENCE - "Tuning In" Metaphor
-         Shows instantly, feels purposeful, not a barrier
+         CONTAINER — transparent, lets globe show through
          ============================================ */
       
       .first-run {
@@ -50,121 +64,144 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-end;
+        padding-bottom: min(18vh, 140px);
         z-index: 9999;
-        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-        transition: opacity 0.4s ease-out, visibility 0.4s;
+        background: transparent;
+        pointer-events: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-user-select: none;
+        user-select: none;
       }
       
       .first-run.ready {
         cursor: pointer;
+        pointer-events: auto;
       }
       
+      /* Subtle dark gradient at bottom for text readability over globe */
+      .first-run::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to bottom,
+          transparent 0%,
+          transparent 35%,
+          rgba(10, 14, 26, 0.3) 55%,
+          rgba(10, 14, 26, 0.65) 75%,
+          rgba(10, 14, 26, 0.85) 100%
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
+      
+      /* Dismissal — fade out text + gradient */
       .first-run.hidden {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
+        transition: opacity 0.6s ease-out, visibility 0.6s;
       }
       
-      /* Animated Globe - Instantly recognizable, continuously engaging */
-      .first-run__globe {
-        width: min(280px, 60vw);
-        height: min(280px, 60vw);
-        border-radius: 50%;
+      /* ============================================
+         EQUALIZER - Loading indicator
+         ============================================ */
+      
+      .first-run__eq {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 20px;
+        margin-bottom: 24px;
+        opacity: 0;
+        animation: fadeSlideUp 0.5s ease-out 0.3s forwards;
         position: relative;
-        animation: globeFloat 4s ease-in-out infinite;
+        z-index: 1;
       }
       
-      .first-run__globe-sphere {
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        background: 
-          radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%),
-          linear-gradient(135deg, #22c55e 0%, #16a34a 30%, #15803d 60%, #166534 100%);
-        box-shadow: 
-          inset -20px -20px 60px rgba(0,0,0,0.4),
-          inset 10px 10px 40px rgba(255,255,255,0.1),
-          0 0 80px rgba(34, 197, 94, 0.3),
-          0 0 120px rgba(34, 197, 94, 0.15);
-        position: relative;
-        overflow: hidden;
+      .first-run__eq.eq-hidden {
+        opacity: 0 !important;
+        animation: none;
+        transition: opacity 0.3s ease;
       }
       
-      /* Continent-like shapes that rotate */
-      .first-run__globe-sphere::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        background: 
-          radial-gradient(ellipse 35% 25% at 25% 35%, rgba(21, 128, 61, 0.8) 0%, transparent 100%),
-          radial-gradient(ellipse 45% 30% at 65% 55%, rgba(21, 128, 61, 0.7) 0%, transparent 100%),
-          radial-gradient(ellipse 30% 20% at 45% 20%, rgba(21, 128, 61, 0.6) 0%, transparent 100%),
-          radial-gradient(ellipse 25% 35% at 80% 30%, rgba(21, 128, 61, 0.5) 0%, transparent 100%);
-        animation: continentsDrift 12s linear infinite;
+      .first-run__eq-bar {
+        width: 3px;
+        border-radius: 2px;
+        background: rgba(0, 229, 255, 0.7);
       }
       
-      /* Subtle grid lines for globe effect */
-      .first-run__globe-sphere::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        background: 
-          repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(255,255,255,0.03) 18px, rgba(255,255,255,0.03) 19px),
-          repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(255,255,255,0.03) 18px, rgba(255,255,255,0.03) 19px);
-        opacity: 0.5;
+      .first-run__eq-bar:nth-child(1) {
+        height: 8px;
+        animation: eqBounce 0.8s ease-in-out infinite;
+      }
+      .first-run__eq-bar:nth-child(2) {
+        height: 14px;
+        animation: eqBounce 0.8s ease-in-out 0.15s infinite;
+      }
+      .first-run__eq-bar:nth-child(3) {
+        height: 18px;
+        animation: eqBounce 0.8s ease-in-out 0.3s infinite;
+      }
+      .first-run__eq-bar:nth-child(4) {
+        height: 12px;
+        animation: eqBounce 0.8s ease-in-out 0.45s infinite;
+      }
+      .first-run__eq-bar:nth-child(5) {
+        height: 6px;
+        animation: eqBounce 0.8s ease-in-out 0.6s infinite;
       }
       
-      /* Audio waves emanating from globe */
-      .first-run__waves {
-        position: absolute;
-        inset: -40px;
-        border-radius: 50%;
-        border: 2px solid rgba(34, 197, 94, 0.3);
-        animation: waveExpand 2s ease-out infinite;
-      }
+      /* ============================================
+         TYPOGRAPHY
+         ============================================ */
       
-      .first-run__waves:nth-child(2) {
-        animation-delay: 0.5s;
-      }
-      
-      .first-run__waves:nth-child(3) {
-        animation-delay: 1s;
-      }
-      
-      /* Brand title - clean, confident */
       .first-run__title {
-        margin-top: 32px;
-        font-size: clamp(28px, 6vw, 36px);
+        font-family: 'CustomHeader', 'Audiowide', cursive;
+        font-size: clamp(36px, 8vw, 52px);
         font-weight: 700;
         color: #fff;
-        letter-spacing: -0.5px;
+        letter-spacing: 2px;
         opacity: 0;
-        animation: fadeSlideUp 0.6s ease-out 0.2s forwards;
+        animation: fadeSlideUp 0.7s ease-out 0.15s forwards;
+        text-shadow:
+          0 0 30px rgba(0, 229, 255, 0.35),
+          0 0 60px rgba(0, 229, 255, 0.15),
+          0 2px 8px rgba(0, 0, 0, 0.5);
+        position: relative;
+        z-index: 1;
       }
       
-      /* Loading state - purposeful, not generic */
       .first-run__status {
-        margin-top: 16px;
-        font-size: 14px;
-        color: rgba(255,255,255,0.5);
-        letter-spacing: 0.5px;
-        min-height: 24px;
+        margin-top: 8px;
+        font-family: 'Regular', sans-serif;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.45);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        min-height: 20px;
         opacity: 0;
-        animation: fadeSlideUp 0.6s ease-out 0.4s forwards;
+        animation: fadeSlideUp 0.5s ease-out 0.3s forwards;
+        position: relative;
+        z-index: 1;
       }
       
-      /* Ready state - Call to action (transparent, just text hint) */
+      /* ============================================
+         CTA - Glassmorphic pill button
+         ============================================ */
+      
       .first-run__cta {
-        margin-top: 32px;
-        padding: 16px 32px;
-        background: transparent;
-        border: none;
+        margin-top: 28px;
+        padding: 14px 28px;
+        background: rgba(0, 229, 255, 0.08);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 229, 255, 0.2);
         border-radius: 9999px;
-        color: rgba(255,255,255,0.7);
-        font-size: 16px;
+        color: rgba(255, 255, 255, 0.8);
+        font-family: 'Regular', sans-serif;
+        font-size: 15px;
         font-weight: 500;
         letter-spacing: 0.5px;
         cursor: pointer;
@@ -173,93 +210,90 @@
         transition: all 0.3s ease-out;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
+        position: relative;
+        z-index: 1;
+        pointer-events: auto;
       }
       
       .first-run__cta.visible {
         opacity: 1;
         transform: translateY(0);
-        animation: ctaFade 3s ease-in-out infinite;
+        animation: ctaPulse 3s ease-in-out infinite;
       }
       
       .first-run__cta:hover {
-        color: rgba(255,255,255,0.9);
+        background: rgba(0, 229, 255, 0.14);
+        border-color: rgba(0, 229, 255, 0.35);
+        color: #fff;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.12);
       }
       
       .first-run__cta:active {
-        transform: translateY(0) scale(0.98);
+        transform: scale(0.97);
       }
       
-      /* Removed redundant hint - CTA is sufficient */
-      
-      /* Animations */
-      @keyframes globeFloat {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50% { transform: translateY(-8px) rotate(2deg); }
+      .first-run__cta-icon {
+        width: 18px;
+        height: 18px;
+        opacity: 0.7;
       }
       
-      @keyframes continentsDrift {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
+      /* ============================================
+         ANIMATIONS
+         ============================================ */
       
-      @keyframes waveExpand {
-        0% { 
-          transform: scale(0.8);
-          opacity: 0.6;
-        }
-        100% { 
-          transform: scale(1.5);
-          opacity: 0;
-        }
+      @keyframes eqBounce {
+        0%, 100% { transform: scaleY(0.4); }
+        50% { transform: scaleY(1); }
       }
       
       @keyframes fadeSlideUp {
-        from { 
+        from {
           opacity: 0;
           transform: translateY(12px);
         }
-        to { 
+        to {
           opacity: 1;
           transform: translateY(0);
         }
       }
       
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      
-      @keyframes ctaFade {
-        0%, 100% { opacity: 0.7; }
+      @keyframes ctaPulse {
+        0%, 100% { opacity: 0.75; }
         50% { opacity: 1; }
       }
       
-      /* Reduced motion */
+      /* ============================================
+         REDUCED MOTION
+         ============================================ */
+      
       @media (prefers-reduced-motion: reduce) {
-        .first-run__globe,
-        .first-run__globe-sphere::before,
-        .first-run__waves,
+        .first-run__eq-bar,
         .first-run__cta.visible {
           animation: none;
         }
         .first-run__title,
         .first-run__status,
-        .first-run__hint {
+        .first-run__eq {
           animation: none;
           opacity: 1;
           transform: none;
         }
-        .first-run.hidden {
-          transition: none;
-        }
+        .first-run.hidden { transition: none; }
       }
       
-      /* Mobile-first: ensure touch-friendly sizing */
+      /* ============================================
+         MOBILE
+         ============================================ */
+      
       @media (max-width: 480px) {
+        .first-run {
+          padding-bottom: min(14vh, 100px);
+        }
         .first-run__cta {
-          padding: 14px 28px;
-          font-size: 15px;
+          padding: 12px 24px;
+          font-size: 14px;
         }
       }
     </style>
@@ -280,13 +314,15 @@
     <link rel="dns-prefetch" href="https://de1.api.radio-browser.info">
   </head>
   <body>
-    <!-- First-Run Experience - Zero-modal onboarding -->
+    <!-- First-Run Experience — transparent overlay, real globe shows through -->
     <div class="first-run" id="first-run" role="status" aria-live="polite">
-      <div class="first-run__globe" aria-hidden="true">
-        <div class="first-run__waves"></div>
-        <div class="first-run__waves"></div>
-        <div class="first-run__waves"></div>
-        <div class="first-run__globe-sphere"></div>
+      <!-- Equalizer (visible during loading, hidden when ready) -->
+      <div class="first-run__eq" id="first-run-eq" aria-hidden="true">
+        <div class="first-run__eq-bar"></div>
+        <div class="first-run__eq-bar"></div>
+        <div class="first-run__eq-bar"></div>
+        <div class="first-run__eq-bar"></div>
+        <div class="first-run__eq-bar"></div>
       </div>
       
       <h1 class="first-run__title">GeoRadio</h1>
@@ -299,7 +335,10 @@
         aria-label="Start playing GeoRadio"
         style="display: none;"
       >
-        <span>🎧</span>
+        <svg class="first-run__cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+        </svg>
         <span>Tap anywhere to start</span>
       </button>
     </div>

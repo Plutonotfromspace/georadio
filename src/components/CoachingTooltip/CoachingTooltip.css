@@ -15,20 +15,32 @@
   white-space: nowrap;
   pointer-events: none;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  /* Use transitions for smooth show/hide */
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  /* ALWAYS transition opacity - this handles both fade in and fade out */
+  transition: opacity 0.3s ease-out;
 }
 
-/* Initial enter animation */
+/* Entrance animation - ONLY handles transform, NOT opacity */
+.coaching-tooltip--animate {
+  animation: tooltipSlideIn 0.3s ease-out forwards;
+}
+
+@keyframes tooltipSlideIn {
+  0% {
+    transform: translateX(-50%) translateY(-10px) scale(0.9);
+  }
+  100% {
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* Visible state - on front of globe */
 .coaching-tooltip--visible {
   opacity: 1;
-  transform: translateX(-50%) scale(1);
 }
 
-/* Hidden state (rotated behind globe) */
+/* Hidden state - rotated behind globe */
 .coaching-tooltip--hidden {
   opacity: 0;
-  transform: translateX(-50%) scale(0.95);
 }
 
 .coaching-tooltip__text {

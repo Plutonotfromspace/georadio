@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import './CoachingTooltip.css';
 
@@ -13,7 +14,23 @@ import './CoachingTooltip.css';
  * - Nielsen #1: Visibility of system status
  */
 function CoachingTooltip({ visible, text, type, x, y, heatmapColor, isOnVisibleSide }) {
-  // Only unmount if completely dismissed (not just rotated behind)
+  // Track if component has mounted (for initial fade-in)
+  const [hasMounted, setHasMounted] = useState(false);
+  
+  // Trigger fade-in after mount
+  useEffect(() => {
+    if (visible) {
+      // Small delay to ensure CSS transition triggers
+      const timer = requestAnimationFrame(() => {
+        setHasMounted(true);
+      });
+      return () => cancelAnimationFrame(timer);
+    } else {
+      setHasMounted(false);
+    }
+  }, [visible]);
+
+  // Don't render if not visible
   if (!visible) return null;
 
   // Use heatmapColor for inline styling if provided
@@ -39,12 +56,13 @@ function CoachingTooltip({ visible, text, type, x, y, heatmapColor, isOnVisibleS
     top: y,
   };
 
-  // Use CSS class to control visibility via transitions
-  const visibilityClass = isOnVisibleSide ? 'coaching-tooltip--visible' : 'coaching-tooltip--hidden';
+  // Determine visibility: must be mounted AND on visible side of globe
+  const shouldBeVisible = hasMounted && isOnVisibleSide;
+  const visibilityClass = shouldBeVisible ? 'coaching-tooltip--visible' : 'coaching-tooltip--hidden';
 
   return (
     <div 
-      className={`coaching-tooltip ${useInlineColor ? '' : `coaching-tooltip--${type}`} ${visibilityClass}`}
+      className={`coaching-tooltip coaching-tooltip--animate ${useInlineColor ? '' : `coaching-tooltip--${type}`} ${visibilityClass}`}
       style={inlineStyle}
       role="status"
       aria-live="polite"
