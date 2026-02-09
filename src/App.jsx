@@ -160,6 +160,7 @@ function App() {
   const sourceRef = useRef(null);
   const canvasRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const colorAnimationTimers = useRef([]);  // Track setTimeout IDs for color animations
 
   const [countriesData, setCountriesData] = useState([]);
   const [guesses, setGuesses] = useState([]);
@@ -828,6 +829,10 @@ function App() {
    * @param {Function} onComplete - Callback when animation completes
    */
   const animateColorsToTarget = useCallback((guessesSnapshot, targetColor, onComplete) => {
+    // Cancel any pending animation timers from a previous animation
+    colorAnimationTimers.current.forEach(id => clearTimeout(id));
+    colorAnimationTimers.current = [];
+    
     if (!guessesSnapshot || guessesSnapshot.length === 0) {
       onComplete?.();
       return;
@@ -871,7 +876,7 @@ function App() {
       const progress = i / steps;
       const delay = i * stepDuration;
       
-      setTimeout(() => {
+      const timerId = setTimeout(() => {
         // Ease-out: 1 - (1 - progress)^3
         const easedProgress = 1 - Math.pow(1 - progress, 3);
         
@@ -884,9 +889,11 @@ function App() {
         
         // Call onComplete after the final step
         if (i === steps) {
-          setTimeout(() => onComplete?.(), 50);
+          const completeId = setTimeout(() => onComplete?.(), 50);
+          colorAnimationTimers.current.push(completeId);
         }
       }, delay);
+      colorAnimationTimers.current.push(timerId);
     }
   }, []);
 
@@ -1504,6 +1511,9 @@ function App() {
         logEvent('game', 'next_round', `Round ${currentRound + 1} started`);
         setCurrentRound(prev => prev + 1);
         setAttempts(0);
+        // Cancel any pending color animation before clearing guesses
+        colorAnimationTimers.current.forEach(id => clearTimeout(id));
+        colorAnimationTimers.current = [];
         setGuesses([]);
         setPreloadedFlagUrl(null);
         
@@ -1589,6 +1599,9 @@ function App() {
       
       setAttempts(0);
       setScore(0);
+      // Cancel any pending color animation before clearing guesses
+      colorAnimationTimers.current.forEach(id => clearTimeout(id));
+      colorAnimationTimers.current = [];
       setGuesses([]);
       setPreloadedFlagUrl(null); // Reset preloaded flag
       setUsedCountries([]); // Clear used countries for a fresh start
