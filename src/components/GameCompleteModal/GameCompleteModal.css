@@ -1,6 +1,6 @@
 /* ============================================
    GAME COMPLETE MODAL STYLES
-   Dark space theme with glassmorphism
+   Choreographed reveal sequence
    ============================================ */
 
 /* Override base modal tokens for dark theme */
@@ -14,49 +14,35 @@
     0 20px 60px rgba(0, 0, 0, 0.5),
     0 0 40px rgba(0, 229, 255, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 600ms ease;
+}
+
+/* Gold border for 20k+ scores */
+.base-modal-overlay .base-modal.game-complete-modal--gold {
+  border-color: rgba(255, 215, 0, 0.3);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(255, 215, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .game-complete-modal {
   text-align: center;
 }
 
-/* Final Score Hero */
-.game-complete-modal__hero {
-  margin-bottom: var(--modal-space-lg, 20px);
-  padding-bottom: var(--modal-space-lg, 20px);
-  border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+.game-complete-modal__inner {
+  cursor: default;
 }
 
-.game-complete-modal__score {
-  font-size: 48px;
-  font-weight: 800;
-  color: #00E5FF;
-  line-height: 1;
-  font-family: 'CustomHeader', 'Arial', sans-serif;
-  text-shadow: 0 0 24px rgba(0, 229, 255, 0.35);
-}
-
-.game-complete-modal__label {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  margin-top: 4px;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  font-family: 'Regular', sans-serif;
-}
-
-/* Rounds Summary */
-.game-complete-modal__summary {
-  margin-bottom: var(--modal-space-lg, 20px);
-}
-
+/* ── Rounds List ── */
 .game-complete-modal__rounds {
   display: flex;
   flex-direction: column;
   gap: var(--modal-space-sm, 8px);
+  margin-bottom: 0;
 }
 
+/* Row: hidden by default, slides in */
 .game-complete-modal__round {
   display: flex;
   align-items: center;
@@ -65,11 +51,25 @@
   background: rgba(255, 255, 255, 0.05);
   border-radius: var(--modal-radius-md, 8px);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: background 0.15s ease;
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: none;
 }
 
-.game-complete-modal__round:hover {
-  background: rgba(255, 255, 255, 0.08);
+/* Row visible state — spring entrance */
+.game-complete-modal__round--visible {
+  animation: gcmRowEnter 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes gcmRowEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .game-complete-modal__round-left {
@@ -105,9 +105,84 @@
   color: #58CC02;
   flex-shrink: 0;
   font-family: 'Regular', sans-serif;
+  min-width: 52px;
+  text-align: right;
 }
 
-/* Play Again Button */
+.game-complete-modal__round-score--zero {
+  color: var(--gg-red-50, #e94555);
+}
+
+/* ── Divider ── */
+.game-complete-modal__divider {
+  height: 1px;
+  margin: var(--modal-space-lg, 20px) 0;
+  background: rgba(0, 229, 255, 0.15);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.game-complete-modal__divider--visible {
+  transform: scaleX(1);
+}
+
+/* ── Total Score Hero ── */
+.game-complete-modal__hero {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 400ms ease, transform 400ms ease;
+  margin-bottom: var(--modal-space-md, 16px);
+}
+
+.game-complete-modal__hero--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.game-complete-modal__score {
+  font-size: 48px;
+  font-weight: 800;
+  color: #00E5FF;
+  line-height: 1;
+  font-family: 'CustomHeader', 'Arial', sans-serif;
+  text-shadow: 0 0 24px rgba(0, 229, 255, 0.35);
+  transition: color 400ms ease, text-shadow 400ms ease;
+  will-change: transform;
+}
+
+.game-complete-modal__label {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-family: 'Regular', sans-serif;
+}
+
+/* ── Verdict ── */
+.game-complete-modal__verdict {
+  margin-bottom: var(--modal-space-lg, 20px);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 400ms ease, transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.game-complete-modal__verdict--visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.game-complete-modal__verdict span {
+  font-family: 'CustomHeader', 'Arial', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ── Play Again Button ── */
 .game-complete-modal__button {
   width: 100%;
   padding: 14px 24px;
@@ -121,6 +196,26 @@
   transition: all 0.2s;
   box-shadow: 0 4px 16px rgba(88, 204, 2, 0.25);
   font-family: 'Regular', sans-serif;
+  /* Hidden by default — appears last */
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+.game-complete-modal__button--visible {
+  animation: gcmButtonEnter 500ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  pointer-events: auto;
+}
+
+@keyframes gcmButtonEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .game-complete-modal__button:hover {
@@ -129,7 +224,7 @@
   box-shadow: 0 6px 20px rgba(88, 204, 2, 0.35);
 }
 
-.game-complete-modal__button:active {
+.game-complete-modal__button--visible:active {
   transform: translateY(0);
 }
 
@@ -138,7 +233,7 @@
   outline-offset: 2px;
 }
 
-/* Mobile Responsive */
+/* ── Mobile Responsive ── */
 @media screen and (max-width: 480px) {
   .game-complete-modal__score {
     font-size: 40px;
@@ -146,5 +241,9 @@
   
   .game-complete-modal__round-country {
     font-size: 13px;
+  }
+
+  .game-complete-modal__verdict span {
+    font-size: 17px;
   }
 }

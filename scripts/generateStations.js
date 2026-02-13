@@ -10,7 +10,12 @@ const require = createRequire(import.meta.url);
 const enLocale = require('i18n-iso-countries/langs/en.json');
 i18nIsoCountries.registerLocale(enLocale);
 
-const BASE_URL = "https://de1.api.radio-browser.info/json";
+const API_MIRRORS = [
+  "https://at1.api.radio-browser.info/json",
+  "https://de2.api.radio-browser.info/json",
+  "https://de1.api.radio-browser.info/json",
+  "https://nl1.api.radio-browser.info/json",
+];
 const WORLD_ATLAS_URL = "https://unpkg.com/world-atlas@2/countries-110m.json";
 const OUTPUT_FILE = "stations.json";
 const STATIONS_PER_COUNTRY = 25;
@@ -47,14 +52,126 @@ const LOCAL_GENRES = {
   "CN": ["mandopop"]
 };
 
-/** 
- * Keywords typically associated with English or Anglo pop music.
- * We'll filter these out for countries that do *not* officially speak English.
+/**
+ * Language alias map to normalize the wildly inconsistent language values
+ * in the Radio Browser database. Maps common variations, native-script names,
+ * and misspellings to canonical language names matching countries-list output.
  */
-const ENGLISH_MUSIC_KEYWORDS = [
-  "top 40", "hits", "classic rock", "pop", "alternative",
-  "edm", "rnb", "hip hop", "trap", "house", "rock"
-];
+const LANGUAGE_ALIASES = {
+  // Portuguese variants
+  'brazilian portuguese': 'portuguese', 'portugues do brasil': 'portuguese',
+  'português': 'portuguese', 'brasileiro': 'portuguese', 'pt': 'portuguese',
+  // Persian / Farsi / Dari
+  'farsi': 'persian', 'dari': 'persian',
+  // Turkish variants
+  'türkisch': 'turkish', 'türkish': 'turkish', 'turkce': 'turkish', 'türkçe': 'turkish',
+  // Spanish variants
+  'espanol': 'spanish', 'español': 'spanish', 'castellano': 'spanish', 'espanish': 'spanish',
+  'español mexico': 'spanish',
+  // Chinese variants
+  'mandarin': 'chinese', 'cantonese': 'chinese', 'zhongwen': 'chinese', 'mandopop': 'chinese',
+  '中文': 'chinese', '普通话': 'chinese', '國語': 'chinese',
+  // German variants
+  'deutsch': 'german', 'schweizerdeutsch': 'german',
+  // French variants
+  'francais': 'french', 'français': 'french',
+  // Italian
+  'italiano': 'italian',
+  // Serbian
+  'srpski': 'serbian',
+  // Russian
+  'русский': 'russian', 'russkiy': 'russian',
+  // Arabic variants
+  'العربية': 'arabic', 'عربي': 'arabic',
+  // Greek
+  'ελληνικά': 'greek', 'ellinika': 'greek',
+  // Japanese
+  'nihongo': 'japanese', '日本語': 'japanese',
+  // Indonesian / Malay
+  'bahasa indonesia': 'indonesian', 'bahasa melayu': 'malay',
+  // Dutch variants
+  'nederlands': 'dutch', 'vlaams': 'dutch', 'flemish': 'dutch', 'flammish': 'dutch',
+  'nedersaksisch': 'dutch', 'twents': 'dutch', 'fries': 'dutch',
+  'limburgish': 'dutch', 'limburgs': 'dutch',
+  // Korean
+  '한국어': 'korean', 'hangugeo': 'korean',
+  // Hindi
+  'हिन्दी': 'hindi',
+  // Thai
+  'ภาษาไทย': 'thai',
+  // Vietnamese
+  'tieng viet': 'vietnamese', 'tiếng việt': 'vietnamese',
+  // Polish
+  'polski': 'polish',
+  // Czech
+  'cesky': 'czech', 'cestina': 'czech', 'český': 'czech',
+  // Scandinavian
+  'svenska': 'swedish', 'norsk': 'norwegian', 'dansk': 'danish', 'suomi': 'finnish',
+  // Hungarian
+  'magyar': 'hungarian',
+  // Romanian
+  'romana': 'romanian', 'românã': 'romanian', 'română': 'romanian',
+  // South Slavic
+  'slovenscina': 'slovene', 'slovenščina': 'slovene',
+  'slovenský': 'slovak', 'slovenčina': 'slovak',
+  'hrvatski': 'croatian', 'bosanski': 'bosnian', 'shqip': 'albanian',
+  // Baltic
+  'eesti': 'estonian', 'latviesu': 'latvian', 'latviešu': 'latvian',
+  'lietuviu': 'lithuanian', 'lietuvių': 'lithuanian',
+  // Ukrainian / Belarusian
+  'українська': 'ukrainian', 'ukrayinska': 'ukrainian',
+  'беларуская': 'belarusian', 'byelorussian': 'belarusian',
+  // Georgian
+  'kartuli': 'georgian', 'ქართული': 'georgian',
+  // Azerbaijani
+  'azeri': 'azerbaijani', 'azerbaycanca': 'azerbaijani',
+  // Central Asian
+  'kazak': 'kazakh', 'қазақ': 'kazakh',
+  "o'zbek": 'uzbek', 'ўзбек': 'uzbek',
+  // Filipino
+  'filipino': 'tagalog', 'pilipino': 'tagalog',
+  // Swahili
+  'kiswahili': 'swahili',
+  // Sinhala
+  'sinhala': 'sinhalese', 'singhalese': 'sinhalese',
+  // Bengali
+  'bangla': 'bengali',
+  // Haitian
+  'creole': 'haitian', 'kreyol': 'haitian', 'haitian creole': 'haitian',
+  // Cambodian / Khmer
+  'khmer': 'cambodian',
+  // Maldivian
+  'dhivehi': 'divehi',
+  // Montenegrin (maps to serbian since countries-list uses serbian for ME)
+  'montenegrin': 'serbian',
+  // Macedonian
+  'македонски': 'macedonian',
+  // Icelandic
+  'íslenska': 'icelandic',
+  // Somali
+  'somali': 'somali',
+  // Amharic
+  'amharic': 'amharic',
+  // Tigrinya variants
+  'tigrigna': 'tigrinya', 'tigre': 'tigrinya',
+  // Luxembourgish
+  'lëtzebuergesch': 'luxembourgish',
+  // Catalan
+  'català': 'catalan',
+  // Basque
+  'euskara': 'basque',
+  // Galician
+  'galego': 'galician',
+};
+
+/**
+ * Normalize a language string using the alias map.
+ * Returns the canonical language name.
+ */
+function normalizeLanguage(lang) {
+  const l = lang.trim().toLowerCase();
+  return LANGUAGE_ALIASES[l] || l;
+}
 
 /**
  * Weighted distribution for multiple official languages in a country:
@@ -123,13 +240,26 @@ async function loadAtlasMap() {
 }
 
 /**
- * Fetch all stations in one request (limit=500000).
+ * Fetch all stations, trying API mirrors if the first fails.
  */
 async function fetchAllStations() {
-  const url = `${BASE_URL}/stations/search?limit=500000&hidebroken=true`;
-  console.log(`\nFetching all stations from: ${url}`);
-  const response = await axios.get(url);
-  return response.data;
+  for (const baseUrl of API_MIRRORS) {
+    const url = `${baseUrl}/stations/search?limit=500000&hidebroken=true`;
+    console.log(`\nTrying: ${url}`);
+    try {
+      const response = await axios.get(url, {
+        headers: { 'User-Agent': 'GeoRadio/1.0' },
+        timeout: 120000
+      });
+      if (response.data && Array.isArray(response.data)) {
+        console.log(`Success! Got ${response.data.length} stations.`);
+        return response.data;
+      }
+    } catch (err) {
+      console.log(`  Failed: ${err.message}`);
+    }
+  }
+  throw new Error("All API mirrors failed to return station data.");
 }
 
 /**
@@ -178,39 +308,38 @@ function reassignUnknownStations(grouped) {
 }
 
 /**
- * Filter out English music if the country does NOT officially speak English.
- * We'll look at station name, tags, etc., matching known English keywords.
+ * Positive language matching: only accept stations whose language field
+ * contains at least one of the country's official languages.
+ * This eliminates ALL cross-language contamination (French in Afghanistan,
+ * English pop in non-English countries, Arabic spam stations, etc.)
+ * while treating music and talk stations equally.
  */
-function filterStationsByMusicLanguage(stations, countryCode) {
-  // If the official languages include "english", then skip these checks:
+function filterStationsByLanguageMatch(stations, countryCode) {
   const officialLangs = OFFICIAL_LANGUAGES_BY_CC[countryCode] || [];
-  const isEnglishSpeaking = officialLangs.includes("english");
+
+  if (officialLangs.length === 0) {
+    // No official language data for this country — accept stations that have a language field
+    return stations.filter(s => s.language && s.language.trim());
+  }
 
   return stations.filter((station) => {
-    if (!station.language || !station.tags) {
-      return false; // missing data => skip
-    }
-
-    const stationLang = station.language.toLowerCase();
-    const stationTags = station.tags.toLowerCase();
-    const stationName = station.name.toLowerCase();
-
-    if (isEnglishSpeaking) {
-      // If country is English-speaking, don't exclude on English basis
-      return true;
-    }
-
-    // Exclude if "english" is found in station language or tags
-    if (stationLang.includes("english") || stationTags.includes("english")) {
+    // Require language field to be present
+    if (!station.language || !station.language.trim()) {
       return false;
     }
 
-    // Exclude if name/tags contain typical English pop/rock keywords
-    if (ENGLISH_MUSIC_KEYWORDS.some((kw) => stationName.includes(kw) || stationTags.includes(kw))) {
-      return false;
-    }
+    // Split station's language field and normalize each part
+    const stationLangs = station.language
+      .toLowerCase()
+      .split(/[,]+/)
+      .map(s => normalizeLanguage(s.trim()))
+      .filter(Boolean);
 
-    return true;
+    // Accept if ANY of the station's languages match ANY official language
+    // Uses includes() for substring matching (e.g. "norwegian bokmål" matches "norwegian")
+    return stationLangs.some(sl =>
+      officialLangs.some(ol => sl.includes(ol) || ol.includes(sl))
+    );
   });
 }
 
@@ -222,8 +351,8 @@ function prioritizeLocalGenres(stations, cc) {
   if (localGenres.length === 0) return stations;
 
   return stations.sort((a, b) => {
-    const aTags = a.tags.toLowerCase();
-    const bTags = b.tags.toLowerCase();
+    const aTags = (a.tags || '').toLowerCase();
+    const bTags = (b.tags || '').toLowerCase();
 
     const aLocal = localGenres.some(g => aTags.includes(g));
     const bLocal = localGenres.some(g => bTags.includes(g));
@@ -253,12 +382,17 @@ function pickWeightedStationsForCountry(cc, stationList) {
     buckets[lang] = [];
   }
 
-  // Put stations into the correct bucket only if they have EXACTLY 1 language
-  // that matches an official language for the country.
+  // Put stations into the correct bucket based on their normalized language.
+  // A station can go into a bucket if it has a language matching an official one.
   for (const st of stationList) {
-    const splitted = st.language.toLowerCase().split(",").map(s => s.trim());
-    if (splitted.length === 1 && officialLangs.includes(splitted[0])) {
-      buckets[splitted[0]].push(st);
+    const splitted = st.language.toLowerCase().split(",").map(s => normalizeLanguage(s.trim())).filter(Boolean);
+    // Find which official language this station matches
+    for (const sl of splitted) {
+      const matchedLang = officialLangs.find(ol => sl.includes(ol) || ol.includes(sl));
+      if (matchedLang && buckets[matchedLang]) {
+        buckets[matchedLang].push(st);
+        break; // Only bucket once
+      }
     }
   }
 
@@ -282,10 +416,10 @@ function pickWeightedStationsForCountry(cc, stationList) {
   let missing = STATIONS_PER_COUNTRY - selected.length;
   if (missing > 0) {
     const mainLang = officialLangs[0];
-    const alreadyChosenCount = selected.filter(
-      (s) => s.language.toLowerCase().trim() === mainLang
-    ).length;
-    const leftover = buckets[mainLang].slice(alreadyChosenCount);
+    const selectedSet = new Set(selected.map(s => s.name + '|' + s.url_resolved));
+    const leftover = buckets[mainLang].filter(
+      (s) => !selectedSet.has(s.name + '|' + s.url_resolved)
+    );
     selected.push(...leftover.slice(0, missing));
   }
 
@@ -381,11 +515,14 @@ async function pickUpTo25PerCountry(grouped) {
   const finalData = {};
 
   for (const [cc, stationList] of Object.entries(grouped)) {
-    // 1) Filter out English music for non-English countries
-    const filtered = filterStationsByMusicLanguage(stationList, cc);
-    if (!filtered.length) continue;
+    // 1) Positive language match: only keep stations whose language matches this country
+    const filtered = filterStationsByLanguageMatch(stationList, cc);
+    if (filtered.length < 3) {
+      console.log(`\nSkipping country ${cc}: only ${filtered.length} language-matched stations (need ≥3).`);
+      continue;
+    }
 
-    console.log(`\nProcessing country ${cc} with ${stationList.length} stations.`);
+    console.log(`\nProcessing country ${cc} with ${stationList.length} total, ${filtered.length} language-matched stations.`);
     
     // 2) Weighted station picking
     const candidates = pickWeightedStationsForCountry(cc, filtered);
@@ -420,6 +557,7 @@ async function pickUpTo25PerCountry(grouped) {
       country: atlasName,
       countrycode: st.countrycode,
       language: st.language,
+      tags: st.tags || '',
       bitrate: st.bitrate
     }));
   }

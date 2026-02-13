@@ -147,6 +147,42 @@
   z-index: 1;
 }
 
+/* ── Damage Vignette — red constriction on wrong guesses ── */
+.damage-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    transparent 45%,
+    rgba(180, 30, 30, 0.6) 100%
+  );
+  opacity: calc(var(--damage-level) * 0.45);
+  transition: opacity 600ms ease-out;
+}
+
+/* Flash on each wrong guess — spikes bright then settles to resting level */
+.damage-vignette[style] {
+  animation: damageVignetteFlash 600ms ease-out both;
+}
+
+@keyframes damageVignetteFlash {
+  0%   { opacity: calc(var(--damage-level) * 0.45 + 0.35); }
+  100% { opacity: calc(var(--damage-level) * 0.45); }
+}
+
+/* Critical state: permanent pulsing vignette */
+.damage-vignette--critical {
+  animation: damageVignetteFlash 600ms ease-out both,
+             damageVignettePulse 2s ease-in-out 600ms infinite;
+}
+
+@keyframes damageVignettePulse {
+  0%, 100% { opacity: calc(var(--damage-level) * 0.45); }
+  50%      { opacity: calc(var(--damage-level) * 0.65); }
+}
+
 /* NEW: Disable tap highlight and touch actions to prevent country highlighting effects on mobile */
 .globe-container,
 .globe-container * {
@@ -5062,4 +5098,311 @@ html, body {
 .audio-btn:focus-visible {
   outline: 3px solid var(--primary-color, #00d0ff);
   outline-offset: 2px;
+}
+
+/* ========================================
+   Score Counter — Live round-score HUD
+   GeoGuessr-style health bar, top-right
+   ======================================== */
+
+.score-counter {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 25;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px 7px 8px;
+  background: rgba(23, 18, 53, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  animation: scoreCounterEnter 0.5s ease-out both;
+  /* Subtle border for depth */
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+@keyframes scoreCounterEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Shared exit animation for HUD pills */
+@keyframes hudExit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+}
+
+.score-counter--exit {
+  animation: hudExit 0.35s ease-in forwards !important;
+}
+
+.round-indicator--exit {
+  animation: hudExit 0.35s ease-in forwards !important;
+}
+
+/* Bar track (background) */
+.score-counter__track {
+  width: 80px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Bar fill (shrinks on damage) */
+.score-counter__fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 320ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 400ms linear;
+  position: relative;
+}
+
+/* Shine overlay on the bar */
+.score-counter__fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0)
+  );
+  border-radius: 4px 4px 0 0;
+}
+
+/* Numeric score */
+.score-counter__number {
+  font-family: 'Regular', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--gg-white);
+  min-width: 42px;
+  text-align: right;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* ── Hit state: shake animation ── */
+.score-counter--hit {
+  animation: scoreCounterEnter 0.5s ease-out both,
+             scoreShake 220ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes scoreShake {
+  0%   { transform: translateX(0); }
+  25%  { transform: translateX(4px); }
+  50%  { transform: translateX(-4px); }
+  75%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+
+/* ── Floating damage text (−573) ── */
+.score-counter__damage {
+  position: absolute;
+  right: 14px;
+  top: -2px;
+  font-family: 'Regular', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gg-red-50);
+  pointer-events: none;
+  animation: scoreDamageFloat 700ms ease-out forwards;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes scoreDamageFloat {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-28px);
+  }
+}
+
+/* ── Critical state: pulsing last-life bar ── */
+.score-counter--critical .score-counter__fill {
+  animation: scoreCriticalPulse 1.2s ease-in-out infinite;
+}
+
+.score-counter--critical .score-counter__number {
+  color: var(--gg-red-50);
+  text-shadow: 0 0 10px rgba(233, 69, 85, 0.5);
+}
+
+.score-counter--critical {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3),
+              0 0 12px rgba(233, 69, 85, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+@keyframes scoreCriticalPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+/* ── Failed state (score hit 0) ── */
+.score-counter--failed .score-counter__number {
+  color: var(--gg-red-50);
+  text-shadow: var(--gg-negative-shadow);
+}
+
+.score-counter--failed {
+  animation: scoreCounterEnter 0.5s ease-out both,
+             scoreShake 220ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both,
+             scoreFailFlash 600ms ease-out 220ms both;
+}
+
+@keyframes scoreFailFlash {
+  0%   { background: rgba(233, 69, 85, 0.5); }
+  100% { background: rgba(23, 18, 53, 0.55); }
+}
+
+/* ── Result bar failure treatment ── */
+.result-bar__score--failed {
+  text-shadow: var(--gg-negative-shadow);
+  color: var(--gg-red-50);
+}
+
+.result-bar__left--failed .result-bar__attempts--failed {
+  text-shadow: var(--gg-negative-shadow);
+  color: var(--gg-red-50);
+  font-size: calc(var(--gg-shadow-text-base) * 1.2);
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+  .score-counter {
+    top: 16px;
+    right: 12px;
+    padding: 5px 10px 5px 6px;
+    gap: 8px;
+    border-radius: 16px;
+  }
+
+  .score-counter__track {
+    width: 56px;
+    height: 6px;
+  }
+
+  .score-counter__number {
+    font-size: 14px;
+    min-width: 36px;
+  }
+
+  .score-counter__damage {
+    font-size: 11px;
+  }
+}
+
+/* ========================================
+   Round Indicator — Round progress HUD
+   Glass pill, top-left, mirrors ScoreCounter
+   ======================================== */
+
+.round-indicator {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 25;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  background: rgba(23, 18, 53, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  animation: scoreCounterEnter 0.5s ease-out both;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.round-indicator__label {
+  font-family: 'Regular', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--gg-white);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.round-indicator__pips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.round-indicator__pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background 300ms ease, box-shadow 300ms ease;
+}
+
+.round-indicator__pip--passed {
+  background: var(--gg-green-50);
+  box-shadow: 0 0 6px rgba(151, 232, 81, 0.45);
+}
+
+.round-indicator__pip--failed {
+  background: var(--gg-red-50);
+  box-shadow: 0 0 6px rgba(233, 69, 85, 0.45);
+}
+
+.round-indicator__pip--current {
+  background: var(--gg-white);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
+}
+
+.round-indicator__pip--upcoming {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+  .round-indicator {
+    top: 16px;
+    left: 12px;
+    padding: 5px 10px;
+    gap: 8px;
+    border-radius: 16px;
+  }
+
+  .round-indicator__label {
+    font-size: 14px;
+  }
+
+  .round-indicator__pip {
+    width: 6px;
+    height: 6px;
+  }
+
+  .round-indicator__pips {
+    gap: 4px;
+  }
 }

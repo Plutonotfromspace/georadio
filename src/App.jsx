@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { useSpring, animated } from '@react-spring/web';
 import Globe from 'react-globe.gl';
 import { feature } from 'topojson-client';
 import * as THREE from 'three';
@@ -149,6 +150,139 @@ window.debugGeoRadio = {
   // ...existing help and listCountries methods...
 };
 
+/* ──────────────────────────────────────────────────
+   ScoreCounter — Live round-score HUD (GeoGuessr-style health bar)
+   Sits top-right, shows 5000 draining on wrong guesses.
+   Uses @react-spring/web for spring-physics number animation.
+   ────────────────────────────────────────────────── */
+const POINTS_PER_ROUND = 5000;
+const PENALTY_PER_GUESS = 573;
+
+/* eslint-disable react/prop-types */
+function ScoreCounter({ attempts, roundFailed, damageKey, visible }) {
+  const [mounted, setMounted] = useState(visible);
+  const [exiting, setExiting] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      setExiting(false);
+    } else if (mounted) {
+      setExiting(true);
+    }
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const roundScore = Math.max(POINTS_PER_ROUND - (attempts * PENALTY_PER_GUESS), 0);
+  const barPercent = (roundScore / POINTS_PER_ROUND) * 100;
+  const isCritical = roundScore > 0 && roundScore <= PENALTY_PER_GUESS;
+
+  // Spring-animated number — rolls down with overshoot on each wrong guess
+  const { displayScore } = useSpring({
+    displayScore: roundScore,
+    config: { tension: 300, friction: 22 },
+  });
+
+  // Bar color interpolation: green (100%) → orange (50%) → red (0%)
+  const barColor = barPercent > 60
+    ? 'var(--gg-green-50)'
+    : barPercent > 30
+      ? 'var(--gg-orange-50)'
+      : 'var(--gg-red-50)';
+
+  if (!mounted) return null;
+
+  return (
+    <div
+      className={[
+        'score-counter',
+        exiting ? 'score-counter--exit' : '',
+        damageKey > 0 && !exiting ? 'score-counter--hit' : '',
+        isCritical ? 'score-counter--critical' : '',
+        roundFailed ? 'score-counter--failed' : '',
+      ].filter(Boolean).join(' ')}
+      /* Re-trigger shake by toggling key on each hit */
+      key={`sc-${damageKey}`}
+      onAnimationEnd={(e) => {
+        if (e.animationName === 'hudExit') {
+          setMounted(false);
+          setExiting(false);
+        }
+      }}
+    >
+      {/* Bar track + fill */}
+      <div className="score-counter__track">
+        <div
+          className="score-counter__fill"
+          style={{ width: `${barPercent}%`, background: barColor }}
+        />
+      </div>
+
+      {/* Animated numeric score */}
+      <animated.span className="score-counter__number">
+        {displayScore.to(v => Math.round(v).toLocaleString())}
+      </animated.span>
+
+      {/* Floating damage text — re-mounts on each wrong guess via key */}
+      {damageKey > 0 && (
+        <span className="score-counter__damage" key={`dmg-${damageKey}`}>
+          −{PENALTY_PER_GUESS}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────
+   RoundIndicator — Round progress HUD (top-left)
+   Shows "Round X" + 5 pip dots colour-coded by outcome.
+   Mirrors ScoreCounter's glass-pill aesthetic.
+   ────────────────────────────────────────────────── */
+function RoundIndicator({ currentRound, roundResults, visible }) {
+  const [mounted, setMounted] = useState(visible);
+  const [exiting, setExiting] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      setExiting(false);
+    } else if (mounted) {
+      setExiting(true);
+    }
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!mounted) return null;
+
+  const pips = Array.from({ length: 5 }, (_, i) => {
+    const roundNum = i + 1;
+    const result = roundResults[i];
+    let cls = 'round-indicator__pip';
+    if (result) {
+      cls += result.score > 0 ? ' round-indicator__pip--passed' : ' round-indicator__pip--failed';
+    } else if (roundNum === currentRound) {
+      cls += ' round-indicator__pip--current';
+    } else {
+      cls += ' round-indicator__pip--upcoming';
+    }
+    return <span key={roundNum} className={cls} />;
+  });
+
+  return (
+    <div
+      className={`round-indicator${exiting ? ' round-indicator--exit' : ''}`}
+      onAnimationEnd={(e) => {
+        if (e.animationName === 'hudExit') {
+          setMounted(false);
+          setExiting(false);
+        }
+      }}
+    >
+      <span className="round-indicator__label">Round {currentRound}</span>
+      <div className="round-indicator__pips">{pips}</div>
+    </div>
+  );
+}
+/* eslint-enable react/prop-types */
+
 function App() {
   const { width, height } = useWindowSize();
   const globeEl = useRef();
@@ -161,6 +295,29 @@ function App() {
   const canvasRef = useRef(null);
   const animationFrameRef = useRef(null);
   const colorAnimationTimers = useRef([]);  // Track setTimeout IDs for color animations
+  const tremorTimers = useRef([]);           // Track globe tremor setTimeout IDs
+  const controlsLockTimer = useRef(null);    // Track controls re-enable timeout
+
+  // Lock/unlock globe drag during camera animations
+  const lockControls = useCallback((durationMs) => {
+    if (!globeEl.current) return;
+    const controls = globeEl.current.controls();
+    if (!controls) return;
+    controls.enableRotate = false;
+    controls.enableZoom = false;
+    controls.enablePan = false;
+    // Clear any pending unlock
+    if (controlsLockTimer.current) clearTimeout(controlsLockTimer.current);
+    controlsLockTimer.current = setTimeout(() => {
+      if (!globeEl.current) return;
+      const c = globeEl.current.controls();
+      if (c) {
+        c.enableRotate = true;
+        c.enableZoom = true;
+        c.enablePan = true;
+      }
+    }, durationMs);
+  }, []);
 
   const [countriesData, setCountriesData] = useState([]);
   const [guesses, setGuesses] = useState([]);
@@ -183,7 +340,6 @@ function App() {
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectionRing, setSelectionRing] = useState(null);
   const isMobile = width <= 768; // Add this line to detect mobile
-  const [usedLanguages, setUsedLanguages] = useState(new Set()); // Add this new state
   // Add new state for correct guess
   const [correctGuess, setCorrectGuess] = useState(false);
   const [, setContinueFading] = useState(false);
@@ -195,6 +351,11 @@ function App() {
   const [modalClosing, setModalClosing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [audioError, setAudioError] = useState(false); // Track audio errors for progressive disclosure
+  const audioErrorTimerRef = useRef(null);  // Delayed error button display (3s)
+  const stallTimerRef = useRef(null);        // Stall detection timeout (4s)
+  const [damageKey, setDamageKey] = useState(0);  // Increments on each wrong guess to trigger CSS animations
+  const [roundFailed, setRoundFailed] = useState(false);  // Track if round ended by running out of points
+  const [revealPulse, setRevealPulse] = useState(false);  // Toggles for pulsing altitude on failed-round reveal
   const [audioPlayerEntranceComplete, setAudioPlayerEntranceComplete] = useState(false); // Track if audio player entrance animation finished
   // NEW: State for preloaded flag image
   const [, setPreloadedFlagUrl] = useState(null);
@@ -917,78 +1078,42 @@ function App() {
     // Reset states including correctGuess
     setCorrectGuess(false);
     setAudioPlaying(false);
+    setAudioError(false);
+    setRoundFailed(false);
+    setRevealPulse(false);
+    setDamageKey(0);
+    clearTimeout(audioErrorTimerRef.current);
+    clearTimeout(stallTimerRef.current);
 
-    // 1. Group stations by language first
-    const stationsByLanguage = {};
-    Object.entries(allStations).forEach(([country, stations]) => {
-      stations.forEach(station => {
-        if (!station.language) return;
-        
-        const languages = station.language.toLowerCase().split(/[,\s]+/);
-        languages.forEach(lang => {
-          if (!stationsByLanguage[lang]) {
-            stationsByLanguage[lang] = [];
-          }
-          stationsByLanguage[lang].push({
-            ...station,
-            sourceCountry: country
-          });
-        });
-      });
-    });
+    // COUNTRY-FIRST SELECTION: Pick a random country, then a random station from it.
+    // This gives every country equal probability (1/N) instead of the old
+    // language-first approach which massively overrepresented single-language countries.
 
-    // Log available languages and stations for debugging
-    console.log('DEBUG - Available languages:', Object.keys(stationsByLanguage));
-
-    // 2. Filter out languages with too few stations/countries
-    const validLanguages = Object.entries(stationsByLanguage)
-      .filter(([, stations]) => {
-        const uniqueCountries = new Set(stations.map(s => s.sourceCountry));
-        return stations.length >= 1 && uniqueCountries.size > 0;
-      })
-      .map(([lang]) => lang);
-
-    // NEW: Filter out used languages unless all languages have been used
-    let availableLanguages = validLanguages.filter(lang => !usedLanguages.has(lang));
-    if (availableLanguages.length === 0) {
-      // If all languages used, reset and use all languages
-      availableLanguages = validLanguages;
-      setUsedLanguages(new Set());
-      console.log('DEBUG - All languages used, resetting language pool');
-    }
-
-    if (availableLanguages.length === 0) {
-      console.error('No valid languages available');
-      return;
-    }
-
-    // 3. Pick random language from valid ones
-    const randomLanguage = availableLanguages[Math.floor(Math.random() * availableLanguages.length)];
-    const stationsInLanguage = stationsByLanguage[randomLanguage];
-
-    // Log selected language and available countries
-    console.log('DEBUG - Selected language:', randomLanguage);
-
-    // 4. Get available countries that: 
-    // a) Have stations in this language
-    const availableCountries = [...new Set(stationsInLanguage.map(s => 
-      (s.sourceCountry && s.sourceCountry.trim()) || (s.country && s.country.trim())
-    ))]
-      .filter(country => country);
-
-    if (!availableCountries.length) {
-      console.error('No available countries for language:', randomLanguage);
-      startNewRound(); // Skip current language and try a new station
-      return;
-    }
-
-    // Log available countries
-    console.log('DEBUG - Available countries:', availableCountries);
-
-    // 5. Pick random country from those available
-    const randomCountry = availableCountries[Math.floor(Math.random() * availableCountries.length)];
+    // 1. Get all available countries (keys of allStations), excluding already-used ones
+    const allCountryNames = Object.keys(allStations).filter(c => allStations[c].length > 0);
     
-    // 6. Find target country in map data
+    let availableCountries = allCountryNames.filter(
+      c => !usedCountries.includes(c.toLowerCase())
+    );
+
+    // If all countries used (shouldn't happen in 5 rounds, but safety net), reset
+    if (availableCountries.length === 0) {
+      availableCountries = allCountryNames;
+      setUsedCountries([]);
+      console.log('DEBUG - All countries used, resetting country pool');
+    }
+
+    console.log('DEBUG - Available countries:', availableCountries.length, '/', allCountryNames.length);
+
+    if (availableCountries.length === 0) {
+      console.error('No available countries');
+      return;
+    }
+
+    // 2. Pick a random country with equal probability
+    const randomCountry = availableCountries[Math.floor(Math.random() * availableCountries.length)];
+
+    // 3. Find target country in globe/map data
     const target = countriesData.find(
       feature => {
         const featureName = feature.properties?.name || "";
@@ -998,47 +1123,32 @@ function App() {
 
     if (!target) {
       console.error('Could not find target country in map data:', randomCountry);
-      // Debugging: Log normalized station country and all normalized map country names
-      const normalizedStationName = randomCountry.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-      const normalizedMapCountries = countriesData.map(feature => ({
-        name: feature.properties?.name,
-        normalized: (feature.properties?.name || "").toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, "")
-      }));
-      console.debug('Normalized station country:', normalizedStationName);
-      console.debug('Normalized map countries:', normalizedMapCountries);
-      
-      // Mark this country as used and try another
+      // Mark this country as used (bad data) and try another
       setUsedCountries(prev => [...prev, randomCountry.toLowerCase()]);
       startNewRound();
       return;
     }
 
-    // 7. Get stations for this country and language
-    const eligibleStations = stationsInLanguage.filter(s => 
-      s.sourceCountry === randomCountry
-    );
-
-    if (!eligibleStations.length) {
-      console.error('No eligible stations found for country:', randomCountry);
+    // 4. Get all stations for this country and pick one randomly
+    const countryStations = allStations[randomCountry];
+    if (!countryStations || !countryStations.length) {
+      console.error('No stations found for country:', randomCountry);
+      setUsedCountries(prev => [...prev, randomCountry.toLowerCase()]);
       startNewRound();
       return;
     }
 
-    // 8. Pick random station from eligible ones
-    const station = eligibleStations[Math.floor(Math.random() * eligibleStations.length)];
+    const station = countryStations[Math.floor(Math.random() * countryStations.length)];
     const stationUrl = station.url_resolved || station.url;
     setRadioStation({ ...station, url_resolved: stationUrl });
-
 
     setTargetCountry(target);
     console.log('DEBUG - Target Country:', {
       name: target.properties?.name,
       station: station.name,
-      stationCountry: station.sourceCountry,
+      stationCountry: randomCountry,
       stationURL: stationUrl,
-      language: randomLanguage
+      language: station.language
     });
 
     // ...rest of existing startNewRound code...
@@ -1055,7 +1165,7 @@ function App() {
     // Audio setup using helper function
     console.log("DEBUG: Setting up audio source", stationUrl);
     setupAudioSource(stationUrl);
-  }, [countriesData, allStations, usedLanguages, setupAudioSource]);
+  }, [countriesData, allStations, usedCountries, setupAudioSource]);
 
   // Remove or comment out the duplicated effect:
   /*
@@ -1070,8 +1180,8 @@ function App() {
   const onPolygonClick = (feature, event, coords) => {
     // Block interaction during splash screen
     if (!firstRunComplete) return;
-    // NEW: Do nothing if a correct guess has been made
-    if (correctGuess) return;
+    // NEW: Do nothing if a correct guess has been made or round failed (out of points)
+    if (correctGuess || roundFailed) return;
     
     if (showResultBar || gameOver) return;
     if (!targetCountry) return;
@@ -1295,23 +1405,12 @@ function App() {
         }
       ]);
   
-      const stationCountry = radioStation?.country
-        ?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-      if (stationCountry && !usedCountries.includes(stationCountry)) {
+      const stationCountry = radioStation?.country;
+      if (stationCountry && !usedCountries.includes(stationCountry.toLowerCase())) {
         console.log('DEBUG: Marking correct country used:', stationCountry);
-        setUsedCountries((prev) => [...prev, stationCountry]);
+        setUsedCountries((prev) => [...prev, stationCountry.toLowerCase()]);
       }
 
-      // Mark the language as used when correctly guessed
-      if (radioStation?.language) {
-        const languages = radioStation.language.toLowerCase().split(/[,\s]+/);
-        setUsedLanguages(prev => {
-          const newSet = new Set(prev);
-          languages.forEach(lang => newSet.add(lang));
-          return newSet;
-        });
-        console.log('DEBUG - Marking language as used:', radioStation.language);
-      }
       // When guess is correct, set correctGuess to true
       setCorrectGuess(true);
       
@@ -1329,7 +1428,122 @@ function App() {
           lng: targetCentroid.lon - 1, // adjust offset as needed
           altitude: 1.0
         };
+        lockControls(2100);
         globeEl.current.pointOfView(cameraOffset, 2000);
+      }
+    } else {
+      // WRONG GUESS: trigger damage animation
+      setDamageKey(prev => prev + 1);
+
+      // Play wrong-guess sound — scale with music volume so it's always heard
+      const wrongSfx = wrongSelectSound.cloneNode();
+      const musicVol = volume / 100;
+      wrongSfx.volume = Math.min(1.0, 0.50 + musicVol * 0.5);
+      wrongSfx.play().catch(() => {});
+
+      // Globe tremor — damped rotational shake scaled by damage
+      // Skip on final guess (round failure) so the zoom-to-reveal is smooth
+      const projectedScore = Math.max(5000 - (newAttempts * 573), 0);
+      if (globeEl.current && projectedScore > 0) {
+        // Cancel any in-progress tremor
+        tremorTimers.current.forEach(clearTimeout);
+        tremorTimers.current = [];
+
+        const pov = globeEl.current.pointOfView();
+        const t = Math.min(newAttempts / 9, 1);  // 0–1 damage
+        const amp = 1.5 + t * 2.5;               // 1.5° → 4°
+        const zoomBump = 0.04 + t * 0.04;        // altitude bump
+
+        // If user starts dragging, cancel the tremor immediately
+        const cancelTremor = () => {
+          tremorTimers.current.forEach(clearTimeout);
+          tremorTimers.current = [];
+          document.removeEventListener('mousedown', cancelTremor);
+          document.removeEventListener('touchstart', cancelTremor);
+        };
+        document.addEventListener('mousedown', cancelTremor, { once: true });
+        document.addEventListener('touchstart', cancelTremor, { once: true });
+        // Auto-remove listeners after tremor finishes
+        const cleanupTid = setTimeout(cancelTremor, 420);
+        tremorTimers.current.push(cleanupTid);
+
+        // Keyframes: jolt right → jolt left → settle back
+        const steps = [
+          { dlat:  amp * 0.4, dlng:  amp,     dalt: -zoomBump, dur: 0,   ms: 80  },
+          { dlat: -amp * 0.3, dlng: -amp * 0.7, dalt:  zoomBump * 0.3, dur: 0, ms: 160 },
+          { dlat:  amp * 0.15, dlng:  amp * 0.3, dalt: 0, dur: 0, ms: 240 },
+          { dlat: 0,          dlng: 0,          dalt: 0, dur: 0, ms: 340 },
+        ];
+
+        steps.forEach(({ dlat, dlng, dalt, ms }) => {
+          const tid = setTimeout(() => {
+            if (!globeEl.current) return;
+            globeEl.current.pointOfView({
+              lat: pov.lat + dlat,
+              lng: pov.lng + dlng,
+              altitude: pov.altitude + dalt,
+            }, 80);
+          }, ms);
+          tremorTimers.current.push(tid);
+        });
+      }
+      
+      // CHECK FOR ROUND FAILURE: if score would hit 0, auto-end the round
+      if (projectedScore <= 0) {
+        // Round failed — ran out of points
+        setRoundFailed(true);
+        
+        // Record round result with 0 score
+        const targetName = targetCountry.properties?.name || targetCountry.id || 'Unknown';
+        setRoundResults(prev => [
+          ...prev,
+          {
+            round: currentRound,
+            attempts: newAttempts,
+            score: 0,
+            target: targetName,
+            countryCode: getCountryCode(targetCountry),
+            stationName: radioStation.name || 'Unknown Station',
+            stationUrl: radioStation.homepage || radioStation.url,
+            guesses: [...guesses, newGuess]
+          }
+        ]);
+        
+        // Mark country as used
+        const stationCountry = radioStation?.country;
+        if (stationCountry && !usedCountries.includes(stationCountry.toLowerCase())) {
+          setUsedCountries(prev => [...prev, stationCountry.toLowerCase()]);
+        }
+        
+        // Immediately stop radio and trigger end-of-round sequence
+        if (audioRef.current) {
+          audioRef.current.pause();
+          setAudioPlaying(false);
+        }
+        
+        // Play the round-lose sound
+        const loseSfx = roundLoseSound.cloneNode();
+        loseSfx.volume = 0.30;
+        loseSfx.play().catch(() => {});
+        
+        // Hide coaching tip
+        setCoachingTip(prev => ({ ...prev, visible: false }));
+        
+        // Block further clicks
+        setCorrectGuess(true);
+        
+        // Flip out audio player and show result bar with 0
+        document.querySelector('.audio-player')?.classList.add('flip-out');
+        
+        // Zoom to reveal the correct country
+        const targetCentroid = computeCentroid(targetCountry);
+        if (globeEl.current) {
+          lockControls(2100);
+          globeEl.current.pointOfView(
+            { lat: targetCentroid.lat, lng: targetCentroid.lon - 1, altitude: 1.0 },
+            2000
+          );
+        }
       }
     }
     
@@ -1447,10 +1661,13 @@ function App() {
         // Start playing audio after a short delay to ensure proper setup
         setTimeout(() => {
           if (audioRef.current && radioStation) {
+            // Start stall timer — if audio doesn't play within 4s, show error button
+            clearTimeout(stallTimerRef.current);
+            stallTimerRef.current = setTimeout(() => setAudioError(true), 4000);
             audioRef.current.play()
               .then(() => {
                 setAudioPlaying(true);
-                 // Changed from "Audio playing. Take your guess!" to empty string
+                clearTimeout(stallTimerRef.current);
               })
               .catch(e => {
                 if (!(e.message && e.message.includes("aborted"))) {
@@ -1532,8 +1749,14 @@ function App() {
         // Start playing audio after setup
         setTimeout(() => {
           if (audioRef.current && radioStation) {
+            // Start stall timer — if audio doesn't play within 4s, show error button
+            clearTimeout(stallTimerRef.current);
+            stallTimerRef.current = setTimeout(() => setAudioError(true), 4000);
             audioRef.current.play()
-              .then(() => setAudioPlaying(true))
+              .then(() => {
+                setAudioPlaying(true);
+                clearTimeout(stallTimerRef.current);
+              })
               .catch(e => {
                 if (!(e.message && e.message.includes("aborted"))) {
                   console.error("Audio playback error:", e);
@@ -1575,6 +1798,8 @@ function App() {
   useEffect(() => {
     return () => {
       cleanupAudio();
+      clearTimeout(audioErrorTimerRef.current);
+      clearTimeout(stallTimerRef.current);
     };
   }, [cleanupAudio]);
 
@@ -1626,16 +1851,93 @@ function App() {
     }
   }, [guesses, resetToDefault, startNewRound, animateColorsToTarget]);
 
-  // Helper to mimic "Station broken?" button
-  const callStationBroken = useCallback(() => {
-    setAudioError(false); // Clear error when trying new station
+  // Lightweight auto-recovery: silently swap to a new station (no visual reset)
+  // Used by handleAudioError when the stream fails and we retry automatically
+  const autoRecoverStation = useCallback(() => {
+    clearTimeout(audioErrorTimerRef.current);
+    clearTimeout(stallTimerRef.current);
+    setAudioError(false);
     startNewRound();
   }, [startNewRound]);
+
+  // Full cinematic round reset: triggered by the user clicking "Try another station"
+  // Clears all guesses, resets attempts, spins the globe, flips the audio player,
+  // and starts a completely fresh round as if nothing happened
+  const callStationBroken = useCallback(() => {
+    clearTimeout(audioErrorTimerRef.current);
+    clearTimeout(stallTimerRef.current);
+    setAudioError(false);
+
+    // Stop current audio immediately
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setAudioPlaying(false);
+    }
+
+    // Snapshot current guesses for color animation, then clear everything
+    const guessesSnapshot = [...guesses];
+
+    const freshStart = () => {
+      // Reset all round state
+      setAttempts(0);
+      colorAnimationTimers.current.forEach(id => clearTimeout(id));
+      colorAnimationTimers.current = [];
+      setGuesses([]);
+      setCorrectGuess(false);
+      setSelectedCountry(null);
+      setSelectionRing(null);
+      setShowResultBar(false);
+      setPreloadedFlagUrl(null);
+
+      // Cinematic globe spin to a new position
+      spinTransition();
+
+      // Pick a brand new country + station
+      startNewRound();
+
+      // Flip in the audio player
+      setTimeout(() => {
+        const audioPlayer = document.querySelector('.audio-player');
+        audioPlayer?.classList.remove('flip-out');
+        audioPlayer?.classList.add('flip-in-reset');
+        setTimeout(() => {
+          audioPlayer?.classList.remove('flip-in-reset');
+        }, 500);
+      }, 50);
+
+      // Auto-play the new station with stall detection
+      setTimeout(() => {
+        if (audioRef.current) {
+          clearTimeout(stallTimerRef.current);
+          stallTimerRef.current = setTimeout(() => setAudioError(true), 4000);
+          audioRef.current.play()
+            .then(() => {
+              setAudioPlaying(true);
+              clearTimeout(stallTimerRef.current);
+            })
+            .catch(e => {
+              if (!(e.message && e.message.includes('aborted'))) {
+                console.error('Audio playback error after station reset:', e);
+              }
+            });
+        }
+      }, 100);
+    };
+
+    // Animate existing guess colors to green before clearing, or just proceed
+    if (guessesSnapshot.length > 0) {
+      animateColorsToTarget(guessesSnapshot, '#58CC02', freshStart);
+    } else {
+      freshStart();
+    }
+  }, [guesses, spinTransition, startNewRound, animateColorsToTarget]);
 
   // Wrap handleAudioError in useCallback
   const handleAudioError = useCallback((error) => {
     setIsLoading(true); // Keep loading state during error
-    setAudioError(true); // Show error link (progressive disclosure)
+    // Delay showing "Try another station" by 3s — gives auto-recovery time to fix it
+    clearTimeout(audioErrorTimerRef.current);
+    audioErrorTimerRef.current = setTimeout(() => setAudioError(true), 3000);
     if (error?.code === 1) {
       
       // ...any additional logic...
@@ -1643,10 +1945,10 @@ function App() {
     if (!error) return; // Guard against null errors
     console.error("Audio Error:", error);
     
-    // Handle all media error codes
+    // Handle all media error codes — silently auto-recover (no visual reset)
     if (error.code === 1) { // MEDIA_ERR_ABORTED
       console.log("Media playback aborted, trying new station...");
-      callStationBroken();
+      autoRecoverStation();
       return;
     }
     
@@ -1660,9 +1962,9 @@ function App() {
         error.code === 4    // MEDIA_ERR_SRC_NOT_SUPPORTED
     ) {
       console.log("Media error detected, refreshing station...");
-      callStationBroken();
+      autoRecoverStation();
     }
-  }, [callStationBroken]);
+  }, [autoRecoverStation]);
 
   // Update the useEffect to include handleAudioError in dependencies
   useEffect(() => {
@@ -1680,16 +1982,15 @@ function App() {
   }, [handleAudioError, cleanupAudio]);
 
   /* Globe Material — vivid ocean blue */
-  const globeMaterial = useMemo(
-    () => new THREE.MeshPhongMaterial({
+  const globeMaterial = useMemo(() => {
+    return new THREE.MeshPhongMaterial({
       color: '#039BE5',
       emissive: new THREE.Color(0x0066aa),
       emissiveIntensity: 0.45,
       shininess: 15,
       specular: new THREE.Color('#2a5a7a'),
-    }),
-    []
-  );
+    });
+  }, []);
 
   // Updated toggleAudio function
   const toggleAudio = () => {
@@ -1706,16 +2007,20 @@ function App() {
         setIsLoading(true);
       }
       setUserPausedAudio(false);  // User is playing, clear the paused flag
+      // Start stall timer — if audio doesn't play within 4s, show error button
+      clearTimeout(stallTimerRef.current);
+      stallTimerRef.current = setTimeout(() => setAudioError(true), 4000);
       audioRef.current
         .play()
         .then(() => {
           setIsLoading(false);
           setAudioPlaying(true);
+          clearTimeout(stallTimerRef.current);
         })
         .catch((e) => {
           if (!(e.message && e.message.includes("aborted"))) {
             console.error("Audio playback error in toggleAudio:", e);
-            callStationBroken();
+            autoRecoverStation();
           }
           setIsLoading(false);
         });
@@ -1738,7 +2043,6 @@ function App() {
     setCurrentRound(1);
     setScore(0);
     setUsedCountries([]);
-    setUsedLanguages(new Set());
     startNewRound(); // Starts new round after user gesture
   }, [startNewRound]);
 
@@ -1809,6 +2113,20 @@ function App() {
   // Tally tick sound — played as individual ticks during score count-up
   const tallySound = useMemo(() => {
     const audio = new Audio(`${import.meta.env.BASE_URL}audio/tally.mp3`);
+    return audio;
+  }, []);
+
+  // Round-lose buzzer — played when the player runs out of points
+  const roundLoseSound = useMemo(() => {
+    const audio = new Audio(`${import.meta.env.BASE_URL}audio/roundlose.mp3`);
+    audio.volume = 0.10; // Match success sound volume
+    return audio;
+  }, []);
+
+  // Wrong guess sound — played on each incorrect country selection
+  const wrongSelectSound = useMemo(() => {
+    const audio = new Audio(`${import.meta.env.BASE_URL}audio/wrongselect.mp3`);
+    audio.volume = 0.30;
     return audio;
   }, []);
 
@@ -1893,12 +2211,15 @@ function App() {
     };
   }, [handleAudioLoadStart, handleAudioLoadEnd, handleAudioError]);
 
-  // NEW: Clear loading spinner when audio is playing
+  // Clear loading spinner, stall timer, and error state when audio is playing
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     const handlePlaying = () => {
       setIsLoading(false);
+      setAudioError(false);
+      clearTimeout(stallTimerRef.current);
+      clearTimeout(audioErrorTimerRef.current);
     }
     audio.addEventListener('playing', handlePlaying);
     return () => {
@@ -2054,7 +2375,7 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showResultBar, showRoundModal, gameOver, handleResultBarContinue, handleNextRound, playAgain]);
 
-  // NEW: Show result bar on correct guess
+  // NEW: Show result bar on correct guess OR round failure (0 points)
   useEffect(() => {
     if (correctGuess) {
       // 1. Start audio player exit animation
@@ -2065,21 +2386,33 @@ function App() {
         setShowResultBar(true);
       }, 550);
       
-      // 3. Confetti when result bar is sliding in
-      const confettiTimer = setTimeout(() => {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      }, 650);
+      // 3. Confetti only on actual correct guess, not on round failure
+      let confettiTimer;
+      if (!roundFailed) {
+        confettiTimer = setTimeout(() => {
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }, 650);
+      }
       
       return () => {
         clearTimeout(resultBarTimer);
-        clearTimeout(confettiTimer);
+        if (confettiTimer) clearTimeout(confettiTimer);
       };
     }
-  }, [correctGuess]);
+  }, [correctGuess, roundFailed]);
+
+  // Pulse the revealed country on round failure — toggles altitude every 600ms
+  useEffect(() => {
+    if (!roundFailed) return;
+    const interval = setInterval(() => {
+      setRevealPulse(prev => !prev);
+    }, 600);
+    return () => clearInterval(interval);
+  }, [roundFailed]);
 
   // Animate round score and attempts from 0 to final when result bar appears
   useEffect(() => {
@@ -2187,14 +2520,29 @@ function App() {
 
   return (
     <div className="globe-container">
-      {/* Result Bar - GeoGuessr-style bottom panel after correct guess */}
+      {/* Damage vignette — red constriction from screen edges on wrong guesses */}
+      <div
+        className={`damage-vignette${attempts >= 7 ? ' damage-vignette--critical' : ''}`}
+        style={{ '--damage-level': Math.min(attempts / 9, 1) }}
+        key={`vignette-${damageKey}`}
+      />
       {showResultBar && (
         <div className="result-bar">
           <div className="result-bar__content">
             <div className="result-bar__wrapper">
               {/* Left: Attempts indicator */}
-              <div className="result-bar__left">
+              <div className={`result-bar__left ${roundFailed ? 'result-bar__left--failed' : ''}`}>
                 {(() => {
+                  if (roundFailed) {
+                    return (
+                      <>
+                        <div className="result-bar__attempts-wrapper">
+                          <span className="result-bar__attempts result-bar__attempts--failed">✕</span>
+                        </div>
+                        <p className="result-bar__label">ROUND OVER</p>
+                      </>
+                    );
+                  }
                   // Use animated attempts value for count-up effect
                   const displayAttempts = animatedAttempts || 1;
                   // Get final attempts for the label (don't animate the label text)
@@ -2232,12 +2580,12 @@ function App() {
               </div>
               
               {/* Right: Score indicator */}
-              <div className="result-bar__right">
-                <span className="result-bar__score">
+              <div className={`result-bar__right ${roundFailed ? 'result-bar__right--failed' : ''}`}>
+                <span className={`result-bar__score ${roundFailed ? 'result-bar__score--failed' : ''}`}>
                   {animatedRoundScore.toLocaleString()}
                 </span>
                 <p className="result-bar__max-label">
-                  Of 5,000 points
+                  {roundFailed ? 'Out of points' : 'Of 5,000 points'}
                 </p>
               </div>
             </div>
@@ -2255,6 +2603,21 @@ function App() {
         y={coachingTip.y}
         heatmapColor={coachingTip.heatmapColor}
         isOnVisibleSide={coachingTip.isOnVisibleSide}
+      />
+
+      {/* Round Indicator — top-left progress pips (shown between rounds) */}
+      <RoundIndicator
+        currentRound={currentRound}
+        roundResults={roundResults}
+        visible={showResultBar && !gameOver && firstRunComplete}
+      />
+
+      {/* Live Score Counter — GeoGuessr-style health bar */}
+      <ScoreCounter
+        attempts={attempts}
+        roundFailed={roundFailed}
+        damageKey={damageKey}
+        visible={!!radioStation && !showResultBar && !gameOver && !showRoundModal && firstRunComplete && !correctGuess}
       />
 
       {/* Custom Audio Player */}
@@ -2304,7 +2667,7 @@ function App() {
           {audioError && (
             <div 
               className="radio-error" 
-              onClick={startNewRound}
+              onClick={callStationBroken}
             >
               Try another station
             </div>
@@ -2320,7 +2683,7 @@ function App() {
         globeMaterial={globeMaterial}
         backgroundColor="rgba(0,0,0,0)"
         showAtmosphere={true}
-        atmosphereColor="rgba(80,160,255,0.35)"
+        atmosphereColor="rgb(80,160,255)"
         atmosphereAltitude={0.18}
         rendererConfig={{
           antialias: true,
@@ -2337,6 +2700,11 @@ function App() {
             return guess.color;
           }
           
+          // Round failed: pulse between gold highlight and the heatmap "correct" color
+          if (roundFailed && targetCountry && d.id === targetCountry.id) {
+            return revealPulse ? '#FFC628' : '#b83700';
+          }
+          
           // Handle mobile selection — bright cyan highlight
           if (isMobile && selectedCountry?.polygonId === polygonId) {
             return '#00E5FF';
@@ -2349,6 +2717,9 @@ function App() {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return '#000000';  // black stroke for correct country
           }
+          if (roundFailed && targetCountry && d.id === targetCountry.id) {
+            return '#FFA43D';  // orange stroke for failed-round reveal
+          }
           const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
           if (isMobile && selectedCountry?.polygonId === polygonId) {
             return '#FFFFFF';  // white stroke for selected country
@@ -2358,6 +2729,9 @@ function App() {
         polygonSideColor={d => {
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return "#000000";  // solid color for sides when correct
+          }
+          if (roundFailed && targetCountry && d.id === targetCountry.id) {
+            return '#D06429';  // dark orange sides for failed-round reveal
           }
           const polygonId = d.properties?.iso_a2 || d.properties?.name || d.id;
           if (isMobile && selectedCountry?.polygonId === polygonId) {
@@ -2374,6 +2748,10 @@ function App() {
           }
           if (correctGuess && targetCountry && d.id === targetCountry.id) {
             return 0.025;  // extrude correct country
+          }
+          // Round failed: pulse the correct country up so it's unmissable
+          if (roundFailed && targetCountry && d.id === targetCountry.id) {
+            return revealPulse ? 0.05 : 0.03;  // pulsing altitude
           }
           if (hoveredPolygonId === polygonId) {
             return 0.025;  // raise hovered country
@@ -2449,6 +2827,7 @@ function App() {
         onPlayAgain={playAgain}
         totalScore={score}
         roundResults={roundResults}
+        volume={volume}
         onFlagError={handleFlagError}
       />
     </div>
